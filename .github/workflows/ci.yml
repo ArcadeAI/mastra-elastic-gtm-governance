@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned to the version the Dockerfiles run, so CI and the deployed
+          # images cannot disagree about the runtime.
+          bun-version: 1.3.14
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # apps/idp is not a workspace member — it stands in for the enterprise
+      # IdP and needs zod 4, which the root override forbids — so it installs
+      # and typechecks on its own. `bun test` below still finds its tests.
+      - name: Install apps/idp
+        run: bun install --frozen-lockfile --cwd apps/idp
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Typecheck apps/idp
+        run: bun run --cwd apps/idp typecheck
+
+      # The hook contract is generated from a vendored copy of Arcade's OpenAPI
+      # document. `bun test` catches a stale committed file too, but this step
+      # names the cause and the fix instead of failing as an opaque string diff.
+      - name: Hook contract is regenerated from the vendored spec
+        run: bun run --cwd packages/policy-schema generate:check
+
+      # idp.db's schema is generated from the installed Better Auth. A stale
+      # file fails `bun test` too, but this names the fix.
+      - name: idp schema is regenerated from the installed Better Auth
+        run: bun run --cwd apps/idp generate:check
+
+      - name: Test
+        run: bun test
+
+      # `bun test` and `tsc` never exercise `apps/web`'s build, and a Next.js
+      # build is where most of this service's failures show up.
+      - name: Build web
+        run: bun run --cwd apps/web build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+  toolkits:
+    name: test tools/loan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      # The toolkit's tests boot the real `apps/loan-app` as a subprocess and
+      # drive the four tools through it, so Bun is needed here too.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        working-directory: tools/loan
+        run: uv run --frozen --extra dev pytest
+
+  images:
+    name: build ${{ matrix.service }} image
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [hooks, loan-app, web, idp]
+        include:
+          # cg-idp refuses to boot under NODE_ENV=production without a
+          # BETTER_AUTH_SECRET, on purpose: on Render the secret is generated
+          # once and encrypts the OAuth client secret at rest, and a boot that
+          # silently fell back to a known key would be worse than no boot. The
+          # smoke test hands it a throwaway one.
+          - service: idp
+            smoke_env: -e BETTER_AUTH_SECRET=ci-smoke-only-not-a-real-secret-0000
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # All four services are runtime: docker with hand-written Dockerfiles,
+      # so without this the entire container path is only ever exercised by a
+      # Render deploy. A workspace added without its matching
+      # `COPY packages/<new>/package.json` line would keep CI green and then
+      # fail `bun install --frozen-lockfile` inside the image at deploy time.
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/${{ matrix.service }}/Dockerfile
+          push: false
+          load: true
+          tags: cg-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      # A Dockerfile that builds is not an image that serves. A `COPY` narrowed
+      # to the wrong set of files builds green and dies on boot, so boot it and
+      # ask the same question Render's health check asks. No database, no
+      # network beyond localhost: every service seeds or stubs on its own.
+      - name: Boot and check /health
+        run: |
+          docker run -d --name svc -p 8080:8080 -e PORT=8080 ${{ matrix.smoke_env }} cg-${{ matrix.service }}:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health; then echo; exit 0; fi
+            sleep 1
+          done
+          echo "::error::${{ matrix.service }} did not answer /health"
+          docker logs svc
+          exit 1
