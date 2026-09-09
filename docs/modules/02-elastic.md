@@ -1,15 +1,17 @@
-# Module 2 — Elastic: prepare the account evidence
+# Module 2: Elastic, prepare the account evidence
 
 **Owner:** Elastic presenter. **Budget:** 55 minutes, including signup and provisioning.
 
-**Guide status:** the fixture loader exists. Fresh-account setup and native MCP execution
-still need the measured Spike 04 walkthrough before event delivery.
+**Guide status:** the fixture now describes discount evidence; record a current seed/read
+result for this revision. Rehearse the fresh-account Elastic
+setup and native MCP call against the current service before event delivery; record the
+observed tool names and response in [Testing](../TESTING.md).
 
 ## Your result
 
 Your own Elastic project contains the account evidence missing from the starter's answer.
-Investigate the same question in Elastic: **“What evidence supports qualifying Northwind,
-and what is missing?”** Save the source event IDs and native answer. In the Arcade section,
+Investigate the same question in Elastic: **“What evidence supports Northwind's requested 30% renewal discount,
+and what still needs checking?”** Save the source event IDs and native answer. In the Arcade section,
 your Mastra agent will retrieve those same events through the gateway.
 
 ## Build together
@@ -19,10 +21,10 @@ Follow the [Elastic setup and retrieval guide](../../elastic/README.md):
 1. Sign up and start provisioning your Elasticsearch Serverless project. While it starts,
    explore the sample data with the presenter.
 2. Create a narrowly scoped setup key, configure the local fixture loader, and run
-   `bun run elastic:seed` from the repo root.
+   `bun run workshop seed --variant clean` from the repo root.
 3. Find Northwind's four evidence events through native Elastic retrieval. Use the saved
-   question from Module 1, inspect the source IDs, and distinguish trial activity,
-   enterprise documentation interest, security questions, and the prior expansion estimate.
+   question from Module 1, inspect the source IDs, and distinguish adoption,
+   renewal timing, the competitor quote, and the unconfirmed budget. None grants a discount.
    Save the answer and at least two supporting event IDs for the integration comparison.
 4. Run the native aggregation with the explicit fixture date window. The checked-in data
    is dated August 2026; a relative window on the event date would exclude it.
@@ -31,10 +33,11 @@ Follow the [Elastic setup and retrieval guide](../../elastic/README.md):
 
 ## Checkpoint and handoff
 
-Verify eight fixture events across five leads, successful native retrieval, and successful
-native MCP authentication/search using the scoped credential. Your saved answer includes at
-least two Northwind source event IDs for the same question asked in Module 1. Exact MCP
-checks and observed tool names will be added from Spike 04.
+Verify eight fixture events across five accounts, successful native retrieval, and successful
+native MCP inventory using the scoped credential. Your saved answer includes at
+least two Northwind source event IDs for the same question asked in Module 1. Use the
+[native MCP check](../../elastic/README.md#check-the-native-mcp-connection) and retain its
+actual names for the next section; inventory alone does not prove a search call.
 
 Keep the URL and key in your own configuration. Hand them to your own project in
 [Module 3 — Arcade](03-arcade.md). That presenter owns storing the key in Arcade, registering

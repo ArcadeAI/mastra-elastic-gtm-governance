@@ -22,13 +22,8 @@
  * Having nobody eligible is an ordinary outcome, not an error and not a quiet
  * fallback to the highest authority: the caller gets a value it can branch on.
  *
- * Parity note for `tools/approvals` (#18), which reimplements this in Python:
- * `sorted(eligible, key=lambda s: (s.clearance, s.user_id))[0]` is equivalent
- * provided user ids are ASCII. JavaScript orders strings by UTF-16 code unit
- * and Python by code point; the two agree for everything in the Basic
- * Multilingual Plane, which covers every email address we will ever seed.
- * Python must also use `>=` for sufficiency and exclude the requester by
- * `user_id` equality before sorting.
+ * The hooks service calls this implementation when creating an approval;
+ * transports do not maintain a separate copy of the routing policy.
  */
 import type { Subject } from "@cg/policy-schema";
 

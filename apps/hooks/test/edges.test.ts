@@ -3,14 +3,14 @@ import { createHash } from "node:crypto";
 import { createHooksApp } from "../src/app";
 
 const dana = "dana@example.test", riley = "riley@example.test";
-const action = { lead_id: "LD-2291", estimated_acv: 95000, owner_email: "drew@sales.example", rationale: "Enterprise SOURCE_SECRET", operation_key: "edge-operation" };
+const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Enterprise SOURCE_SECRET", operation_key: "edge-operation" };
 let app: ReturnType<typeof createHooksApp>;
 let server: ReturnType<typeof Bun.serve>, dependency: ReturnType<typeof Bun.serve>;
 let now: number, value: number;
 let valueGate: Promise<void> | null, valueEntered: (() => void) | null;
 
-function hook(actor = dana, inputs = action, name = "RouteLead") {
-  return { execution_id: crypto.randomUUID(), tool: { toolkit: "Lead", name, version: "1.0.0" }, inputs, context: { user_id: actor } };
+function hook(actor = dana, inputs = action, name = "CreateDiscountedOffer") {
+  return { execution_id: crypto.randomUUID(), tool: { toolkit: "Sales", name, version: "1.0.0" }, inputs, context: { user_id: actor } };
 }
 async function call(path: string, body?: unknown, token: string | null = "hook", headers: Record<string, string> = {}, method = body === undefined ? "GET" : "POST") {
   const response = await fetch(new URL(path, server.url), { method, headers: { "content-type": "application/json", ...(token === null ? {} : { authorization: `Bearer ${token}` }), ...headers }, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -43,8 +43,8 @@ async function readApproval(id: string) {
   return ok(`/internal/approvals/${id}?viewer_user_id=${dana}`, undefined, "web");
 }
 async function waitingRun(trace: { text?: string; tool_calls?: unknown[] } = {}) {
-  await ok("/internal/runs", { run_id: "run-edge", requester_user_id: dana, stage: "governed", message: "Research and route" }, "web");
-  await ok("/internal/runs/run-edge/action", { operation_key: action.operation_key, tool_name: "Lead.RouteLead", arguments: action }, "web");
+  await ok("/internal/runs", { run_id: "run-edge", requester_user_id: dana, stage: "governed", message: "Research and discount" }, "web");
+  await ok("/internal/runs/run-edge/action", { operation_key: action.operation_key, tool_name: "Sales.CreateDiscountedOffer", arguments: action }, "web");
   const request = await approval(), delivery = await claim(request.request_id);
   await ok(`/internal/approvals/${request.request_id}/notification/result`, { requester_id: dana, claim_id: delivery.claim_id, outcome: "sent", channel: "DSELF", ts: "100.001" }, "approvals");
   await ok("/internal/runs/run-edge/approval", { request_id: request.request_id, operation_key: action.operation_key, tool_call_id: "waiting" }, "web");
@@ -52,27 +52,57 @@ async function waitingRun(trace: { text?: string; tool_calls?: unknown[] } = {})
   return request;
 }
 
+test("the host requests approval only for its run's exact authority denial", async () => {
+  await ok("/internal/runs", { run_id: "host-run", requester_user_id: dana, stage: "governed", message: "Research and discount" }, "web");
+  await ok("/internal/runs/host-run/action", { operation_key: action.operation_key, tool_name: "Sales.CreateDiscountedOffer", arguments: action }, "web");
+  const body = { run_id: "host-run", requester_id: dana, justification: "Review the blocked action" };
+  expect((await call("/internal/approvals/request", body, "approvals")).status).toBe(409);
+  await denial();
+  expect((await call("/internal/approvals/request", { ...body, requester_id: riley }, "approvals")).status).toBe(403);
+  const created = await ok("/internal/approvals/request", body, "approvals");
+  expect(created.approver_id).toBe(riley);
+  expect(created.operation_key).toBe(action.operation_key);
+  expect((await ok("/internal/approvals/request", body, "approvals")).request_id).toBe(created.request_id);
+  expect((await call(`/internal/approvals/${created.request_id}/delivery?requester_id=${riley}`, undefined, "approvals")).status).toBe(403);
+  expect((await call(`/internal/approvals/${created.request_id}/delivery?requester_id=${dana}`, undefined, "web")).status).toBe(401);
+  expect((await ok(`/internal/approvals/${created.request_id}/delivery?requester_id=${dana}`, undefined, "approvals")).request_id).toBe(created.request_id);
+});
+
+test("a run can wait for Slack consent without becoming eligible for approval or resume", async () => {
+  await ok("/internal/runs", { run_id: "consent-run", requester_user_id: dana, stage: "governed", message: "Research and discount" }, "web");
+  await ok("/internal/runs/consent-run/action", { operation_key: action.operation_key, tool_name: "Sales.CreateDiscountedOffer", arguments: action }, "web");
+  const request = await approval();
+  await ok("/internal/runs/consent-run/approval", { request_id: request.request_id, operation_key: action.operation_key, tool_call_id: "denied-write" }, "web");
+  expect((await ok("/internal/runs/consent-run/suspended", { tool_call_id: "denied-write" }, "web")).run.status).toBe("waiting");
+  expect((await decide(request.request_id)).status).toBe(409);
+  expect((await call("/internal/runs/consent-run/resume", { actor_user_id: riley }, "web")).status).toBe(409);
+  expect((await readApproval(request.request_id)).approval.status).toBe("pending");
+});
+
 beforeEach(async () => {
-  now = Date.now(); value = 95000; valueGate = null; valueEntered = null;
+  now = Date.now(); value = 12000; valueGate = null; valueEntered = null;
   dependency = Bun.serve({ hostname: "127.0.0.1", port: 0, async fetch(req) {
     const path = new URL(req.url).pathname;
     if (path === "/oauth2/userinfo") return req.headers.get("authorization") === "Bearer riley-oauth" ? Response.json({ email: riley }) : new Response("Unauthorized", { status: 401 });
     if (req.headers.get("authorization") !== "Bearer lead-internal") return new Response("Unauthorized", { status: 401 });
     if (path.startsWith("/internal/operations/")) return new Response("Missing", { status: 404 });
-    if (path === "/internal/leads/LD-2291/value") { valueEntered?.(); if (valueGate) await valueGate; return Response.json({ lead_id: "LD-2291", estimated_acv: value }); }
+    if (path === "/internal/accounts/ACC-2291/value") { valueEntered?.(); if (valueGate) await valueGate; return Response.json({ account_id: "ACC-2291", list_price: value }); }
     return new Response("Missing", { status: 404 });
   } });
   app = createHooksApp({ dbPath: ":memory:", hookSecret: "hook", operatorToken: "operator", approvalsToken: "approvals", webToken: "web", leadHost: dependency.url.origin, leadToken: "lead-internal", idpHost: dependency.url.origin, webOrigin: "http://localhost:3000", subjectEmails: { dana, riley, sam: "sam@example.test", morgan: "morgan@example.test" }, verificationUserId: "verify@example.test", elasticTools: [{ toolkit: "Elastic", name: "Observed_Search", arguments: ["query"] }], soloSlackDelivery: true, allowedSlackTeamId: "TWORKSHOP", now: () => now });
   server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: app.fetch });
-  await denial("verify@example.test");
-  await ok("/post", { ...hook("verify@example.test", {} as typeof action, "GetLead"), success: true, output: { personal_phone: "+1-415-555-0137" } });
+  const verificationDenial = hook("verify@example.test"), verificationFilter = hook("verify@example.test", {} as typeof action, "GetAccount");
+  await ok("/operator/verification", { operation_key: action.operation_key }, "operator");
+  expect((await ok("/pre", verificationDenial)).code).toBe("CHECK_FAILED");
+  await ok("/post", { ...verificationFilter, success: true, output: { personal_phone: "+1-415-555-0137" } });
+  await ok("/operator/verification/confirm", { operation_key: action.operation_key, denial_execution_id: verificationDenial.execution_id, filter_execution_id: verificationFilter.execution_id }, "operator");
   await ok("/operator/activate", {}, "operator");
 });
 afterEach(() => { server?.stop(true); dependency?.stop(true); app?.close(); });
 
 test("approval display applies output policy for the original action tool", async () => {
   const doc = await policy();
-  doc.output_rules.push({ ...doc.output_rules[0], id: "route-rationale", match: { toolkit: "Lead", tool: "RouteLead" }, fields: [], patterns: [{ id: "source-secret", regex: "SOURCE_SECRET", strategy: "remove" }] });
+  doc.output_rules.push({ ...doc.output_rules[0], id: "route-rationale", match: { toolkit: "Sales", tool: "CreateDiscountedOffer" }, fields: [], patterns: [{ id: "source-secret", regex: "SOURCE_SECRET", strategy: "remove" }] });
   await updatePolicy(doc);
   const request = await approval();
   expect(request.inputs.rationale).toContain("Enterprise");
@@ -80,14 +110,14 @@ test("approval display applies output policy for the original action tool", asyn
 });
 
 test("pre checks authority changed while authoritative lookup was pending", async () => {
-  const initial = await policy(); initial.subjects.find((s: any) => s.user_id === dana).clearance = 100000;
+  const initial = await policy(); initial.subjects.find((s: any) => s.user_id === dana).clearance = 40;
   await updatePolicy(initial);
   let release!: () => void;
   valueGate = new Promise(resolve => { release = resolve; });
   const entered = new Promise<void>(resolve => { valueEntered = resolve; });
   const pending = call("/pre", hook());
   await entered;
-  const reduced = await policy(); reduced.subjects.find((s: any) => s.user_id === dana).clearance = 50000;
+  const reduced = await policy(); reduced.subjects.find((s: any) => s.user_id === dana).clearance = 15;
   await updatePolicy(reduced);
   release();
   expect((await pending).body.code).toBe("CHECK_FAILED");
@@ -127,14 +157,14 @@ test("a stalled sending claim never becomes eligible for automatic repost", asyn
 
 test("a decision rechecks the assigned approver's current authority", async () => {
   const request = await approval();
-  const doc = await policy(); doc.subjects.find((s: any) => s.user_id === riley).clearance = 50000;
+  const doc = await policy(); doc.subjects.find((s: any) => s.user_id === riley).clearance = 15;
   await updatePolicy(doc);
   expect((await decide(request.request_id)).status).toBe(403);
   expect((await readApproval(request.request_id)).approval.status).toBe("pending");
 });
 
-test("a decision rechecks the lead's authoritative value", async () => {
-  const request = await approval(); value = 300000;
+test("a decision rechecks the account's authoritative list price", async () => {
+  const request = await approval(); value = 13000;
   expect((await decide(request.request_id)).status).toBe(403);
   expect((await readApproval(request.request_id)).approval.status).toBe("pending");
 });
@@ -147,16 +177,16 @@ test("operator evidence joins safe initial and resumed traces with canonical rec
   const waiting = await ok("/operator/runs/run-edge/evidence", undefined, "operator");
   expect(waiting.run.resumed_at).toBeNull();
   expect(waiting.run.tool_calls).toEqual([{ toolCallId: "research-1", result: { source: "EVT-1" } }]);
-  await ok("/internal/runs/run-edge/result", { lease_id: claim.lease_id, status: "completed", text: "Routed based on EVT-1", tool_calls: [{ toolCallId: "route-1", result: { lead_id: "LD-2291" } }] }, "web");
+  await ok("/internal/runs/run-edge/result", { lease_id: claim.lease_id, status: "completed", text: "Offer drafted based on EVT-1", tool_calls: [{ toolCallId: "route-1", result: { account_id: "ACC-2291" } }] }, "web");
   const evidence = await ok("/operator/runs/run-edge/evidence", undefined, "operator");
   expect(evidence.run.resumed_at).toBe(new Date(now).toISOString());
   expect(evidence.run.tool_calls.map((t: any) => t.toolCallId)).toEqual(["research-1", "route-1"]);
   expect(evidence.approval.request_id).toBe(request.request_id);
   expect(evidence.action.operation_key).toBe(action.operation_key);
   expect(evidence.action.arguments).toBeUndefined();
-  expect(evidence.denial).toEqual({ execution_id: expect.any(String), operation_key: action.operation_key, request_id: request.request_id, requester_id: dana, tool_name: "Lead.RouteLead" });
+  expect(evidence.denial).toEqual({ execution_id: expect.any(String), operation_key: action.operation_key, request_id: request.request_id, requester_id: dana, tool_name: "Sales.CreateDiscountedOffer" });
   expect(evidence.events.some((event: any) => event.decision === "deny" && event.execution_id === evidence.denial.execution_id && event.user_id === dana && event.tool === evidence.denial.tool_name)).toBe(true);
-  const binding = `{"action":"route","actor":"${dana}","body":{"estimated_acv":95000,"owner_email":"drew@sales.example","rationale":"Enterprise SOURCE_SECRET"},"lead_id":"LD-2291"}`;
+  const binding = `{"account_id":"ACC-2291","action":"discount","actor":"${dana}","body":{"discount_percent":30,"list_price":12000,"rationale":"Enterprise SOURCE_SECRET"}}`;
   expect(evidence.action.receipt_binding_hash).toBe(createHash("sha256").update(binding).digest("hex"));
   expect(evidence.events.some((event: any) => event.decision === "approved" && event.request_id === request.request_id)).toBe(true);
   expect(JSON.stringify(evidence)).not.toContain("+1-415-555-0137");

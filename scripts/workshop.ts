@@ -10,7 +10,7 @@ import { hash, safeArtifact, verifyEvidence } from "./workshop-evidence";
 type Check = { boundary: string; status: "verified" | "configured" | "missing" | "failed" | "unexercised"; detail: string };
 type Report = { command: string; status: string; live_proof: boolean; checks: Check[]; [name: string]: unknown };
 type Options = Record<string, string | boolean>;
-const requiredToolEnv = ["ARCADE_ROUTE_TOOL_NAME", "ARCADE_CLASSIFY_TOOL_NAME", "ARCADE_REQUEST_APPROVAL_TOOL_NAME", "ARCADE_DECIDE_TOOL_NAME"];
+const requiredToolEnv = ["ARCADE_DISCOUNT_TOOL_NAME", "ARCADE_GET_OFFER_TOOL_NAME"];
 const env = (name: string) => process.env[name]?.trim() || "";
 const values = (value: string) => [...new Set(value.split(",").map(s => s.trim()).filter(Boolean))];
 
@@ -67,19 +67,23 @@ async function check(report: Report, boundary: string, action: () => Promise<str
   try { report.checks.push({ boundary, status: "verified", detail: await action() }); }
   catch (error) { report.checks.push({ boundary, status: "failed", detail: error instanceof Error ? error.message : "Check failed." }); }
 }
-async function discoveredTools() {
-  if (!/^[^@\s]+@[^@\s]+$/.test(env("PERSONA_DANA_EMAIL"))) throw new Error("PERSONA_DANA_EMAIL must be the attendee's Arcade account email.");
+async function withGateway<T>(userId: string, action: (client: any, require: ReturnType<typeof createRequire>) => Promise<T>) {
+  if (!/^[^@\s]+@[^@\s]+$/.test(userId)) throw new Error("The configured gateway identity must be an email address.");
   const require = createRequire(new URL("../apps/web/package.json", import.meta.url));
   const { MCPClient } = require("@mastra/mcp");
   const url = new URL(gatewayUrl());
-  const client = new MCPClient({ servers: { arcade: { url, allowedHosts: [url.host], forwardInstructions: false, requestInit: { headers: { Authorization: `Bearer ${env("ARCADE_API_KEY")}`, "Arcade-User-ID": env("PERSONA_DANA_EMAIL") } } } }, timeout: 10000 });
-  try {
+  const client = new MCPClient({ servers: { arcade: { url, allowedHosts: [url.host], forwardInstructions: false, requestInit: { headers: { Authorization: `Bearer ${env("ARCADE_API_KEY")}`, "Arcade-User-ID": userId } } } }, timeout: 30000 });
+  client.__setLogger(require("@mastra/core/logger").noopLogger);
+  try { return await action(client, require); } finally { await client.disconnect(); }
+}
+async function discoveredTools(userId = env("PERSONA_DANA_EMAIL")) {
+  return withGateway(userId, async client => {
     const result = await client.listToolDefinitionsWithErrors({ perServerTimeoutMs: 8000 });
     if (Object.keys(result.errors ?? {}).length) throw new Error("Gateway MCP discovery failed. Check the gateway connection and consent in Arcade.");
     const tools = Object.values(result.definitions.arcade ?? {}) as Array<{ name: string; description?: string; inputSchema?: unknown }>;
     if (!tools.length) throw new Error("Gateway discovery returned no usable tools. Connect Elastic and retry; no tool names were guessed.");
     return tools.map(({ name, description }) => ({ name, description }));
-  } finally { await client.disconnect(); }
+  });
 }
 function elasticHookTools(): Array<{ toolkit: string; name: string; arguments: string[] }> {
   const tools = JSON.parse(env("ARCADE_ELASTIC_HOOK_TOOLS"));
@@ -130,9 +134,9 @@ async function readiness(options: Options): Promise<Report> {
         return "The hooks owner reports an active policy with verified denial and filter flags.";
       });
       await check(report, "lead_value", async () => {
-        const value = await jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/leads/LD-2291/value", env("LEAD_INTERNAL_TOKEN"));
-        if (value.lead_id !== "LD-2291" || value.estimated_acv !== 95000) throw new Error("Northwind's authoritative value differs from the 95000 workshop baseline; reset before the exercise.");
-        return "The Lead owner authenticated the internal reader and returned Northwind's authoritative 95000 value.";
+        const value = await jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/accounts/ACC-2291/value", env("LEAD_INTERNAL_TOKEN"));
+        if (value.account_id !== "ACC-2291" || value.list_price !== 12000) throw new Error("Northwind's authoritative value differs from the 12000 workshop baseline; reset before the exercise.");
+        return "The Sales owner authenticated the internal reader and returned Northwind's authoritative 12000 value.";
       });
       report.checks.push({ boundary: "oauth_and_slack", status: "unexercised", detail: "A readiness probe does not establish OAuth consent or Slack delivery. Complete the authenticated exercise and inspect its evidence." });
     }
@@ -147,13 +151,16 @@ async function readiness(options: Options): Promise<Report> {
 }
 
 async function discover(options: Options): Promise<Report> {
-  allowed(options, ["output", "elastic-tools"]);
+  allowed(options, ["output", "elastic-tools", "identity"]);
+  if (options.identity && !["attendee", "verification"].includes(String(options.identity))) throw new Error("Identity must be attendee or verification.");
+  const identityEnv = options.identity === "verification" ? "WORKSHOP_VERIFICATION_USER_ID" : "PERSONA_DANA_EMAIL";
   const report: Report = { command: "discover", status: "incomplete", live_proof: false, checks: [] };
-  if (!requireConfig(report, ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID", "PERSONA_DANA_EMAIL"])) return report;
-  const observed = await discoveredTools();
+  if (!requireConfig(report, ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID", identityEnv])) return report;
+  const observed = await discoveredTools(env(identityEnv));
   report.observed = observed;
-  const selected = values(String(options["elastic-tools"] ?? env("ARCADE_ELASTIC_TOOL_NAMES")));
+  const selected = values(String(options["elastic-tools"] ?? (options.identity === "verification" ? "" : env("ARCADE_ELASTIC_TOOL_NAMES"))));
   if (!selected.length) {
+    if (!options.output) { report.status = "inventory"; report.checks.push({ boundary: "gateway_discovery", status: "verified", detail: "Inventory only. Select exact Elastic names with --elastic-tools before writing configuration; no tool was executed." }); return report; }
     report.checks.push({ boundary: "tool_selection", status: "missing", detail: "Choose Elastic tools from this inventory with --elastic-tools exactName1,exactName2. No tool names were inferred." });
     return report;
   }
@@ -161,7 +168,8 @@ async function discover(options: Options): Promise<Report> {
   for (const key of requiredToolEnv) if (env(key)) configuration[key] = env(key);
   const missing = [...selected, ...requiredToolEnv.map(env).filter(Boolean)].filter(name => !observed.some(tool => tool.name === name));
   if (missing.length) throw new Error(`Selected tool names were not observed: ${missing.join(", ")}. No configuration written.`);
-  if (env("ARCADE_ELASTIC_HOOK_TOOLS")) {
+  const configuredHookTools = env("ARCADE_ELASTIC_HOOK_TOOLS");
+  if (configuredHookTools && JSON.stringify(JSON.parse(configuredHookTools)) !== "[]") {
     // MCP names and hook identities are different namespaces. The operator supplies the
     // latter from observed hook payloads; this command never normalizes one into another.
     const hookTools = elasticHookTools();
@@ -215,7 +223,7 @@ async function reset(options: Options): Promise<Report> {
   const steps: Array<[string, () => Promise<any>, (value: any) => boolean]> = [
     ["hooks", () => jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/reset", env("WORKSHOP_OPERATOR_TOKEN"), {}), value => value.reset === true && value.active === false && Number.isInteger(value.reset_epoch) && value.reset_epoch > 0],
     ["web", () => jsonRequest(env("WEB_PUBLIC_ORIGIN"), "/api/operator/reset", env("WORKSHOP_OPERATOR_TOKEN"), { reset_epoch: owners.hooks.reset_epoch }), value => value.reset === true && Number.isInteger(value.deleted_snapshots) && value.deleted_snapshots >= 0],
-    ["lead", () => jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/reset", env("LEAD_INTERNAL_TOKEN"), {}), value => value.leads === 9 && value.decisions === 6 && value.operations === 0],
+    ["sales", () => jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/reset", env("LEAD_INTERNAL_TOKEN"), {}), value => value.accounts > 0 && value.offers === 0 && value.activation_emails === 0 && value.decisions === 0 && value.operations === 0],
     ["idp", () => jsonRequest(env("IDP_PUBLIC_HOST"), "/internal/reset", env("WORKSHOP_OPERATOR_TOKEN"), {}), value => value.reset === true && value.people >= 4 && value.oauth_clients_preserved === 2],
     ["elastic", async () => ({ documents: await resetElastic(config), variant: "clean" }), value => value.documents === 8],
   ];
@@ -254,9 +262,9 @@ async function setup(options: Options): Promise<Report> {
     }
   }
   if (current === "governed") {
-    steps.push("Provision the IdP, lead, hooks and web services using render.yaml and persistent disks. Preserve the IdP's two OAuth clients; configure distinct service bearers and the web OAuth callback/session secret.");
+    steps.push("Provision the IdP, sales, hooks and web services using render.yaml and persistent disks. Preserve the IdP's two OAuth clients; configure distinct service bearers and the web OAuth callback/session secret.");
     steps.push("Use your actual Arcade email for Dana. Sign in separately as seeded Riley to approve. Join Thierry's workshop Slack workspace; configure the explicit solo self-DM mapping and authorize Slack as Dana. A received link grants no decision authority.");
-    steps.push("Supply the observed Lead/Approvals MCP keys and ARCADE_ELASTIC_HOOK_TOOLS from actual hook toolkit/name payloads. Use the verification identity for gateway denial/filter probes; activate policy only after those checks succeed, then seed --variant governed.");
+    steps.push("Deploy only tools/lead. Supply observed Sales MCP keys and ARCADE_ELASTIC_HOOK_TOOLS. Run discover --identity verification, verify-governance --read-tool EXACT_GET_ACCOUNT_NAME, then activate. The web and hooks services own approvals; there is no Approvals MCP deployment.");
     steps.push("Complete the exercise in docs/modules/04-capstone.md. Collect an existing run with capstone --run-id ID; no CLI proof command sends messages or executes the agent. Reset --variant clean restores all state owners afterward.");
   }
   return report;
@@ -268,7 +276,7 @@ async function capstone(options: Options): Promise<Report> {
   if (!/^[A-Za-z0-9._:-]{1,128}$/.test(runId) || runId === "." || runId === "..") throw new Error("Supply a safe --run-id for the existing governed run.");
   const directory = String(options.output ?? join(env("WORKSHOP_EVIDENCE_DIR") || ".workshop-evidence", runId));
   const report: Report = { command: "capstone", run_id: runId, status: "incomplete", live_proof: false, live_requested: options.live === true, observed_at: new Date().toISOString(), checks: [], artifacts: [], excluded: ["Local controlled tests are not live proof.", "This command does not run an agent, send a message, grant permission, or measure workshop timing."] };
-  const configured = requireConfig(report, ["HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN", "LEAD_APP_PUBLIC_HOST", "LEAD_INTERNAL_TOKEN", "PERSONA_DANA_EMAIL", "PERSONA_RILEY_EMAIL", "ARCADE_ELASTIC_TOOL_NAMES", "ARCADE_ELASTIC_HOOK_TOOLS", "ARCADE_ROUTE_TOOL_NAME", ...(options.live ? ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID"] : [])]);
+  const configured = requireConfig(report, ["HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN", "LEAD_APP_PUBLIC_HOST", "LEAD_INTERNAL_TOKEN", "PERSONA_DANA_EMAIL", "PERSONA_RILEY_EMAIL", "ARCADE_ELASTIC_TOOL_NAMES", "ARCADE_ELASTIC_HOOK_TOOLS", "ARCADE_DISCOUNT_TOOL_NAME", "ARCADE_GET_OFFER_TOOL_NAME", ...(options.live ? ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID"] : [])]);
   await mkdir(directory, { recursive: true });
   if (configured && (!options.live || liveEndpoints(report, [env("HOOKS_PUBLIC_HOST"), env("LEAD_APP_PUBLIC_HOST"), gatewayUrl()]))) {
     await check(report, "owner_evidence", async () => {
@@ -278,21 +286,21 @@ async function capstone(options: Options): Promise<Report> {
       if (typeof key !== "string" || !/^[A-Za-z0-9._:-]{1,128}$/.test(key)) throw new Error("This run has no valid saved operation key.");
       const receipt = await jsonRequest(env("LEAD_APP_PUBLIC_HOST"), `/internal/operations/${encodeURIComponent(key)}`, env("LEAD_INTERNAL_TOKEN"));
       const hookTools = elasticHookTools();
-      report.checks.push(...verifyEvidence(evidence, receipt, { runId, dana: env("PERSONA_DANA_EMAIL"), riley: env("PERSONA_RILEY_EMAIL"), routeName: env("ARCADE_ROUTE_TOOL_NAME"), routeHook: `${env("ARCADE_LEAD_TOOLKIT") || "Lead"}.RouteLead`, elasticNames: values(env("ARCADE_ELASTIC_TOOL_NAMES")), elasticHooks: hookTools.map(t => `${t.toolkit}.${t.name}`) }));
+      report.checks.push(...verifyEvidence(evidence, receipt, { runId, dana: env("PERSONA_DANA_EMAIL"), riley: env("PERSONA_RILEY_EMAIL"), discountName: env("ARCADE_DISCOUNT_TOOL_NAME"), discountHook: `${env("ARCADE_SALES_TOOLKIT") || "Sales"}.CreateDiscountedOffer`, getOfferName: env("ARCADE_GET_OFFER_TOOL_NAME"), getOfferHook: `${env("ARCADE_SALES_TOOLKIT") || "Sales"}.GetOffer`, elasticNames: values(env("ARCADE_ELASTIC_TOOL_NAMES")), elasticHooks: hookTools.map(t => `${t.toolkit}.${t.name}`) }));
       report.request_id = evidence.run.request_id;
       report.operation_key = key;
       report.proof_scope = "recorded_service_evidence";
       const context = { run_id: runId, request_id: evidence.run.request_id, operation_key: key };
       const artifacts: Array<{ file: string; sha256: string }> = [];
       const { body: _body, ...publicReceipt } = receipt;
-      const data: Array<[string, unknown]> = [["run.json", { ...evidence.run, action: evidence.action }], ["gateway-audit.json", { denial: evidence.denial, events: evidence.events }], ["approval.json", evidence.approval], ["operation-receipt.json", { ...publicReceipt, receipt_binding_hash: hash({ actor: receipt.actor, action: receipt.action, lead_id: receipt.lead_id, body: receipt.body }) }]];
+      const data: Array<[string, unknown]> = [["run.json", { ...evidence.run, action: evidence.action }], ["gateway-audit.json", { denial: evidence.denial, events: evidence.events }], ["approval.json", evidence.approval], ["operation-receipt.json", { ...publicReceipt, receipt_binding_hash: hash({ actor: receipt.actor, action: receipt.action, account_id: receipt.account_id, body: receipt.body }) }]];
       for (const [file, value] of data) {
         const contents = JSON.stringify({ ...context, data: safeArtifact(value) }, null, 2) + "\n";
         await writeFile(join(directory, file), contents, { mode: 0o600 });
         artifacts.push({ file, sha256: createHash("sha256").update(contents).digest("hex") });
       }
       report.artifacts = artifacts;
-      return "Read the existing run, safe audit, approval and Lead operation receipt. No write or tool execution was requested.";
+      return "Read the existing run, safe audit, approval and Sales operation receipt. No write or tool execution was requested.";
     });
   }
   if (options.live) {
@@ -306,6 +314,112 @@ async function capstone(options: Options): Promise<Report> {
   return { ...report, output: directory };
 }
 
+function toolValue(value: any): any {
+  if (value?.structuredContent) return value.structuredContent;
+  if (Array.isArray(value?.content)) {
+    const text = value.content.filter((part: any) => part.type === "text").map((part: any) => part.text).join("\n");
+    try { return JSON.parse(text); } catch { return null; }
+  }
+  return value;
+}
+
+function consentLinks(value: unknown): string[] {
+  const matches = JSON.stringify(value)?.match(/https:\/\/[^\s"<>\\]+/g) ?? [];
+  return [...new Set(matches.filter(link => {
+    try { const url = new URL(link); return !url.username && !url.password && (url.hostname === "arcade.dev" || url.hostname.endsWith(".arcade.dev")); } catch { return false; }
+  }))];
+}
+
+async function verifyGovernance(options: Options): Promise<Report> {
+  allowed(options, ["read-tool"]);
+  const readName = String(options["read-tool"] ?? "");
+  if (!readName) throw new Error("Supply --read-tool with the exact GetAccount name from discover --identity verification.");
+  const report: Report = { command: "verify-governance", status: "incomplete", live_proof: false, checks: [] };
+  if (!requireConfig(report, ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID", "WORKSHOP_VERIFICATION_USER_ID", "ARCADE_DISCOUNT_TOOL_NAME", "HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN"])) return report;
+  const operation = `verification:${crypto.randomUUID()}`;
+  const path = `/operator/verification?operation_key=${encodeURIComponent(operation)}`;
+  const before = await jsonRequest(env("HOOKS_PUBLIC_HOST"), path, env("WORKSHOP_OPERATOR_TOKEN"));
+  await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/verification", env("WORKSHOP_OPERATOR_TOKEN"), { operation_key: operation });
+  let filterExecutionId = "", denialExecutionId = "";
+  await withGateway(env("WORKSHOP_VERIFICATION_USER_ID"), async (client, require) => {
+    const definitions = await client.listToolDefinitionsWithErrors({ perServerTimeoutMs: 8000 });
+    if (Object.keys(definitions.errors ?? {}).length) throw new Error("Verification identity cannot discover the gateway. Check the setup identity and Arcade registration.");
+    const toolsets = await client.listToolsets();
+    const tools: Record<string, any> = Object.assign({}, ...Object.values(toolsets));
+    if (!tools[readName]?.execute || !tools[env("ARCADE_DISCOUNT_TOOL_NAME")]?.execute) throw new Error("Configured Sales tools were not discovered for the verification identity. Copy exact names from discover --identity verification.");
+    const { RequestContext } = require("@mastra/core/request-context");
+    const { noopObserve } = require("@mastra/core/tools");
+    const execute = async (name: string, args: unknown) => {
+      const retainLinks = (value: unknown) => { report.authorizationUrls = [...new Set([...(report.authorizationUrls as string[] ?? []), ...consentLinks(value)])]; };
+      try {
+        const result = await tools[name].execute(args, { requestContext: new RequestContext(), observe: noopObserve });
+        retainLinks(result);
+        return { failed: Boolean(result?.isError), value: result };
+      } catch (error) {
+        retainLinks(error instanceof Error ? { message: error.message, cause: error.cause } : error);
+        return { failed: true, value: error instanceof Error ? { message: error.message, cause: error.cause } : error };
+      }
+    };
+    await check(report, "filtered_read", async () => {
+      const result = await execute(readName, { account_id: "ACC-2291" });
+      const value = toolValue(result.value), after = await jsonRequest(env("HOOKS_PUBLIC_HOST"), path, env("WORKSHOP_OPERATOR_TOKEN"));
+      // Mastra retains MCP text beside structured output using a non-enumerable
+      // symbol. Inspect that model-facing copy as well as the structured value.
+      const { getMcpCallToolContent, getMcpCallToolMeta } = require("@mastra/mcp");
+      const representations = { value: result.value, content: getMcpCallToolContent(result.value), meta: getMcpCallToolMeta(result.value) };
+      if (result.failed || value?.account_id !== "ACC-2291" || value?.list_price !== 12000 || /activation_token|workshop_activation_FAKE_|personal_phone|\+1-\d{3}-555-\d{4}|Ignore earlier instructions/.test(JSON.stringify(representations)) || !after.filter?.execution_id || after.filter.execution_id === before.filter?.execution_id) throw new Error("No fresh filtered account read was verified. Complete cg-idp consent as the verification identity in Arcade, then check the post hook and retry.");
+      filterExecutionId = after.filter.execution_id;
+      return "Actual gateway GetAccount returned Northwind without fixture markers; hooks recorded a new filtered execution.";
+    });
+    await check(report, "authority_denial", async () => {
+      // Empty rationale is a second guard: the Sales API rejects it before
+      // creating a draft even when the Arcade pre hook is missing or ignored.
+      const result = await execute(env("ARCADE_DISCOUNT_TOOL_NAME"), { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "", operation_key: operation });
+      const after = await jsonRequest(env("HOOKS_PUBLIC_HOST"), path, env("WORKSHOP_OPERATOR_TOKEN"));
+      const returned = JSON.stringify(result.value);
+      if (!result.failed || !after.denial?.execution_id || after.denial.operation_key !== operation || !returned?.includes(after.denial.denial_id) || !/CHECK_FAILED|exceeds your/.test(returned)) throw new Error("No matching authority denial was returned by the gateway. Check pre-hook enforcement and verification identity consent; the empty-rationale guard prevented a draft.");
+      denialExecutionId = after.denial.execution_id;
+      return "Actual gateway discount was denied for this unique operation by the authority hook. No approval request, Slack message or business write was created.";
+    });
+  });
+  if (filterExecutionId && denialExecutionId) await check(report, "verification_confirmation", async () => {
+    await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/verification/confirm", env("WORKSHOP_OPERATOR_TOKEN"), { operation_key: operation, denial_execution_id: denialExecutionId, filter_execution_id: filterExecutionId });
+    return "The operator confirmed the filtered read and matching authority rejection received through the gateway. Activation is now available.";
+  });
+  finish(report);
+  if (report.status === "configured") report.status = "passed";
+  return report;
+}
+
+async function activate(options: Options): Promise<Report> {
+  allowed(options, []);
+  const report: Report = { command: "activate", status: "incomplete", live_proof: false, checks: [] };
+  if (!requireConfig(report, ["HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN"])) return report;
+  await check(report, "policy_activation", async () => {
+    const state = await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/activate", env("WORKSHOP_OPERATOR_TOKEN"), {});
+    if (!state.active || !state.verified_denial || !state.verified_filter) throw new Error("Complete verify-governance before activation.");
+    return "Verified governance is active. Continue with attendee discovery and seed --variant governed.";
+  });
+  finish(report);
+  if (report.status === "configured") report.status = "activated";
+  return report;
+}
+
+async function hookTools(options: Options): Promise<Report> {
+  allowed(options, []);
+  const report: Report = { command: "hook-tools", status: "incomplete", live_proof: false, checks: [] };
+  if (!requireConfig(report, ["HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN"])) return report;
+  await check(report, "observed_hook_metadata", async () => {
+    const observed = await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/observed-tools", env("WORKSHOP_OPERATOR_TOKEN"));
+    if (!Array.isArray(observed.tools) || observed.tools.some((tool: any) => !tool || typeof tool.toolkit !== "string" || typeof tool.name !== "string" || !Array.isArray(tool.arguments) || tool.arguments.some((key: unknown) => typeof key !== "string"))) throw new Error("Hooks returned invalid observed metadata.");
+    report.tools = observed.tools.map(({ toolkit, name, arguments: args }: { toolkit: string; name: string; arguments: string[] }) => ({ toolkit, name, arguments: args }));
+    return "Actual authenticated hook metadata only. Copy the selected Elastic entries to ARCADE_ELASTIC_HOOK_TOOLS; an empty arguments list may need one tool invocation to observe its keys.";
+  });
+  finish(report);
+  if (report.status === "configured") report.status = "inventory";
+  return report;
+}
+
 async function main() {
   const { command, options } = parse(process.argv.slice(2));
   if (env("WORKSHOP_ELASTIC_MODE") && !["owned", "shared-read-only"].includes(env("WORKSHOP_ELASTIC_MODE"))) throw new Error("WORKSHOP_ELASTIC_MODE must be owned or shared-read-only.");
@@ -315,14 +429,17 @@ async function main() {
   if (command === "reset") return reset(options);
   if (command === "capstone") return capstone(options);
   if (command === "setup") return setup(options);
-  throw new Error(`Unknown command ${command}. Use setup, readiness, discover, seed, reset, or capstone.`);
+  if (command === "verify-governance") return verifyGovernance(options);
+  if (command === "activate") return activate(options);
+  if (command === "hook-tools") return hookTools(options);
+  throw new Error(`Unknown command ${command}. Use setup, readiness, discover, hook-tools, verify-governance, activate, seed, reset, or capstone.`);
 }
 
 if (import.meta.main) {
   try {
     const result = await main();
     console.log(JSON.stringify(result, null, 2));
-    process.exitCode = ["configured", "passed", "observed", "seeded", "reset", "guide"].includes(result.status) ? 0 : 1;
+    process.exitCode = ["configured", "passed", "observed", "inventory", "activated", "seeded", "reset", "guide"].includes(result.status) ? 0 : 1;
   } catch (error) {
     console.log(JSON.stringify({ command: process.argv[2] ?? "setup", status: "failed", live_proof: false, error: error instanceof Error ? error.message : "Command failed." }, null, 2));
     process.exitCode = 1;

@@ -1,0 +1,89 @@
+{
+  "accounts": [
+    {
+      "account_id": "ACC-2291",
+      "company_name": "Northwind Robotics",
+      "company_domain": "northwindrobotics.example",
+      "product": "B2B identity and access software",
+      "billing_cycle": "yearly",
+      "list_price": 12000,
+      "billing_contact": {
+        "name": "Elena Park",
+        "email": "elena@northwindrobotics.example",
+        "personal_phone": "+1-415-555-0137"
+      },
+      "provisioning": {
+        "status": "trial",
+        "activation_token": "workshop_activation_FAKE_northwind_setup"
+      }
+    },
+    {
+      "account_id": "ACC-2290",
+      "company_name": "Harborline Health",
+      "company_domain": "harborlinehealth.example",
+      "product": "B2B identity and access software",
+      "billing_cycle": "yearly",
+      "list_price": 9000,
+      "billing_contact": {
+        "name": "Alex Rivera",
+        "email": "alex@harborlinehealth.example",
+        "personal_phone": "+1-202-555-0111"
+      },
+      "provisioning": {
+        "status": "trial",
+        "activation_token": "workshop_activation_FAKE_harborline_setup"
+      }
+    },
+    {
+      "account_id": "ACC-2288",
+      "company_name": "Cascade BioSystems",
+      "company_domain": "cascadebiosystems.example",
+      "product": "B2B identity and access software",
+      "billing_cycle": "yearly",
+      "list_price": 18000,
+      "billing_contact": {
+        "name": "Sam Chen",
+        "email": "sam@cascadebiosystems.example",
+        "personal_phone": "+1-202-555-0112"
+      },
+      "provisioning": {
+        "status": "trial",
+        "activation_token": "workshop_activation_FAKE_cascade_setup"
+      }
+    },
+    {
+      "account_id": "ACC-2295",
+      "company_name": "Meridian Data Cloud",
+      "company_domain": "meridiandata.example",
+      "product": "B2B identity and access software",
+      "billing_cycle": "yearly",
+      "list_price": 24000,
+      "billing_contact": {
+        "name": "Jordan Blake",
+        "email": "jordan@meridiandata.example",
+        "personal_phone": "+1-202-555-0113"
+      },
+      "provisioning": {
+        "status": "trial",
+        "activation_token": "workshop_activation_FAKE_meridian_setup"
+      }
+    },
+    {
+      "account_id": "ACC-2299",
+      "company_name": "Alderway Design Systems",
+      "company_domain": "alderwaydesign.example",
+      "product": "B2B identity and access software",
+      "billing_cycle": "yearly",
+      "list_price": 6000,
+      "billing_contact": {
+        "name": "Morgan Avery",
+        "email": "morgan@alderwaydesign.example",
+        "personal_phone": "+1-202-555-0114"
+      },
+      "provisioning": {
+        "status": "trial",
+        "activation_token": "workshop_activation_FAKE_alderway_setup"
+      }
+    }
+  ]
+}

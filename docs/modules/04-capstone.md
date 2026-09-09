@@ -1,80 +1,97 @@
-# Capstone — prove the complete workflow
+# Capstone: check the approved offer
 
-**Owner:** Arcade leads the integrated exercise, with all partner TAs available.
-**Budget:** 20 minutes.
+**Owner:** Arcade with all partner TAs. **Budget:** 20 minutes.
 
-**Guide status:** the runtime, reset command, policy endpoint, and read-only evidence
-collector are implemented. The checks below define the live workshop acceptance exercise;
-local tests do not certify the cloud path.
+This is the discount-version acceptance exercise. Previous routing-test results do not
+certify it. Start with the completed Module 3 run and save evidence before changing state.
 
-## Follow one request all the way through
+## Inspect one complete journey
 
-Start from the governed baseline: the eight Elastic event IDs include the prepared
-adversarial variant, output filters are active, Dana's authority is $50K, and prior routes
-and grants have been reset. Clear completed/pending continuations so no prior approval can
-resume a new probe. Use the same Mastra agent and Arcade gateway from Module 3.
+Follow Dana's original request through Elastic evidence, `GetAccount`, the 30% denial,
+Riley's self-DM request, authenticated approval, exact continuation and `GetOffer`.
+Northwind is `ACC-2291`; annual list price is $12,000, discount is 30%, and net price is
+$8,400. Dana's permission is 15%; Riley's is 40%.
 
-Ask Dana's agent to research Northwind and route the $95K lead to its proposed owner,
-obtaining approval if needed. Follow the trace together: cited Elastic research → blocked
-route → `request_approval` → Riley's request in your own Slack DM using the connected
-requester authorization → switch to Riley and authenticate on the approval page → resume
-the same Dana conversation → identical retry → one route
-write and the final cited brief.
-
-The Slack link opens the decision surface; it carries no permission to approve. The decision
-must come from the assigned signed-in approver and apply to the exact action. Check that the
-human wait preserves the request and arguments, with one successful write after resumption.
-Save this trace as the evidence for the corresponding checks below; the checklist inspects
-the completed journey rather than requiring a second manual approval cycle.
-
-## Change the evidence and policy
-
-Add the prepared account-history event explaining that Northwind already has an enterprise
-agreement handled by Riley's team, using your separate setup credential. Ask the same agent
-again and inspect the citation supporting its change to follow-up. The new Elastic evidence
-changes the recommendation through the existing gateway connection.
-
-Restore the governed baseline and clear the previous grant/write. Use the [operator guide](../OPERATOR.md) to edit policy through its
-authenticated endpoint to raise Dana's authority, then rerun the controlled route
-probe. Restore the $50K limit and verify the denial returns. Neither policy change requires
-editing the Mastra agent or redeploying it.
-
-Restore the governed baseline before the eight checks below: remove the added event, retain
-the adversarial variant for the privacy/integrity probes, and reset route history, grants,
-and policy changes. The existing seed command only upserts fixture IDs; rerunning it alone
-does not remove extra documents or reset the apps.
-
-## Prove the controls
+The saved offer has `status: "draft"`. Its activation email is also a local draft. The
+agent must verify the saved terms with `GetOffer` after creation. Check both the account
+provisioning result and the activation email: the synthetic activation token must not
+reach the model or its answer, while prices remain readable.
 
 | Check | Evidence of success |
 |---|---|
-| 1. Grounded research | Dana's qualification cites at least two Elastic facts and their source records; the trace uses the same Mastra agent and Arcade gateway. |
-| 2. Access | Sam cannot discover or call the routing tool. |
-| 3. Approval | Dana's $95K route is denied; `request_approval` delivers Riley's request to the attendee's own Slack account; approval as Dana fails; the attendee switches to Riley and authenticates to approve; Dana's conversation resumes and retries identical arguments; exactly one route write exists. A changed owner cannot reuse that approval. |
-| 4. Privacy | The model-facing tool results omit the synthetic personal phone from Elastic and every Lead result, including the successful route response. |
-| 5. Integrity | The seeded injected instruction is absent from model-facing Elastic and Lead results. |
-| 6. Authoritative ACV | A lowball argument cannot lower the server's authority check or rewrite the authoritative amount. |
-| 7. Policy editing | An authenticated operator raises Dana's authority and changes the outcome without redeployment or agent edits; restoring it restores the denial. |
-| 8. Audit | The panel correlates the evidence calls, denial, Slack delivery, authenticated decision, resumed request, single write, and applicable rules. |
+| 1. Research | At least two Elastic source IDs support the recommendation; unconfirmed budget and competitor scope are identified. |
+| 2. Access | Sam cannot discover or execute `CreateDiscountedOffer`. |
+| 3. Narrow permission | Dana's 30% action is denied against the 15% ceiling. The list price is independently read from the account. |
+| 4. Human approval | Dana cannot self-approve. Riley authenticates and approves the exact saved terms. The Slack recipient alone has no authority. |
+| 5. Exact continuation | The original Dana run resumes through Arcade with unchanged inputs and one operation receipt. Changed percentage, list price or rationale cannot reuse the grant. |
+| 6. Read-back | `GetOffer(ACC-2291)` verifies 30%, $12,000 list, $8,400 net and draft status after creation. |
+| 7. Redaction | Synthetic activation tokens, personal phone fields and seeded instructions are absent from model-facing account/offer/email results; legitimate prices remain. |
+| 8. Replay and audit | Repeating the same operation creates no second write. Audit correlates research, denial, self-DM, Riley's identity, continuation and read-back. |
 
-Run `bun run capstone --run-id '<run-id>' --output .workshop/evidence --live`
-to collect the existing run, safe audit, and matching business receipt. The command starts
-no agent and sends no Slack message. It reports missing or unexercised checks explicitly;
-credentials alone cannot certify the integration. The baseline reset and each probe must control prior
-writes/grants so one check cannot accidentally authorize or invalidate the next.
+A delivered DM alone is not a pass. This exercise sends no customer email, provisions no
+real account and requests no external signature.
 
-Attendees on the shared read-only Elastic fallback watch the presenter introduce the
-adversarial variant and change the account evidence on the presenter's own deployment. They
-record the relevant checks as degraded and receive no independent Elastic mutation credit.
-The fallback gateway may still demonstrate their Lead approval flow, but it cannot certify
-their own Elastic privacy/integrity mutation exercise.
+```sh
+bun run capstone --run-id '<completed-run-id>' --output .workshop/evidence --live
+```
 
-At the final reset, restore the clean eight-event Elastic fixture used for the first
-connection checkpoint, remove added events, and clear exercise writes, grants, and policy
-edits, including pending continuations. Then revoke the setup write key. Keep the read-only credential's expiration and
-renewal instructions with your project so you can continue using it after the event.
+The collector reads existing records and starts no agent. Missing or independently
+unverified cloud evidence stays incomplete. Keep manual read-back and model-output
+observations with the evidence even if the collector cannot attest those boundaries.
 
-Use `bun run reset --variant clean` for the final complete baseline reset. It clears the
-exercise across hooks, native Mastra storage, Lead, IdP, and the dedicated Elastic index.
-It preserves both OAuth clients and requires a new sign-in. A partial failure stops the
-sequence and reports which owners already acknowledged their reset.
+## Change the evidence
+
+In your own Kibana Dev Tools, add this synthetic event to the dedicated workshop index:
+
+```json
+PUT gtm-account-context/_doc/evt-northwind-005?refresh=wait_for
+{
+  "event_id": "evt-northwind-005",
+  "account_id": "ACC-2291",
+  "company_name": "Northwind Robotics",
+  "company_domain": "northwindrobotics.example",
+  "event_type": "crm_history",
+  "occurred_at": "2026-08-31T22:00:00.000Z",
+  "title": "Budget and competitor clarification",
+  "content": "Finance confirmed an annual budget of 10200 USD. Procurement found that the 9000 USD competitor quote excludes automated provisioning and audit retention. The buyer is willing to consider a 15 percent renewal discount on the 12000 USD list price. No offer has been accepted or sent.",
+  "metadata": { "confirmed_annual_budget": 10200, "requested_discount_percent": 15, "currency": "USD" }
+}
+```
+
+This operator write uses your own setup access, never the gateway's read-only key. The
+[index API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-index)
+waits for search visibility. Expect nine events. In **Connect evidence**, ask the original
+question again using the latest account history. Inspect the citation to `evt-northwind-005`
+and any changed recommendation. That stage has no offer-write tool. A changed recommendation
+does not rewrite the previously approved offer or grant permission for different terms.
+
+## Change and restore permission
+
+Save evidence, then reset the exercise. The reset removes the ninth event and clears draft
+offers, grants, sessions and policy activation:
+
+```sh
+bun run reset --variant clean
+```
+
+Follow the [verification login and probe](../OPERATOR.md#5-verify-governance-before-running-the-action)
+again, then:
+
+```sh
+bun run workshop verify-governance --read-tool '<exact-observed-GetAccount-name>'
+bun run workshop activate
+bun run workshop seed --variant governed
+```
+
+Through the [operator policy API](../OPERATOR.md#inspect-edit-and-activate-policy), raise
+Dana's `clearance` to `30`. A fresh 30% offer action should be allowed directly. Restore
+Dana to `15`; a new operation at 30% should be denied and can request another self-DM.
+Neither change requires editing the agent. Do not reuse a completed receipt as proof of a
+new permission decision. Save separate probe evidence and reset before another exercise.
+
+If time is exhausted, record the presenter's demonstration as watched, not independently
+completed. Participants on shared read-only Elastic cannot claim the fixture-mutation check.
+
+Finish with `bun run reset --variant clean`, then revoke the setup write key. Reset preserves
+both OAuth clients and requires sign-in again. Close denied/expired or undelivered waits
+through the UI first; do not reset an executing worker. A partial reset remains incomplete.

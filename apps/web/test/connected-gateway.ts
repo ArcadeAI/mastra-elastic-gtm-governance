@@ -7,20 +7,26 @@ import { parseToolResult } from "../lib/agent-runtime";
 import { fixtureEvents } from "../../../scripts/seed-elastic";
 
 /** Only the external Arcade, Elastic and Slack network boundaries are controlled.
- * The nested tools are the actual registered Python MCP servers. */
+ * The Lead tools use the actual registered Python MCP server. */
 export function connectedGateway(config: { hooks: string; lead: string; directory: string; tokens: Map<string, string> }) {
   const posts: any[] = []; const calls: Array<{ name: string; actor: string; args: any; denied: boolean }> = [];
   const toolExecutions: Array<{ name: string; actor: string }> = [];
+  const authorizationRequests: any[] = [];
   const elasticOutputs: Array<{ actor: string; before: unknown; after: unknown }> = [];
-  let rejectDecide = false;
+  let slackAuthorized = true;
+  let offerUnavailable = false;
+  const consentUrl = "https://cloud.arcade.dev/auth/local-workshop-slack";
   const clients = new Map<string, MCPClient>();
   const tokenServer = Bun.serve({ port: 0, async fetch(request) {
     const path = new URL(request.url).pathname;
-    const body = await request.json() as any;
+    const body = request.method === "POST" ? await request.json() as any : {};
     if (path.endsWith("/auth/authorize")) {
+      authorizationRequests.push(body);
+      if (body.auth_requirement.provider_id === "slack" && !slackAuthorized) return Response.json({ id: "local-authorization", status: "pending", url: consentUrl, user_id: body.user_id });
       const token = body.auth_requirement.provider_id === "slack" ? "local-slack-token" : config.tokens.get(body.user_id);
       return token ? Response.json({ id: "local-authorization", status: "completed", context: { token } }) : Response.json({ error: "Identity has not completed real OAuth" }, { status: 401 });
     }
+    if (path === "/v1/auth/status") return Response.json({ id: "local-authorization", status: "pending", url: consentUrl });
     if (path === "/slack/auth.test") return Response.json({ ok: true, user_id: "UATTENDEE", team_id: "TWORKSHOP" });
     if (path === "/slack/conversations.open") return Response.json({ ok: true, channel: { id: "DSELF" } });
     if (path === "/slack/chat.postMessage") { posts.push(body); return Response.json({ ok: true, channel: "DSELF", ts: "100.001" }); }
@@ -31,20 +37,17 @@ export function connectedGateway(config: { hooks: string; lead: string; director
   const hook = new HooksClient(config.hooks, "hook-test");
   const definitions = {
     "Elastic.Search": { toolkit: "Elastic", name: "Search", python: null },
-    "Lead.GetLead": { toolkit: "Lead", name: "GetLead", python: "Lead_GetLead" },
-    "Lead.SearchLeads": { toolkit: "Lead", name: "SearchLeads", python: "Lead_SearchLeads" },
-    "Lead.RouteLead": { toolkit: "Lead", name: "RouteLead", python: "Lead_RouteLead" },
-    "Lead.ClassifyLead": { toolkit: "Lead", name: "ClassifyLead", python: "Lead_ClassifyLead" },
-    "Approvals.RequestApproval": { toolkit: "Approvals", name: "RequestApproval", python: "Approvals_RequestApproval" },
-    "Approvals.Decide": { toolkit: "Approvals", name: "Decide", python: "Approvals_Decide" },
+    "Sales.GetAccount": { toolkit: "Sales", name: "GetAccount", python: "Sales_GetAccount" },
+    "Sales.SearchAccounts": { toolkit: "Sales", name: "SearchAccounts", python: "Sales_SearchAccounts" },
+    "Sales.CreateDiscountedOffer": { toolkit: "Sales", name: "CreateDiscountedOffer", python: "Sales_CreateDiscountedOffer" },
+    "Sales.GetOffer": { toolkit: "Sales", name: "GetOffer", python: "Sales_GetOffer" },
   } as const;
   async function python(actor: string, name: string, args: any) {
     let client = clients.get(actor);
     if (!client) {
-      const env = { ARCADE_USER_ID: actor, ARCADE_API_KEY: "local-test-key", ARCADE_API_URL: boundary, ARCADE_ENVIRONMENT: "test", ARCADE_WORK_DIR: config.directory, ARCADE_TELEMETRY_DISABLED: "true", HOOKS_PUBLIC_HOST: new URL(config.hooks).host, APPROVALS_SERVICE_TOKEN: "approvals-test", LEAD_APP_PUBLIC_HOST: new URL(config.lead).host, TEST_SLACK_URL: `${boundary}/slack` };
+      const env = { ARCADE_USER_ID: actor, ARCADE_API_KEY: "local-test-key", ARCADE_API_URL: boundary, ARCADE_ENVIRONMENT: "test", ARCADE_WORK_DIR: config.directory, ARCADE_TELEMETRY_DISABLED: "true", LEAD_APP_PUBLIC_HOST: new URL(config.lead).host };
       client = new MCPClient({ id: crypto.randomUUID(), servers: {
         lead: { command: join(root, "tools/lead/.venv/bin/python"), args: [join(root, "tools/lead/server.py")], env: { ...env, PYTHONPATH: join(root, "tools/lead") } },
-        approvals: { command: join(root, "tools/approvals/.venv/bin/python"), args: [join(root, "tools/approvals/tests/mcp_server.py")], env: { ...env, PYTHONPATH: join(root, "tools/approvals") } },
       } });
       clients.set(actor, client);
     }
@@ -61,7 +64,8 @@ export function connectedGateway(config: { hooks: string; lead: string; director
     const pre = await hook.request("/pre", event);
     calls.push({ name, actor, args, denied: pre.code !== "OK" });
     if (pre.code !== "OK") return pre;
-    const output = definition.python ? await python(actor, definition.python, args) : { hits: fixtureEvents("governed").filter((row) => row.lead_id === "LD-2291") };
+    if (name === "Sales.CreateDiscountedOffer" && offerUnavailable) return { isError: true, error: "Sales service unavailable" };
+    const output = definition.python ? await python(actor, definition.python, args) : { hits: fixtureEvents("governed").filter((row) => row.account_id === "ACC-2291") };
     const post = await hook.request("/post", { ...event, success: !(output as any)?.isError, output });
     if (post.code !== "OK") return post;
     if (!definition.python) elasticOutputs.push({ actor, before: output, after: post.override?.output ?? output });
@@ -81,12 +85,11 @@ export function connectedGateway(config: { hooks: string; lead: string; director
         const access = await hook.request("/access", { user_id: actor, toolkits });
         result = { tools: Object.entries(definitions).filter(([, d]) => access.only?.[d.toolkit]?.tools?.[d.name]?.length).map(([name]) => ({ name, description: name, inputSchema: { type: "object", additionalProperties: true } })) };
       } else if (rpc.method === "tools/call") {
-        if (rejectDecide && rpc.params.name === "Approvals.Decide") return Response.json({ jsonrpc: "2.0", id: rpc.id, error: { code: -32003, message: "Gateway rejected decision execution before the tool ran" } });
         const output = await call(rpc.params.name, rpc.params.arguments, actor);
         result = { content: [{ type: "text", text: JSON.stringify(parseToolResult(output)) }], ...((output as any)?.isError ? { isError: true } : {}) };
       } else result = {};
       return Response.json({ jsonrpc: "2.0", id: rpc.id, result });
     } catch (error) { return Response.json({ jsonrpc: "2.0", id: rpc.id, error: { code: -32603, message: error instanceof Error ? error.message : String(error) } }); }
   } });
-  return { url: `http://127.0.0.1:${server.port}`, call, calls, posts, toolExecutions, elasticOutputs, setRejectDecide(value: boolean) { rejectDecide = value; }, async close() { server.stop(true); for (const client of clients.values()) await client.disconnect(); tokenServer.stop(true); } };
+  return { url: `http://127.0.0.1:${server.port}`, call, calls, posts, toolExecutions, elasticOutputs, authorizationRequests, boundary, consentUrl, setSlackAuthorized(value: boolean) { slackAuthorized = value; }, setOfferUnavailable(value: boolean) { offerUnavailable = value; }, async close() { server.stop(true); for (const client of clients.values()) await client.disconnect(); tokenServer.stop(true); } };
 }

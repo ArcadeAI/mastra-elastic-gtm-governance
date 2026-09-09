@@ -37,6 +37,6 @@ export function mcpBoundary(tools: Record<string, { schema: Record<string, unkno
   } });
 }
 
-export const routeArguments = { lead_id: "LD-2291", estimated_acv: 95000, owner_email: "riley@example.test", rationale: "Enterprise interest documented in evt-1", operation_key: "model-forged-key" };
-export const names = { route: "Lead.RouteLead", classify: "Lead.ClassifyLead", requestApproval: "Approvals.RequestApproval", decide: "Approvals.Decide" };
+export const discountArguments = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Enterprise interest documented in evt-1", operation_key: "model-forged-key" };
+export const names = { discount: "Sales.CreateDiscountedOffer", getOffer: "Sales.GetOffer" };
 export const objectSchema = { type: "object", additionalProperties: true };

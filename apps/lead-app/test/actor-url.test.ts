@@ -10,7 +10,7 @@ test.each(["bare", "url", "trailing-slash"])("resolves the caller against an IdP
   try {
     const host = `127.0.0.1:${server.port}`;
     const configured = form === "bare" ? host : `http://${host}${form === "trailing-slash" ? "/" : ""}`;
-    const request = new Request("http://lead.local/leads", { headers: { authorization: "Bearer dana-token" } });
+    const request = new Request("http://sales.local/accounts", { headers: { authorization: "Bearer dana-token" } });
     expect(await actorFromRequest(request, configured)).toBe("dana@example.test");
     expect(requests).toEqual(["/oauth2/userinfo"]);
   } finally { server.stop(true); }

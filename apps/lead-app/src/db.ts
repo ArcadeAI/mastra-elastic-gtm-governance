@@ -1,450 +1,139 @@
-/**
- * `leads.db` — the inbound lead system of record. Plain domain persistence:
- * a `leads` table and an append-only `lead_decisions` table.
- *
- * Nothing here inspects who is asking or what they are allowed to do. Every
- * read returns whatever the row holds and every write is applied as given.
- * That is deliberate: this is the system being governed, and the controls
- * live in `apps/hooks`, which this service cannot reach or influence.
- */
+/** Business persistence only. Offers and local email drafts commit with their receipt. */
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
+import fixture from "./fixtures/accounts.json" with { type: "json" };
 
-import fixture from "./fixtures/leads.json" with { type: "json" };
-
-export type LeadStatus = "new" | "qualified" | "follow_up" | "support" | "not_sales_related";
-export type LeadDisposition = Exclude<LeadStatus, "new" | "qualified">;
-
-/** One entry in a lead's decision history. Append-only — see the write helpers below. */
-export interface LeadDecision {
-  action: "routed" | "classified";
-  disposition: Exclude<LeadStatus, "new">;
-  estimated_acv: number | null;
-  owner_email: string | null;
-  rationale: string;
-  /**
-   * Who recorded it — the email the API derived from the caller's token.
-   * `null` only for decisions that came in with the seed, which predate the
-   * system and have no actor to name.
-   */
-  decided_by: string | null;
-  decided_at: string;
-}
-
-/** What `search_leads` returns per hit: the list-view columns. */
-export interface LeadSummary {
-  lead_id: string;
-  company_name: string;
-  contact_name: string;
-  estimated_acv: number;
-  status: LeadStatus;
-  source: string;
-  submitted_at: string;
-}
-
-/**
- * What `get_lead` returns: the complete inbound submission.
- *
- * `personal_phone` and `form_message` are present on purpose. An inbound lead
- * system's detail view holds the submitted values, so this service returns
- * them unchanged and leaves downstream handling to the surrounding system.
- */
-export interface LeadRecord extends LeadSummary {
-  contact_email: string;
-  personal_phone: string;
-  company_domain: string;
-  job_title: string;
-  employee_count: number;
-  country: string;
-  use_case: string;
-  form_message: string;
-  assigned_owner: string | null;
-  decisions: LeadDecision[];
-}
-
-const routedDecisionFixtureSchema = z.object({
-  action: z.literal("routed"),
-  disposition: z.literal("qualified"),
-  estimated_acv: z.number().nonnegative(),
-  owner_email: z.string().email(),
-  rationale: z.string().min(1),
-  decided_by: z.string().email().nullable().default(null),
-  decided_at: z.string(),
+const accountSchema = z.object({
+  account_id: z.string().min(1), company_name: z.string().min(1), company_domain: z.string(),
+  product: z.string().min(1), billing_cycle: z.literal("yearly"), list_price: z.number().positive(),
+  billing_contact: z.object({ name: z.string(), email: z.string().email(), personal_phone: z.string() }),
+  provisioning: z.object({ status: z.literal("trial"), activation_token: z.string().startsWith("workshop_activation_FAKE_") }),
 });
-
-const classifiedDecisionFixtureSchema = z.object({
-  action: z.literal("classified"),
-  disposition: z.enum(["follow_up", "support", "not_sales_related"]),
-  estimated_acv: z.null(),
-  owner_email: z.null(),
-  rationale: z.string().min(1),
-  decided_by: z.string().email().nullable().default(null),
-  decided_at: z.string(),
-});
-
-const leadFixtureSchema = z.object({
-  lead_id: z.string(),
-  company_name: z.string(),
-  contact_name: z.string(),
-  estimated_acv: z.number().nonnegative(),
-  status: z.enum(["new", "qualified", "follow_up", "support", "not_sales_related"]),
-  source: z.string(),
-  submitted_at: z.string(),
-  contact_email: z.string().email(),
-  personal_phone: z.string(),
-  company_domain: z.string(),
-  job_title: z.string(),
-  employee_count: z.number().int().nonnegative(),
-  country: z.string(),
-  use_case: z.string(),
-  form_message: z.string(),
-  assigned_owner: z.string().email().nullable(),
-  decisions: z.array(z.discriminatedUnion("action", [
-    routedDecisionFixtureSchema,
-    classifiedDecisionFixtureSchema,
-  ])),
-});
-
-// The fixture is hand-edited — by us now and by forkers later — so it is
-// parsed rather than trusted. A typo should fail at boot with a field path,
-// not surface as a lead that quietly has no company.
-const fixtureSchema = z.object({ leads: z.array(leadFixtureSchema).min(1) });
-
-const OPERATION_SCHEMA = `
-  CREATE TABLE IF NOT EXISTS lead_operations (
-    operation_key TEXT PRIMARY KEY,
-    actor TEXT NOT NULL,
-    action TEXT NOT NULL CHECK (action IN ('route', 'classify')),
-    lead_id TEXT NOT NULL REFERENCES leads(lead_id),
-    body TEXT NOT NULL,
-    response TEXT NOT NULL,
-    completed_at TEXT NOT NULL
-  );
-`;
-
-const SCHEMA = `
-  CREATE TABLE leads (
-    lead_id         TEXT    PRIMARY KEY,
-    company_name    TEXT    NOT NULL,
-    contact_name    TEXT    NOT NULL,
-    estimated_acv   INTEGER NOT NULL,
-    status          TEXT    NOT NULL CHECK (
-      status IN ('new', 'qualified', 'follow_up', 'support', 'not_sales_related')
-    ),
-    source           TEXT    NOT NULL,
-    submitted_at     TEXT    NOT NULL,
-    contact_email    TEXT    NOT NULL,
-    personal_phone   TEXT    NOT NULL,
-    company_domain   TEXT    NOT NULL,
-    job_title        TEXT    NOT NULL,
-    employee_count   INTEGER NOT NULL,
-    country          TEXT    NOT NULL,
-    use_case         TEXT    NOT NULL,
-    form_message     TEXT    NOT NULL,
-    assigned_owner   TEXT
-  );
-
-  -- Append-only: distinct operations retain separate decisions.
-  CREATE TABLE lead_decisions (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    lead_id       TEXT    NOT NULL REFERENCES leads(lead_id),
-    action        TEXT    NOT NULL CHECK (action IN ('routed', 'classified')),
-    disposition   TEXT    NOT NULL CHECK (
-      disposition IN ('qualified', 'follow_up', 'support', 'not_sales_related')
-    ),
-    estimated_acv INTEGER,
-    owner_email   TEXT,
-    rationale     TEXT    NOT NULL,
-    decided_by    TEXT,
-    decided_at    TEXT    NOT NULL
-  );
-
-  CREATE INDEX idx_lead_decisions_lead_id ON lead_decisions(lead_id);
-  CREATE INDEX idx_leads_status ON leads(status);
-  CREATE INDEX idx_leads_estimated_acv ON leads(estimated_acv);
-`;
-
-/**
- * Opens the lead store, bootstrapping it from the fixture only when it has no
- * schema.
- *
- * Seed-if-empty rather than seed-on-boot: `leads.db` lives on a persistent
- * disk, so decisions made on stage remain after a restart. Getting back to a
- * clean state is an explicit operation, never a side effect of deploying.
- */
-export function openLeadStore(path: string): Database {
-  if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
-
-  const db = new Database(path, { create: true });
-  db.exec("PRAGMA journal_mode = WAL");
-  db.exec("PRAGMA foreign_keys = ON");
-  db.exec("PRAGMA busy_timeout = 5000");
-
-  if (!hasSchema(db)) seed(db, fixtureSchema.parse(fixture).leads);
-  else upgradeSchema(db);
-  db.exec(OPERATION_SCHEMA);
-
-  return db;
+export type AccountSeed = z.infer<typeof accountSchema>;
+export interface DiscountBody { discount_percent: number; list_price: number; rationale: string }
+export interface OfferDecision extends DiscountBody {
+  action: "discount"; offer_id: string; net_price: number; decided_by: string; decided_at: string;
 }
-
-/**
- * Brings a database created by an earlier schema up to the current one while
- * keeping every row. Each step is additive and idempotent.
- */
-function upgradeSchema(db: Database): void {
-  if (!hasColumn(db, "lead_decisions", "decided_by")) {
-    db.exec("ALTER TABLE lead_decisions ADD COLUMN decided_by TEXT");
-  }
+export interface ActivationEmail { to: string; subject: string; body: string; activation_token: string }
+export interface Offer {
+  account_id: string; offer_id: string; discount_percent: number; list_price: number; net_price: number;
+  status: "draft"; activation_email: ActivationEmail; decisions: OfferDecision[];
 }
-
-function hasColumn(db: Database, table: string, column: string): boolean {
-  return db
-    .query<{ name: string }, []>(`PRAGMA table_info(${table})`)
-    .all()
-    .some((row) => row.name === column);
-}
-
-function hasSchema(db: Database): boolean {
-  const row = db
-    .query<{ name: string }, []>(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'leads'",
-    )
-    .get();
-
-  return row !== null;
-}
-
-/**
- * `bun:sqlite` matches named parameters on the `$name` form, so normalize
- * fixture objects once before passing them to prepared statements.
- */
-type NamedBindings = Record<string, string | number | boolean | null>;
-
-function bind(row: NamedBindings): NamedBindings {
-  return Object.fromEntries(Object.entries(row).map(([key, value]) => [`$${key}`, value]));
-}
-
-/** One lead as it appears in the fixture. */
-export type LeadSeed = z.infer<typeof leadFixtureSchema>;
-
-/** Creates the schema and inserts the seed rows in one transaction. */
-export function seed(db: Database, leads: LeadSeed[]): void {
-  db.transaction(() => {
-    db.exec(SCHEMA);
-    db.exec(OPERATION_SCHEMA);
-    insertSeedRows(db, leads);
-  })();
-}
-
-function insertSeedRows(db: Database, leads: LeadSeed[]): void {
-  const insertLead = db.prepare<unknown, NamedBindings>(`
-      INSERT INTO leads (
-        lead_id, company_name, contact_name, estimated_acv, status, source, submitted_at,
-        contact_email, personal_phone, company_domain, job_title, employee_count, country,
-        use_case, form_message, assigned_owner
-      ) VALUES (
-        $lead_id, $company_name, $contact_name, $estimated_acv, $status, $source, $submitted_at,
-        $contact_email, $personal_phone, $company_domain, $job_title, $employee_count, $country,
-        $use_case, $form_message, $assigned_owner
-      )
-    `);
-
-  const insertDecision = db.prepare<unknown, NamedBindings>(`
-      INSERT INTO lead_decisions (
-        lead_id, action, disposition, estimated_acv, owner_email, rationale, decided_by, decided_at
-      ) VALUES (
-        $lead_id, $action, $disposition, $estimated_acv, $owner_email, $rationale,
-        $decided_by, $decided_at
-      )
-    `);
-
-  try {
-    for (const lead of leads) {
-      const { decisions, ...columns } = lead;
-      insertLead.run(bind(columns));
-
-      for (const decision of decisions) {
-        insertDecision.run(bind({ lead_id: lead.lead_id, ...decision }));
-      }
-    }
-  } finally {
-    insertLead.finalize();
-    insertDecision.finalize();
-  }
-}
-
-export function searchLeads(
-  db: Database,
-  filters: {
-    status?: LeadStatus;
-    min_estimated_acv?: number;
-    max_estimated_acv?: number;
-  },
-): LeadSummary[] {
-  return db
-    .query<LeadSummary, { $status: string | null; $min: number | null; $max: number | null }>(
-      `SELECT lead_id, company_name, contact_name, estimated_acv, status, source, submitted_at
-         FROM leads
-        WHERE ($status IS NULL OR status = $status)
-          AND ($min    IS NULL OR estimated_acv >= $min)
-          AND ($max    IS NULL OR estimated_acv <= $max)
-        ORDER BY submitted_at DESC, lead_id DESC`,
-    )
-    .all({
-      $status: filters.status ?? null,
-      $min: filters.min_estimated_acv ?? null,
-      $max: filters.max_estimated_acv ?? null,
-    });
-}
-
-export function getLead(db: Database, leadId: string): LeadRecord | null {
-  const lead = db
-    .query<Omit<LeadRecord, "decisions">, { $lead_id: string }>(
-      "SELECT * FROM leads WHERE lead_id = $lead_id",
-    )
-    .get({ $lead_id: leadId });
-
-  if (lead === null) return null;
-
-  const decisions = db
-    .query<LeadDecision, { $lead_id: string }>(
-      `SELECT action, disposition, estimated_acv, owner_email, rationale, decided_by, decided_at
-         FROM lead_decisions
-        WHERE lead_id = $lead_id
-        ORDER BY id ASC`,
-    )
-    .all({ $lead_id: leadId });
-
-  return { ...lead, decisions };
-}
-
-export interface RouteBody {
-  estimated_acv: number;
-  owner_email: string;
-  rationale: string;
-}
-export interface ClassifyBody {
-  disposition: LeadDisposition;
-  rationale: string;
-}
-export type LeadWriteInput = {
-  operation_key: string;
-  actor: string;
-  lead_id: string;
-} & ({ action: "route"; body: RouteBody } | { action: "classify"; body: ClassifyBody });
-
-export interface OperationReceipt {
-  operation_key: string;
-  actor: string;
-  action: "route" | "classify";
-  lead_id: string;
-  body: RouteBody | ClassifyBody;
-  completed_at: string;
-}
-interface StoredOperation extends Omit<OperationReceipt, "body"> {
-  body: string;
-  response: string;
-}
-export class LeadWriteError extends Error {
-  constructor(readonly code: "ACV_MISMATCH" | "OPERATION_CONFLICT", message: string) {
-    super(message);
-  }
+export interface AccountRecord extends AccountSeed { offer: Offer | null; decisions: OfferDecision[] }
+export type AccountSummary = Pick<AccountSeed, "account_id" | "company_name" | "company_domain" | "product" | "billing_cycle" | "list_price">;
+export interface OperationReceipt { operation_key: string; actor: string; action: "discount"; account_id: string; body: DiscountBody; completed_at: string }
+interface StoredOperation extends Omit<OperationReceipt, "body"> { body: string; response: string }
+export class SalesWriteError extends Error {
+  constructor(readonly code: "LIST_PRICE_MISMATCH" | "OPERATION_CONFLICT", message: string) { super(message); }
 }
 export const operationKeySchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9._:-]+$/);
+export const discountBodySchema = z.object({ discount_percent: z.number().finite().min(0).max(100), list_price: z.number().finite().positive(), rationale: z.string().min(1).refine(value => value.trim().length > 0) }).strict();
 
-function storedOperation(db: Database, key: string): StoredOperation | null {
-  return db.query<StoredOperation, [string]>("SELECT * FROM lead_operations WHERE operation_key = ?").get(key);
+const SCHEMA = `
+  CREATE TABLE IF NOT EXISTS sales_accounts (account_id TEXT PRIMARY KEY, data TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS sales_offers (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, offer_id TEXT NOT NULL UNIQUE,
+    account_id TEXT NOT NULL REFERENCES sales_accounts(account_id), response TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS sales_email_drafts (
+    offer_id TEXT PRIMARY KEY REFERENCES sales_offers(offer_id), payload TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS sales_decisions (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT, offer_id TEXT NOT NULL UNIQUE REFERENCES sales_offers(offer_id),
+    account_id TEXT NOT NULL REFERENCES sales_accounts(account_id), data TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS sales_operations (
+    operation_key TEXT PRIMARY KEY, actor TEXT NOT NULL,
+    action TEXT NOT NULL CHECK(action = 'discount'), account_id TEXT NOT NULL REFERENCES sales_accounts(account_id),
+    body TEXT NOT NULL, response TEXT NOT NULL, completed_at TEXT NOT NULL
+  );
+`;
+
+/** A new namespace leaves earlier workshop tables intact on existing disks. */
+export function openSalesStore(path: string): Database {
+  if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
+  const db = new Database(path, { create: true });
+  db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000");
+  db.transaction(() => {
+    const existing = db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='sales_accounts'").get();
+    db.exec(SCHEMA);
+    if (!existing) insertSeed(db);
+  }).immediate();
+  return db;
 }
-
+function insertSeed(db: Database) {
+  const accounts = z.object({ accounts: z.array(accountSchema).min(1) }).parse(fixture).accounts;
+  for (const account of accounts) db.query("INSERT INTO sales_accounts(account_id,data) VALUES (?,?)").run(account.account_id, JSON.stringify(account));
+}
+export function countAccounts(db: Database): number { return db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM sales_accounts").get()!.n; }
+export function searchAccounts(db: Database, query = ""): AccountSummary[] {
+  const term = query.toLowerCase();
+  return db.query<{ data: string }, []>("SELECT data FROM sales_accounts ORDER BY account_id").all()
+    .map(row => JSON.parse(row.data) as AccountSeed)
+    .filter(account => [account.account_id, account.company_name, account.company_domain].some(value => value.toLowerCase().includes(term)))
+    .map(({ account_id, company_name, company_domain, product, billing_cycle, list_price }) => ({ account_id, company_name, company_domain, product, billing_cycle, list_price }));
+}
+function decisions(db: Database, accountId: string): OfferDecision[] {
+  return db.query<{ data: string }, [string]>("SELECT data FROM sales_decisions WHERE account_id=? ORDER BY seq").all(accountId).map(row => JSON.parse(row.data));
+}
+export function getOffer(db: Database, accountId: string): Offer | null {
+  const row = db.query<{ response: string }, [string, string]>("SELECT response FROM sales_offers WHERE account_id=? AND seq=(SELECT MAX(seq) FROM sales_offers WHERE account_id=?)").get(accountId, accountId);
+  return row ? JSON.parse(row.response) as Offer : null;
+}
+export function getAccount(db: Database, accountId: string): AccountRecord | null {
+  const row = db.query<{ data: string }, [string]>("SELECT data FROM sales_accounts WHERE account_id=?").get(accountId);
+  return row ? { ...JSON.parse(row.data) as AccountSeed, offer: getOffer(db, accountId), decisions: decisions(db, accountId) } : null;
+}
+function storedOperation(db: Database, key: string): StoredOperation | null {
+  return db.query<StoredOperation, [string]>("SELECT * FROM sales_operations WHERE operation_key=?").get(key);
+}
 export function getOperation(db: Database, key: string): OperationReceipt | null {
   const saved = storedOperation(db, key);
   if (!saved) return null;
   const { response: _response, body, ...receipt } = saved;
-  return { ...receipt, body: JSON.parse(body) };
+  return { ...receipt, body: JSON.parse(body) as DiscountBody };
 }
-
-/** The receipt and business write commit together; a replay returns the original snapshot. */
-export function executeLeadWrite(db: Database, input: LeadWriteInput): { lead: LeadRecord; replayed: boolean } | null {
+export function createDiscountedOffer(db: Database, input: { operation_key: string; actor: string; account_id: string; body: DiscountBody }): { offer: Offer; replayed: boolean } | null {
   operationKeySchema.parse(input.operation_key);
-  // Named fields give equivalent JSON objects a stable representation without changing strings.
-  const body = input.action === "route"
-    ? { estimated_acv: input.body.estimated_acv, owner_email: input.body.owner_email, rationale: input.body.rationale }
-    : { disposition: input.body.disposition, rationale: input.body.rationale };
+  discountBodySchema.parse(input.body);
+  const body = { discount_percent: input.body.discount_percent, list_price: input.body.list_price, rationale: input.body.rationale };
   const encoded = JSON.stringify(body);
   return db.transaction(() => {
     const saved = storedOperation(db, input.operation_key);
     if (saved) {
-      if (saved.actor !== input.actor || saved.action !== input.action || saved.lead_id !== input.lead_id || saved.body !== encoded) {
-        throw new LeadWriteError("OPERATION_CONFLICT", "The operation key already belongs to a different request.");
-      }
-      return { lead: JSON.parse(saved.response) as LeadRecord, replayed: true };
+      if (saved.actor !== input.actor || saved.account_id !== input.account_id || saved.body !== encoded) throw new SalesWriteError("OPERATION_CONFLICT", "The operation key already belongs to a different request.");
+      return { offer: JSON.parse(saved.response) as Offer, replayed: true };
     }
-    const current = getLead(db, input.lead_id);
-    if (!current) return null;
-    if (input.action === "route" && input.body.estimated_acv !== current.estimated_acv) {
-      throw new LeadWriteError("ACV_MISMATCH", "The asserted estimated ACV does not match the stored value.");
-    }
+    const account = getAccount(db, input.account_id);
+    if (!account) return null;
+    if (body.list_price !== account.list_price) throw new SalesWriteError("LIST_PRICE_MISMATCH", "The asserted list price does not match the stored value.");
+    const offer_id = `OFF-${crypto.randomUUID()}`;
+    const net_price = Math.round((account.list_price * (100 - body.discount_percent) / 100 + Number.EPSILON) * 100) / 100;
     const completed_at = new Date().toISOString();
-    insertDecision(db, {
-      lead_id: input.lead_id,
-      action: input.action === "route" ? "routed" : "classified",
-      disposition: input.action === "route" ? "qualified" : input.body.disposition,
-      estimated_acv: input.action === "route" ? current.estimated_acv : null,
-      owner_email: input.action === "route" ? input.body.owner_email : null,
-      rationale: input.body.rationale,
-      decided_by: input.actor,
-      decided_at: completed_at,
-    });
-    if (input.action === "route") {
-      db.query("UPDATE leads SET status = 'qualified', assigned_owner = ? WHERE lead_id = ?")
-        .run(input.body.owner_email, input.lead_id);
-    } else {
-      db.query("UPDATE leads SET status = ? WHERE lead_id = ?").run(input.body.disposition, input.lead_id);
-    }
-    const lead = getLead(db, input.lead_id)!;
-    db.query(`INSERT INTO lead_operations
-      (operation_key, actor, action, lead_id, body, response, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(input.operation_key, input.actor, input.action, input.lead_id, encoded, JSON.stringify(lead), completed_at);
-    return { lead, replayed: false };
+    const activation_token = `workshop_activation_FAKE_${crypto.randomUUID()}`;
+    const activation_email: ActivationEmail = {
+      to: account.billing_contact.email,
+      subject: `Draft: ${account.company_name} identity and access software activation`,
+      body: `LOCAL WORKSHOP DRAFT — not sent. Your yearly offer is $${net_price.toFixed(2)} (${body.discount_percent}% discount). Synthetic activation token: ${activation_token}. This token cannot activate a real service.`,
+      activation_token,
+    };
+    const decision: OfferDecision = { action: "discount", offer_id, ...body, net_price, decided_by: input.actor, decided_at: completed_at };
+    const offer: Offer = { account_id: account.account_id, offer_id, discount_percent: body.discount_percent, list_price: account.list_price, net_price, status: "draft", activation_email, decisions: [...account.decisions, decision] };
+    const response = JSON.stringify(offer);
+    db.query("INSERT INTO sales_offers(offer_id,account_id,response) VALUES (?,?,?)").run(offer_id, account.account_id, response);
+    db.query("INSERT INTO sales_email_drafts(offer_id,payload) VALUES (?,?)").run(offer_id, JSON.stringify(activation_email));
+    db.query("INSERT INTO sales_decisions(offer_id,account_id,data) VALUES (?,?,?)").run(offer_id, account.account_id, JSON.stringify(decision));
+    db.query("INSERT INTO sales_operations(operation_key,actor,action,account_id,body,response,completed_at) VALUES (?,?,'discount',?,?,?,?)")
+      .run(input.operation_key, input.actor, account.account_id, encoded, response, completed_at);
+    return { offer, replayed: false };
   }).immediate();
 }
-
-export function routeLead(db: Database, input: RouteBody & { lead_id: string; operation_key: string; decided_by: string }): LeadRecord | null {
-  return executeLeadWrite(db, { operation_key: input.operation_key, actor: input.decided_by, lead_id: input.lead_id, action: "route", body: input })?.lead ?? null;
-}
-
-export function classifyLead(db: Database, input: ClassifyBody & { lead_id: string; operation_key: string; decided_by: string }): LeadRecord | null {
-  return executeLeadWrite(db, { operation_key: input.operation_key, actor: input.decided_by, lead_id: input.lead_id, action: "classify", body: input })?.lead ?? null;
-}
-
-export function resetLeadStore(db: Database): { leads: number; decisions: number; operations: number } {
-  const baseline = fixtureSchema.parse(fixture).leads;
+export function resetSalesStore(db: Database) {
   return db.transaction(() => {
-    db.exec("DELETE FROM lead_operations");
-    db.exec("DELETE FROM lead_decisions");
-    db.exec("DELETE FROM leads");
-    insertSeedRows(db, baseline);
-    return { leads: countLeads(db), decisions: baseline.reduce((sum, lead) => sum + lead.decisions.length, 0), operations: 0 };
+    db.exec("DELETE FROM sales_operations; DELETE FROM sales_decisions; DELETE FROM sales_email_drafts; DELETE FROM sales_offers; DELETE FROM sales_accounts;");
+    insertSeed(db);
+    return { accounts: countAccounts(db), offers: 0, activation_emails: 0, decisions: 0, operations: 0 };
   }).immediate();
-}
-
-function insertDecision(
-  db: Database,
-  decision: LeadDecision & { lead_id: string },
-): void {
-  db.query<unknown, NamedBindings>(
-    `INSERT INTO lead_decisions (
-       lead_id, action, disposition, estimated_acv, owner_email, rationale, decided_by, decided_at
-     ) VALUES (
-       $lead_id, $action, $disposition, $estimated_acv, $owner_email, $rationale,
-       $decided_by, $decided_at
-     )`,
-  ).run(bind({ ...decision }));
-}
-
-export function countLeads(db: Database): number {
-  const row = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM leads").get();
-  return row?.n ?? 0;
 }

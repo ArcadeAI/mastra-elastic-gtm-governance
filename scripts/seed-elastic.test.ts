@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import leads from "../apps/lead-app/src/fixtures/leads.json" with { type: "json" };
+import accounts from "../apps/lead-app/src/fixtures/accounts.json" with { type: "json" };
 import fixture from "../elastic/fixtures/account-context.json" with { type: "json" };
-import { seedElastic, fixtureEvents, GOVERNED_PHONE, GOVERNED_INSTRUCTION } from "./seed-elastic";
+import { seedElastic, fixtureEvents, GOVERNED_PHONE, GOVERNED_INSTRUCTION, GOVERNED_TOKEN } from "./seed-elastic";
 
 describe("seedElastic", () => {
   test("partitions clean and governed markers without changing evidence IDs or dates", () => {
@@ -10,19 +10,21 @@ describe("seedElastic", () => {
     const governed = fixtureEvents("governed");
     expect(clean).toEqual(fixture);
     expect(JSON.stringify(clean)).not.toContain(GOVERNED_PHONE);
+    expect(JSON.stringify(clean)).not.toContain(GOVERNED_TOKEN);
     expect(JSON.stringify(clean)).not.toContain(GOVERNED_INSTRUCTION);
     expect(JSON.stringify(governed)).toContain(GOVERNED_PHONE);
+    expect(JSON.stringify(governed)).toContain(GOVERNED_TOKEN);
     expect(JSON.stringify(governed)).toContain(GOVERNED_INSTRUCTION);
     expect(governed.map(event => [event.event_id, event.occurred_at])).toEqual(clean.map(event => [event.event_id, event.occurred_at]));
     expect(governed).toHaveLength(8);
-    expect(governed.find(event => event.event_id === "evt-northwind-003")?.content).toContain("SAML SSO");
+    expect(governed.find(event => event.event_id === "evt-northwind-003")?.content).toContain("8400 USD");
     expect(fixtureEvents("clean")).toEqual(fixture);
   });
   test("keeps Elastic context joined to the lead-system fixture", () => {
-    const leadsById = new Map(leads.leads.map((lead) => [lead.lead_id, lead]));
+    const leadsById = new Map(accounts.accounts.map((lead) => [lead.account_id, lead]));
 
     for (const event of fixture) {
-      const lead = leadsById.get(event.lead_id);
+      const lead = leadsById.get(event.account_id);
       expect(lead, `${event.event_id} references a missing lead`).toBeDefined();
       expect(event.company_name).toBe(lead!.company_name);
       expect(event.company_domain).toBe(lead!.company_domain);

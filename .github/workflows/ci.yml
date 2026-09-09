@@ -33,12 +33,11 @@ jobs:
 
       - uses: astral-sh/setup-uv@v6
 
-      # The Bun integration tests launch the real Python MCP servers from each
-      # toolkit's .venv. CI jobs do not share the Python job's environments.
+      # The Bun integration tests launch the real Sales MCP server.
+      # CI jobs do not share the Python job's environment.
       - name: Install Python MCP test dependencies
         run: |
           uv sync --frozen --extra dev --directory tools/lead
-          uv sync --frozen --extra dev --directory tools/approvals
 
       - name: Typecheck
         run: bun run typecheck
@@ -68,7 +67,7 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
   toolkits:
-    name: test Python toolkits
+    name: test Python Sales toolkit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -94,14 +93,6 @@ jobs:
 
       - name: Test
         working-directory: tools/lead
-        run: uv run --frozen --extra dev python -m pytest
-
-      - name: Lint approvals
-        working-directory: tools/approvals
-        run: uv run --frozen --extra dev ruff check approvals tests
-
-      - name: Test approvals against local HTTP servers
-        working-directory: tools/approvals
         run: uv run --frozen --extra dev python -m pytest
 
   images:

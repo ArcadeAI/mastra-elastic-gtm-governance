@@ -1,126 +1,126 @@
 [
   {
     "event_id": "evt-northwind-001",
-    "lead_id": "LD-2291",
-    "account_id": "acct-northwind-robotics",
+    "account_id": "ACC-2291",
     "company_name": "Northwind Robotics",
     "company_domain": "northwindrobotics.example",
     "event_type": "product_usage",
     "occurred_at": "2026-08-27T18:20:00.000Z",
-    "title": "Trial workspace usage",
-    "content": "Twelve active developers created 184 preview deployments in the last 14 days. Usage grew 63 percent week over week.",
+    "title": "Identity platform adoption",
+    "content": "Northwind uses the identity and access platform for 12 business applications and recorded 85000 successful sign-ins in the last 30 days. Active seats increased from 180 to 220. This shows adoption, but usage alone does not establish a need for a discount.",
     "metadata": {
-      "active_developers": 12,
-      "preview_deployments_14d": 184,
-      "week_over_week_growth_pct": 63
+      "connected_apps": 12,
+      "successful_signins_30d": 85000,
+      "active_seats": 220,
+      "prior_active_seats": 180
     }
   },
   {
     "event_id": "evt-northwind-002",
-    "lead_id": "LD-2291",
-    "account_id": "acct-northwind-robotics",
+    "account_id": "ACC-2291",
     "company_name": "Northwind Robotics",
     "company_domain": "northwindrobotics.example",
     "event_type": "content_intent",
     "occurred_at": "2026-08-28T16:05:00.000Z",
-    "title": "Enterprise documentation research",
-    "content": "Visitors from the company viewed enterprise SSO, audit logs, data residency, AI SDK, and deployment protection documentation.",
+    "title": "Competitive renewal review",
+    "content": "Procurement is comparing a competitor quote of 9000 USD per year with the current identity and access product. The quote may exclude automated provisioning and audit retention; the AE has not verified equivalent scope or migration costs.",
     "metadata": {
-      "high_intent_pages": 5,
-      "sessions": 9
+      "competitor_annual_quote": 9000,
+      "currency": "USD",
+      "scope_comparison": "unverified"
     }
   },
   {
     "event_id": "evt-northwind-003",
-    "lead_id": "LD-2291",
-    "account_id": "acct-northwind-robotics",
+    "account_id": "ACC-2291",
     "company_name": "Northwind Robotics",
     "company_domain": "northwindrobotics.example",
     "event_type": "support_conversation",
     "occurred_at": "2026-08-29T20:15:00.000Z",
-    "title": "Security and residency questions",
-    "content": "The platform team asked whether SAML SSO, SOC 2 evidence, US data residency, and role-based deployment controls are available on an enterprise agreement.",
+    "title": "Budget request for annual renewal",
+    "content": "Northwind states that its annual software budget is 8400 USD against the current 12000 USD annual list price and asks for a 30 percent discount. Finance has not confirmed that cap. The request is supporting context for a manager decision, not an approved concession.",
     "metadata": {
-      "sentiment": "positive",
-      "topic": "enterprise_security"
+      "requested_discount_percent": 30,
+      "stated_annual_budget": 8400,
+      "annual_list_price": 12000,
+      "currency": "USD",
+      "budget_confirmation": "pending"
     }
   },
   {
     "event_id": "evt-northwind-004",
-    "lead_id": "LD-2291",
-    "account_id": "acct-northwind-robotics",
+    "account_id": "ACC-2291",
     "company_name": "Northwind Robotics",
     "company_domain": "northwindrobotics.example",
     "event_type": "crm_history",
     "occurred_at": "2026-08-30T15:00:00.000Z",
-    "title": "Prior expansion note",
-    "content": "A solutions engineer estimated an initial annual contract value between 85000 and 110000 USD if the robotics simulation team joins the existing platform workspace.",
+    "title": "Renewal account history",
+    "content": "The identity and access subscription is due for annual renewal on October 31, 2026. Its annual list price is 12000 USD. Northwind values SAML SSO, automated user provisioning, and access audit logs. There is no signed discounted offer; Riley must review any discount beyond the AE limit.",
     "metadata": {
-      "acv_low": 85000,
-      "acv_high": 110000,
-      "segment": "enterprise"
+      "renewal_date": "2026-10-31",
+      "annual_list_price": 12000,
+      "term_months": 12,
+      "currency": "USD",
+      "discount_approval": "not_granted"
     }
   },
   {
     "event_id": "evt-harborline-001",
-    "lead_id": "LD-2290",
-    "account_id": "acct-harborline-health",
+    "account_id": "ACC-2290",
     "company_name": "Harborline Health",
     "company_domain": "harborlinehealth.example",
     "event_type": "product_usage",
     "occurred_at": "2026-08-25T14:12:00.000Z",
-    "title": "Evaluation workspace usage",
-    "content": "Three developers created 14 deployments in 30 days. No activity has been recorded in the last eleven days.",
+    "title": "Early identity rollout",
+    "content": "Harborline connected three business applications to the identity platform, but its pilot has had no activity in eleven days. Confirm the rollout owner and adoption plan before proposing renewal terms.",
     "metadata": {
-      "active_developers": 3,
-      "deployments_30d": 14,
+      "connected_apps": 3,
       "days_since_last_activity": 11
     }
   },
   {
     "event_id": "evt-cascade-001",
-    "lead_id": "LD-2288",
-    "account_id": "acct-cascade-biosystems",
+    "account_id": "ACC-2288",
     "company_name": "Cascade BioSystems",
     "company_domain": "cascadebiosystems.example",
     "event_type": "crm_history",
     "occurred_at": "2026-08-23T17:40:00.000Z",
-    "title": "Platform consolidation evaluation",
-    "content": "The VP of Engineering confirmed a twelve-team platform consolidation project with an estimated annual contract value between 160000 and 190000 USD.",
+    "title": "Enterprise access renewal",
+    "content": "Cascade is evaluating an annual renewal of identity and access software at a 18000 USD list price. Procurement asked for a 10 percent discount, with no final acceptance recorded.",
     "metadata": {
-      "acv_low": 160000,
-      "acv_high": 190000,
-      "segment": "enterprise"
+      "annual_list_price": 18000,
+      "requested_discount_percent": 10,
+      "currency": "USD",
+      "offer_status": "not_agreed"
     }
   },
   {
     "event_id": "evt-meridian-001",
-    "lead_id": "LD-2295",
-    "account_id": "acct-meridian-data",
+    "account_id": "ACC-2295",
     "company_name": "Meridian Data Cloud",
     "company_domain": "meridiandata.example",
     "event_type": "content_intent",
     "occurred_at": "2026-08-31T10:10:00.000Z",
-    "title": "AI application research",
-    "content": "The account repeatedly viewed AI SDK, model routing, observability, and secure compute documentation.",
+    "title": "Provisioning and audit requirements",
+    "content": "Meridian reviewed SAML SSO, SCIM user provisioning, and audit-log retention documentation while comparing identity providers. No verified budget or discount request is recorded.",
     "metadata": {
       "high_intent_pages": 4,
-      "sessions": 6
+      "sessions": 6,
+      "budget_status": "unknown"
     }
   },
   {
     "event_id": "evt-alderway-001",
-    "lead_id": "LD-2299",
-    "account_id": "acct-alderway-design",
+    "account_id": "ACC-2299",
     "company_name": "Alderway Design Systems",
     "company_domain": "alderwaydesign.example",
     "event_type": "support_conversation",
     "occurred_at": "2026-08-31T21:30:00.000Z",
-    "title": "Planning-cycle timing",
-    "content": "The prospect requested technical material now and asked the team to reconnect in January when the next planning cycle opens.",
+    "title": "Renewal planning timing",
+    "content": "Alderway requested identity and access product material and asked the account team to revisit renewal terms in January. No discount commitment has been made.",
     "metadata": {
-      "topic": "buying_timeline",
-      "sentiment": "neutral"
+      "topic": "renewal_timeline",
+      "discount_approval": "not_requested"
     }
   }
 ]

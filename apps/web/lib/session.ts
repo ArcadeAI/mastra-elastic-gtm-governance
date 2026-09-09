@@ -4,12 +4,14 @@ import { ServiceError, serviceOrigin } from "./hooks-client";
 
 export const personaKeys = ["dana", "sam", "riley", "morgan"] as const;
 export type Persona = typeof personaKeys[number];
+const sessionPersonas = z.enum([...personaKeys, "verification"]);
+export type SessionPersona = z.infer<typeof sessionPersonas>;
 export interface SessionConfig {
   origin: string; idp: string; clientId: string; clientSecret: string; secret: string;
-  emails: Record<Persona, string>; demoMode: boolean;
+  emails: Record<Persona, string>; demoMode: boolean; verificationEmail?: string;
 }
-const sessionSchema = z.object({ email: z.string().email(), persona: z.enum(personaKeys), token: z.string(), csrf: z.string(), expires: z.number() });
-const transactionSchema = z.object({ state: z.string(), verifier: z.string(), email: z.string().email(), persona: z.enum(personaKeys), returnTo: z.string(), expires: z.number() });
+const sessionSchema = z.object({ email: z.string().email(), persona: sessionPersonas, token: z.string(), csrf: z.string(), expires: z.number() });
+const transactionSchema = z.object({ state: z.string(), verifier: z.string(), email: z.string().email(), persona: sessionPersonas, returnTo: z.string(), expires: z.number() });
 export type Session = z.infer<typeof sessionSchema>;
 
 function cookies(request: Request) {
@@ -37,6 +39,13 @@ export function createSessions(config: SessionConfig) {
   const origin = serviceOrigin(config.origin);
   const idp = serviceOrigin(config.idp);
   const callback = `${origin}/auth/callback`;
+  function selectedEmail(persona: SessionPersona) {
+    if (persona !== "verification") return config.emails[persona];
+    const email = config.verificationEmail;
+    // Setup identity is separate from the four attendee roles and can only be
+    // used while its explicit demo configuration remains enabled.
+    return config.demoMode && email && z.string().email().safeParse(email).success && !Object.values(config.emails).includes(email) ? email : undefined;
+  }
   const cookie = (name: string, value: string, seconds = 3600) => `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${origin.startsWith("https:") ? "; Secure" : ""}`;
   async function userinfo(token: string) {
     const response = await fetch(`${idp}/oauth2/userinfo`, { headers: { authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
@@ -47,8 +56,10 @@ export function createSessions(config: SessionConfig) {
     async current(request: Request): Promise<Session | null> {
       const parsed = sessionSchema.safeParse(unseal(cookies(request).workshop_session, config.secret));
       if (!parsed.success || parsed.data.expires <= Date.now()) return null;
+      const expected = selectedEmail(parsed.data.persona);
+      if (!expected || expected !== parsed.data.email) throw new ServiceError("The session identity no longer matches the selected role.", 401);
       const identity = await userinfo(parsed.data.token);
-      if (identity.email !== parsed.data.email || config.emails[parsed.data.persona] !== identity.email) throw new ServiceError("The session identity no longer matches the selected role.", 401);
+      if (identity.email !== parsed.data.email || expected !== identity.email) throw new ServiceError("The session identity no longer matches the selected role.", 401);
       return parsed.data;
     },
     csrf(request: Request, session: Session) {
@@ -57,8 +68,8 @@ export function createSessions(config: SessionConfig) {
     login(request: Request) {
       if (!config.demoMode) throw new ServiceError("Workshop demo sign-in is disabled. Enable WORKSHOP_DEMO_MODE for the supplied demo identities.", 503);
       const url = new URL(request.url);
-      const persona = z.enum(personaKeys).parse(url.searchParams.get("persona"));
-      const email = config.emails[persona];
+      const persona = sessionPersonas.parse(url.searchParams.get("persona"));
+      const email = selectedEmail(persona);
       if (!email) throw new ServiceError("The selected identity is not configured.", 503);
       const requested = url.searchParams.get("returnTo") ?? "/";
       const returnTo = requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\") ? requested : "/";
@@ -73,6 +84,7 @@ export function createSessions(config: SessionConfig) {
       const url = new URL(request.url);
       const parsed = transactionSchema.safeParse(unseal(cookies(request).workshop_oauth, config.secret));
       if (!parsed.success || parsed.data.expires <= Date.now() || !equal(parsed.data.state, url.searchParams.get("state") ?? "")) throw new ServiceError("Sign-in state is invalid or expired. Start sign-in again.", 400);
+      if (selectedEmail(parsed.data.persona) !== parsed.data.email) throw new ServiceError("The selected identity is no longer configured. Start sign-in again.", 503);
       if (url.searchParams.get("iss") !== idp) throw new ServiceError("Unexpected sign-in issuer.", 400);
       const code = url.searchParams.get("code");
       if (!code) throw new ServiceError("Sign-in was not completed.", 400);

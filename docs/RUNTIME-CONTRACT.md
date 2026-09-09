@@ -1,236 +1,164 @@
-# Connected workshop runtime contract
+# Discount-offer runtime contract
 
-Status: implemented and covered by local service tests. Live cloud verification remains
-separate; see [local verification](LOCAL-VERIFICATION.md). The scenario source is `features/connected-workshop.feature`.
+This describes the Northwind discount scenario. Use [Testing](TESTING.md) for current
+checks. [Historical verification](LOCAL-VERIFICATION.md) predates this pivot and does not
+certify its implementation, live integration or workshop timing.
 
-## Identity and ownership
+## Account and offer API
 
-One attendee controls four distinct demo OAuth identities. Dana uses the attendee's
-Arcade account email; Riley, Sam, and Morgan use supplied demo addresses. Only Dana needs
-stock Slack authorization. Thierry provides the workshop Slack workspace and invite.
-The toolkit derives the actual Slack user/team from `auth.test` and sends a self-DM.
-The notification names Dana and Riley, but its recipient does not become the approver.
+The business service remains in `apps/lead-app`; its Arcade toolkit is named **Sales**.
+Public endpoints require the user's OAuth bearer. The API resolves that token through the
+IdP; an actor is never a model-supplied argument.
 
-Web sign-in uses a separate, stable `workshop-web` client in the existing demo IdP.
-Persona switching starts authorization with `prompt=login`, a random state and PKCE S256.
-The callback verifies the transaction and compares `/oauth2/userinfo` with the expected
-persona before establishing an encrypted HttpOnly session. A query/body persona is never
-the authority for a decision. The custom Arcade verifier confirms the session identity;
-stock Slack still uses Arcade's project-member verifier.
-
-The supplied stage needs only a model. The Elastic stage additionally needs the gateway
-and configured Dana identity. Neither depends on the IdP or hooks. The governed stage
-requires an authenticated session and persistent services. Broken required connections
-return errors instead of silently falling back to supplied input.
-
-## Data owners
-
-| Owner | Durable state | Reset |
-|---|---|---|
-| lead-app | Existing leads/decisions plus operation receipts | Restore fixture and clear receipts in one transaction |
-| IdP | Existing people, tokens and two ownerless OAuth clients | Reset people/tokens; preserve both clients and secrets |
-| hooks | Subjects, policy, safe audit, denied actions, requests/grants, delivery claims, run bindings | Clear exercise state and restore baseline policy |
-| web | Native Mastra snapshots in LibSQL; encrypted browser session | Delete exercise snapshots through the storage API |
-
-Web's Node runtime cannot import `bun:sqlite`. Use `@mastra/libsql` for native snapshots;
-hooks remains the owner of business-independent continuation metadata. Persist both
-services on disks. A redeploy is not a reset.
-
-## Lead API
-
-The existing OAuth bearer remains required on public Lead routes. Both write tools take
-`operation_key` and forward it as `Idempotency-Key`. Keys contain 1–128 ASCII letters,
-digits, dots, underscores, colons, or hyphens.
-
-| Route | Body/result |
+| Endpoint | Contract |
 |---|---|
-| `POST /leads/:id/route` | `{estimated_acv, owner_email, rationale}`; existing LeadRecord result |
-| `POST /leads/:id/classify` | `{disposition, rationale}`; existing LeadRecord result |
-| `GET /internal/leads/:id/value` | `{lead_id, estimated_acv}` |
-| `GET /internal/operations/:key` | `{operation_key, actor, action, lead_id, body, completed_at}`; 404 if absent |
-| `POST /internal/reset` | Restore the fixture; return restored counts |
+| `GET /accounts` | Search account records. |
+| `GET /accounts/:id` | Account, commercial context, trial provisioning and current offer. |
+| `POST /accounts/:id/offers` | `{discount_percent,list_price,rationale}` with `Idempotency-Key`. Creates a draft offer and activation email. |
+| `GET /accounts/:id/offer` | Saved offer, including draft terms and activation email. |
+| `GET /internal/accounts/:id/value` | `{account_id,list_price}` for independent price validation. |
+| `GET /internal/operations/:key` | `{operation_key,actor,action:"discount",account_id,body,completed_at}`; 404 if absent. |
+| `POST /internal/reset` | Restore account fixtures and clear exercise offers/decisions/receipts. |
 
-Internal routes require `Authorization: Bearer LEAD_INTERNAL_TOKEN`, supplied only to
-the lead service, hooks, and operator tooling. They do not implement policy or roles.
+Internal endpoints require `LEAD_INTERNAL_TOKEN`; the name is retained for service
+compatibility. The toolkit exposes `SearchAccounts`, `GetAccount`, `CreateDiscountedOffer`
+and `GetOffer`. The latter takes `account_id`, not an offer ID.
 
-An immediate SQLite transaction checks the globally unique key, compares the complete
-validated request (actor/action/lead/body), reads the stored ACV, writes, and saves the
-original response. An exact replay returns that saved response, even after later changes
-or restart. A changed request returns 409 `OPERATION_CONFLICT`; missing/invalid keys return
-400. Route ACV is an equality assertion, never an update: mismatch returns 409
-`ACV_MISMATCH` and changes nothing. Responses expose `Idempotency-Key` and
-`Idempotency-Replayed: true|false`. Internal receipt reads do not expose the saved raw result.
-Receipt `action` is `route|classify`. Reset returns `{leads, decisions, operations}`:
-fixture historical decisions are restored; operation receipts are cleared.
+The Northwind account is `ACC-2291`, with `product: "B2B identity and access software"`,
+`billing_cycle: "yearly"` and `list_price: 12000`. Account output includes the billing
+contact, `provisioning.activation_token`, and an optional offer. The synthetic token starts
+with `workshop_activation_FAKE_` and exists only in the workshop fixture.
 
-## Hooks and policy
+Offer output contains `account_id`, `offer_id`, `discount_percent`, `list_price`,
+`net_price`, `status: "draft"`, `activation_email` and decisions. The activation-email
+object contains `to`, `subject`, `body` and its synthetic `activation_token`.
+No customer email or external signature request is sent.
 
-`/access`, `/pre`, and `/post` require the configured Arcade bearer secret and validate the
-vendored hook schemas. Access responses retain the exact toolkit/tool/version-array shape.
-Pre denials use `CHECK_FAILED` and a remediation message; post modifications use
-`OK` with `override.output`. Invalid input, unknown identity/tool, lookup failures, and
-uninspectable sensitive output fail closed.
+`discount_percent` uses percentage units in the 0–100 range, so 30 means 30%. For Northwind, 30% of
+$12,000 produces $8,400 net. `list_price` asserts the stored value and cannot overwrite it.
+A nonempty rationale is required. The host supplies the operation key, which binds the
+actor, action, account and exact validated business body. An identical replay returns the
+saved response; a changed request conflicts. A transaction commits the offer and receipt
+together so repeated continuation cannot create a second write for that operation.
 
-Reuse `compilePolicy`, `resolveVisibility`, `evaluatePermission`, and `routeApproval`.
-Configure Elastic tools from observed gateway names, never guessed normalizations.
-The authority check overlays independently read ACV, while retaining the exact original
-arguments for the pending action. Reject inconsistent asserted ACV without creating a grant.
-Only an authority-limit denial can be remediated by a grant. Grants cannot override an
-access/identity/assignment denial.
+## Identity, permissions and filtering
 
-A denied route persists an opaque denial ID, requester, tool, complete inputs including
-`operation_key`, authoritative value, execution ID, and expiry. The remediation instructs
-the model to call `Approvals.RequestApproval(denial_id, justification)`.
+Dana is the account executive with a 15% discount ceiling. Riley, the sales manager, has
+40%; Morgan has 75%; Sam has no offer-creation access. One attendee can play the seeded
+roles. Dana uses the attendee's actual Arcade account email. Selecting a role starts fresh
+IdP OAuth sign-in; the name alone grants no authority.
 
-Grants bind every original input, requester, tool, resource and authoritative value, with
-`ceiling: null` and exact pinned inputs. First use claims the operation atomically. Another
-operation cannot reuse it. An identical operation may retry before expiry; after expiry
-it can only replay a matching completed lead receipt, never begin a new write. This avoids
-pretending two independent databases share one transaction. The lead transaction supplies
-the final one-write guarantee.
+Web has its own stable OAuth client, separate from Arcade's client. State, PKCE, issuer and
+expected identity are checked at callback. The IdP token lives encrypted inside an HttpOnly
+session cookie. Mutation routes require matching Origin and CSRF. The custom Arcade
+verifier confirms the signed-in identity. Stock Slack retains project-member verification.
 
-Output filtering handles JSON objects/arrays and JSON inside MCP text blocks, preserving
-legitimate evidence. Unsupported binary content and filtering errors return failed checks.
-The default rules remove synthetic personal-phone fields and the fixture's injected text;
-this is not a claim to detect every possible prompt injection. Audit stores safe output and
-rule/marker metadata, never unfiltered phone/instruction bodies.
+The supplied stage needs only a model; the Elastic stage adds the gateway and selected
+read tools. The governed stage adds authenticated identity, hooks and persistent storage.
+Required connection failures remain visible instead of falling back to supplied input.
 
-Operator routes use `WORKSHOP_OPERATOR_TOKEN`, separate from all tool/web credentials:
-`GET/PUT /operator/policy`, `GET /operator/state`, `POST /operator/activate`,
-`POST /operator/reset`, `GET /operator/runs/:id/evidence`, and
-`POST /operator/runs/:id/recover`. Reset refuses active workers and returns an incremented
-`reset_epoch`. Recovery requires `{worker_stopped:true, lease_id}` for the current expired
-lease. Run evidence includes safe trace/audit and a SHA-256 receipt binding over the
-requester, action, resource, and exact canonical business body.
-Policy updates validate/compile completely before an atomic swap. Start in staged mode;
-only a configured verification identity can inspect sensitive tools until the operator has
-observed a denial and filtered result through the actual gateway and activates normal roles.
+Arcade invokes `/access`, `/pre` and `/post` using `ARCADE_HOOK_SECRET`. Access hides offer
+creation from Sam. The pre-hook checks the requested discount against the caller's ceiling
+and independently reads list price. Only a discount-permission denial can be remediated by
+a grant. Grants cannot override an access or identity denial.
 
-## Approval toolkit and notification
+An approval binds every saved input: requester, account, tool, percentage, list price,
+rationale and operation key. Changing one requires a new action. The post-hook removes
+activation-token fields and fake token strings, personal phone fields and the known fixture
+instruction from model-facing output, including nested JSON/MCP text and email drafts.
+Legitimate prices and discount values remain visible. Unsupported sensitive content fails
+closed. The filter demonstrates fixture rules, not universal injection or secret detection.
 
-The Python toolkit is `MCPApp(name="approvals")`, exposing `RequestApproval` and `Decide`.
-RequestApproval requires stock Slack's four scopes (`chat:write`, `im:write`, `users:read`,
-`users:read.email`). Decide requires the custom demo IdP. Both receive
-`HOOKS_PUBLIC_HOST` and `APPROVALS_SERVICE_TOKEN` as tool secrets.
+## Staged setup
 
-These hooks routes require the approvals service bearer. The Python tool derives actor
-fields from trusted `Context.user_id`; they are never model arguments.
+`ARCADE_SALES_TOOLKIT=Sales` supplies the hook toolkit identity. Set
+`ARCADE_DISCOUNT_TOOL_NAME` from the actual gateway's CreateDiscountedOffer name. Elastic
+hook identities use a separate `ARCADE_ELASTIC_HOOK_TOOLS` mapping.
+Set `ARCADE_GET_OFFER_TOOL_NAME` to the observed GetOffer name so the host can identify the
+required read-back. Both Sales names belong to the same custom toolkit deployment.
 
-| Route | Body | Result |
-|---|---|---|
-| `POST /internal/approvals/request` | `{denial_id, justification, requester_id}` | Find/create one public request from the owned denial |
-| `POST /internal/approvals/:id/notification/claim` | `{requester_id, slack_user_id, slack_team_id}` | `{claim_id, notification_status}`; null claim if already sending/sent/uncertain |
-| `POST /internal/approvals/:id/notification/result` | `{requester_id, claim_id, outcome, channel?, ts?, error?}` | Updated public request; identical acknowledgement is idempotent |
-| `POST /internal/approvals/:id/decision` | `{actor_id, decision, note?}` and `X-Actor-Token` | Committed request/grant state after independent IdP verification |
+`hook-tools` reads `/operator/observed-tools`, exposing only authenticated hook toolkit/tool
+names and argument keys. Start with `/access` names and empty argument lists, configure and
+redeploy hooks, perform a clean Elastic read, then collect and configure observed keys.
+No raw arguments, tokens or output bodies are part of this inventory.
 
-Public request fields are `request_id`, `requester_id`, `approver_id`, `requester_name`,
-`approver_name`, `operation_key`, `tool_name`, `inputs`, `resource_id`, `required_clearance`,
-`status`, `notification_status`, and `approval_url`. Filter free text before exposing it.
-Run displays combine tools, so stored trace/text/error display applies the requester's
-current output restrictions conservatively across the combined view, including older
-stored traces. The requester-filtered copy is the canonical display for both the requester
-and assigned approver; reads do not apply a separate approver-specific filter. Immediate
-browser text/tool-call traces use that copy. Tool-result error summaries and authorization
-metadata retain their individual tool's post-hook filtering scope.
-Filtered `inputs` is a display copy only. Never replace the canonical denied arguments or
-execute this display copy. The resume action comes from the exact stored run action after
-requester/operation/approval binding has been verified.
-Decision values are `approve|deny`; request states are `pending|approved|denied|expired`.
+The separate `WORKSHOP_VERIFICATION_USER_ID` can inspect staged Sales tools. Sign in through
+`/auth/login?persona=verification`, then run the CLI's filtered `GetAccount` and 30% offer
+probe. The empty rationale also fails API validation if the pre-hook is missing. The CLI
+requires fresh filtered output and the matching authority rejection returned through the
+gateway; callbacks alone cannot activate normal roles. It confirms the completed attempt
+with hooks before `activate`. No model, approval request or Slack call runs in verification.
 
-Only the configured solo delivery mapping permits a self-DM. Routing still chooses Riley
-over eligible Morgan. Verify the IdP email equals the tool context actor, is the assigned
-approver, differs from requester, has sufficient authority, and the request is current.
-Repeated identical decisions return the existing grant. A different subsequent decision
-conflicts. A Slack link carries only the request ID and no decision capability.
+## Host approval and notification
 
-Notification states are `pending|sending|sent|failed|uncertain`. Acquire one claim before
-`chat.postMessage`. Only documented no-send rejections are retryable. Slack `internal_error`
-and `fatal_error`, 5xx responses, ambiguous dispatch, or a lost process keep the claim
-uncertain and must not automatically repost. If Slack acknowledged
-success but the hooks acknowledgement failed, retry only acknowledgement. Exactly-once
-remote Slack delivery is not guaranteed; business-write idempotency is a separate claim.
+Web's server-only approval client uses `ARCADE_API_KEY` for delegated Slack authorization
+with `chat:write`, `im:write`, `users:read`, and `users:read.email`. It derives the real Slack
+user/team with `auth.test` and opens that user's DM. A model cannot choose a destination.
+Only the requester can deliver the request; an optional configured team restricts delivery.
 
-## Web and continuation
-
-All run/read routes require `WEB_SERVICE_TOKEN`. Web passes the validated session identity
-as `viewer_user_id` on reads and `actor_user_id` on mutations. Hooks scopes reads to the
-requester or assigned approver. A forged browser field cannot select these identities.
-
-| Route | Body/result |
+| Hooks endpoint | Host request |
 |---|---|
-| `POST /internal/runs` | `{run_id, requester_user_id, stage, message}` → `{run}` |
-| `GET /internal/runs/:id` | `viewer_user_id` query → `{run}` |
-| `POST /internal/runs/:id/action` | `{operation_key, tool_name, arguments}` → `{run}` |
-| `POST /internal/runs/:id/approval` | `{request_id, tool_call_id, operation_key}` → `{run}` |
-| `POST /internal/runs/:id/suspended` | `{tool_call_id, text?, tool_calls?}` → `{run}` |
-| `POST /internal/runs/:id/resume` | `{actor_user_id}` → `{lease_id, run, approval, action}` |
-| `POST /internal/runs/:id/result` | `{lease_id?, status, text, tool_calls, error?}` → `{run}` |
-| `POST /internal/runs/:id/close` | `{actor_user_id}` → terminal no-write `{run}` |
-| `GET /internal/approvals/:id` | `viewer_user_id` query → `{approval, run_id}` |
-| `GET /internal/policy` | Authenticated read → `{version, subjects, rules, output_rules}` |
-| `GET /internal/audit` | `run_id`, `viewer_user_id`, `after` → `{events, next_cursor}` |
+| `POST /internal/approvals/request` | `{run_id,requester_id,justification}` for the run's exact owned denial. |
+| `GET /internal/approvals/:id/delivery` | `requester_id` query. |
+| `POST /internal/approvals/:id/notification/claim` | Requester, actual Slack user and team; atomically claims delivery. |
+| `POST /internal/approvals/:id/notification/result` | Claim and sent/failed/uncertain outcome with provider receipt. |
+| `POST /internal/approvals/:id/decision` | Actor, approve/deny, optional note, plus `X-Actor-Token`. |
 
-A run records `run_id`, `requester_user_id`, `stage`, `status`, `request_id`, `operation_key`,
-`tool_call_id`, `text`, and `error`. Statuses are
-`running|awaiting_snapshot|waiting|resuming|completed|failed`.
-Only one active governed run per requester is allowed in this workshop application.
-Execution/operation IDs and the active requester run correlate safe hook events with the
-agent's own tool trace. Operator probes use the separate verification identity.
+These endpoints use `APPROVALS_SERVICE_TOKEN`, shared only by web and hooks. Hooks
+independently validates the human's IdP token, assignment, current authority, exact terms,
+request expiry and confirmed delivery before deciding. Dana cannot self-approve. Receiving
+the link grants no authority. Repeated identical decisions are idempotent; conflicts fail.
 
-Before a write, web supplies a stable operation key and records the exact attempted action.
-The approval binding must match that action, its denial, the requester, and the unique
-request/run association. The model cannot invent that association with an approval ID.
+Notification states are pending, sending, sent, failed and uncertain. Claim before posting.
+Known no-send rejections allow explicit retry; uncertain outcomes do not automatically
+repost. Retry a lost acknowledgement without resending the message. Exactly-once remote
+Slack delivery is not promised; account-write idempotency is a separate boundary.
 
-Wrap only the discovered RequestApproval tool for suspension. On successful delivery,
-persist its binding as `awaiting_snapshot`, then return `context.agent.suspend(...)`.
-After Mastra has persisted and returned its suspended snapshot, mark the run `waiting`.
-An early approval cannot race into resumption before the snapshot exists. If delivery is
-failed/sending/uncertain, show that state without claiming a successfully delivered wait.
+## Native continuation and read-back
 
-Resume atomically claims a waiting, approved run with a short lease. Rebuild the same
-agent and its MCP tools, then call native `resumeGenerate` with the stored run/tool-call
-IDs and server-verified resume data. The wrapper returns the recorded decision instead
-of reissuing RequestApproval. Reconnect as the original requester, even while the browser
-is signed in as Riley. Save the final result before responding; repeated resume requests
-return it. Pending/denied/expired permission cannot begin a write.
+The host records the exact proposed action before invoking it through Arcade. An authority
+denial triggers app-managed review and can send the self-DM before the user clicks Approve.
+Bind the request and tool-call ID, suspend natively, then mark waiting only after Mastra
+returns its persisted snapshot. Consent may remain pending; show the delivery status.
 
-An authenticated requester may close a non-resuming failed/delivery-pending run. Either
-requester or assigned approver may close a denied/expired wait. Closing marks it `failed`
-with a safe terminal reason and blocks subsequent resume, releasing the active-run slot.
-Web then deletes any native snapshot through the storage API without running a tool. A
-cleanup failure remains visible and can retry; a leftover snapshot cannot resume a closed
-hooks record. Never close an active resume lease. Browser exposes a CSRF-protected close
-route and a new-exercise control for failed/denied waits.
+Riley's authenticated approval page records the decision with hooks. Resume claims the
+waiting run with a lease, rebuilds the same agent and MCP tools, and invokes native
+`resumeGenerate` with the saved run/tool-call IDs. It reconnects as Dana and executes the
+same action through Arcade. The agent is instructed to call `GetOffer(account_id)` to verify the saved
+30%/$12,000/$8,400 draft terms and inspect the filtered activation-email draft.
 
-Initial result updates omit a lease; resumed updates require the current unexpired lease,
-and stale updates fail. This deployment has one web worker. A lost resume lease is a
-visible recovery condition, never permission to launch an overlapping native snapshot
-writer. Operator recovery requires stopping the old worker first, then invalidating its
-lease and reusing the existing snapshot. If the snapshot is absent, report that condition
-and inspect the operation receipt instead of silently starting a new run. The mandatory
-restart proof covers the persisted waiting state; it does not claim atomicity across
-Mastra snapshot completion and hooks result recording.
+Completion requires an actual successful GetOffer result after the write, matching the
+saved offer ID, account, discount, list price, net price and draft status. If the read is
+missing, fails or disagrees, report the saved offer and failed read-back instead of a
+completed run; another write is not a repair. Connected local tests use a scripted model
+and do not establish that a live model will obey the instruction.
 
-Browser routes cover session/login/callback/logout, the Arcade verifier, agent execution,
-run status/resume, approval status/decision, and safe audit/policy reads. Decision requests
-require CSRF and invoke discovered Decide through Arcade, never a direct local grant.
-The UI labels the active demo role and preserves the pending Dana run while switching.
+Hooks owns run metadata and exact bindings; web owns native LibSQL snapshots. Supported
+states are running, awaiting_snapshot, waiting, resuming, completed and failed. One active
+governed run per requester and one web worker are supported. A missing/expired lease needs
+explicit recovery after stopping the old worker, never an overlapping snapshot writer.
+Closing a failed, denied, expired or undelivered exercise releases the active-run slot and
+deletes its native snapshot; an active resume cannot close. Missing snapshots remain an
+explicit failure, not permission to create a replacement prompt.
 
-## Proof and operator commands
+Run/read endpoints use `WEB_SERVICE_TOKEN`. The browser's authenticated session determines
+viewers and actors. Hooks scopes reads to requester or assigned approver. Public displays
+use filtered copies; execution always uses the original canonical action.
 
-Use real services, SQLite/LibSQL and MCP in local integration tests, controlling only the
-external model, Arcade and Slack network boundaries. The scripted model must see filtered
-real tool results. Restart the web process while waiting, complete real IdP authentication,
-and verify one final lead decision with source citations. Separately exercise rejection,
-expiry, duplicate/replayed keys, failed/ambiguous delivery, policy rollback and audit scope.
+## Operators and proof
 
-The stage-specific doctor/setup, observed gateway discovery, clean/governed Elastic
-seed/reset, baseline reset, and capstone evidence commands live in `scripts/workshop.ts`. Setup guides account consent
-and public-service provisioning where no verified automation API is available; it never
-prints a successful connection merely because configuration values exist.
+`WORKSHOP_OPERATOR_TOKEN` protects policy reads/updates, verification confirmation,
+activation, observed metadata, reset and run evidence/recovery. Policy updates validate and
+compile before atomic replacement; stale versions conflict and invalid changes leave the
+prior policy intact. Operator credentials never enter model tools.
 
-Live capstone uses actual configured cloud services and a model and retains citations,
-gateway decisions, Slack acknowledgement, approval identity, resumed run and operation
-receipt. Missing credentials, failed or unexercised boundaries and read-only fallback
-produce explicit incomplete/degraded results. Local tests never qualify as live proof or
-as a measured 55-minute rehearsal.
+Reset calls each state owner, preserves both OAuth clients and removes extra Elastic
+documents. It clears approval state, offers, receipts and native snapshots, and requires a
+new sign-in and verification before another governed run. A partial reset is incomplete.
+
+Local tests should use actual application services, OAuth and MCP, with controlled model,
+Arcade, Elastic and Slack collaborators. Live proof separately needs native retrieval,
+observed enforcement, authorized self-DM, Riley's real login, Dana's exact continuation,
+one saved offer, a GetOffer read-back and filtered email output. Capstone collects existing
+evidence; it does not send messages or run the agent. Unverified cloud provenance remains
+incomplete, and fresh-account timing must be measured separately.

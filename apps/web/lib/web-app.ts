@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createRuntime, type Stage } from "./agent-runtime";
 import { createSessions, type SessionConfig } from "./session";
 import { HooksClient, ServiceError } from "./hooks-client";
+import type { ApprovalClient } from "./approval-client";
 import { timingSafeEqual } from "node:crypto";
 
 export interface WebAppOptions {
@@ -9,6 +10,7 @@ export interface WebAppOptions {
   session: () => SessionConfig;
   hooks: () => HooksClient;
   arcadeKey: () => string;
+  approvals?: () => ApprovalClient;
   confirmUrl?: string;
   operatorToken?: () => string;
   resetSnapshots?: (resetEpoch: number) => Promise<{ deleted_snapshots: number }>;
@@ -53,6 +55,7 @@ export function createWebApp(options: WebAppOptions) {
       if (path === "/auth/logout" && request.method === "POST") { await requireSession(true); return sessions().logout(); }
       if (path === "/auth/arcade/verify" && request.method === "GET") {
         const session = await requireSession(); const flowId = z.string().min(1).max(500).parse(url.searchParams.get("flow_id"));
+        if (url.searchParams.has("user_id") && url.searchParams.get("user_id") !== session.email) throw new ServiceError("Sign in as the identity requesting Arcade authorization.", 403);
         const response = await fetch(options.confirmUrl ?? "https://cloud.arcade.dev/api/v1/oauth/confirm_user", { method: "POST", headers: { authorization: `Bearer ${options.arcadeKey()}`, "content-type": "application/json" }, body: JSON.stringify({ flow_id: flowId, user_id: session.email }), signal: AbortSignal.timeout(15_000) });
         if (!response.ok) throw new ServiceError("Arcade could not verify this signed-in identity. Retry authorization in the matching role.", 403);
         return Response.json({ verified: true, message: "Identity verified. Return to the workshop and retry the pending action." });
@@ -69,6 +72,7 @@ export function createWebApp(options: WebAppOptions) {
       if (path === "/api/agent" && request.method === "POST") {
         const input = messageSchema.parse(await json());
         const session = input.stage === "governed" ? await requireSession(true) : null;
+        if (session?.persona === "verification") throw new ServiceError("The verification identity is for setup checks only.", 403);
         return Response.json(await work(async () => (await options.runtime(input.stage)).start({ ...input, ...(session ? { userId: session.email } : {}), signal: request.signal })));
       }
       if (path === "/api/tools" && request.method === "GET") {
@@ -82,17 +86,22 @@ export function createWebApp(options: WebAppOptions) {
         if (request.method === "GET" && !runMatch[2]) return Response.json(await options.hooks().request(`/internal/runs/${id}?viewer_user_id=${encodeURIComponent(session.email)}`));
         if (request.method === "POST" && runMatch[2]) return Response.json(await work(async () => (await options.runtime("governed"))[runMatch[2] as "resume" | "close"](id, session.email)));
       }
-      const approvalMatch = path.match(/^\/api\/approvals\/([^/]+)(?:\/(decision))?$/);
+      const approvalMatch = path.match(/^\/api\/approvals\/([^/]+)(?:\/(decision|notify))?$/);
       if (approvalMatch) {
         const session = await requireSession(request.method === "POST"); const id = encodeURIComponent(approvalMatch[1]!);
         if (request.method === "GET" && !approvalMatch[2]) return Response.json(await options.hooks().request(`/internal/approvals/${id}?viewer_user_id=${encodeURIComponent(session.email)}`));
         if (request.method === "POST" && approvalMatch[2]) {
+          if (!options.approvals) throw new ServiceError("Host approvals are not configured.", 503);
+          if (approvalMatch[2] === "notify") {
+            z.object({}).strict().parse(await json());
+            const delivery = await work(() => options.approvals!().notify(id, session.email));
+            return Response.json(delivery, { status: delivery.authorizationUrls.length ? 202 : 200 });
+          }
           const input = decisionSchema.parse(await json());
-          const result = await work(async () => (await options.runtime("governed")).decide(id, session.email, input.decision, input.note));
-          // A tool auth URL is an action for the attendee, not a committed decision.
+          const result = await work(async () => options.approvals!().decide(id, session.email, session.token, input.decision, input.note));
           if (result.authorizationUrls.length) return Response.json(result, { status: 202 });
           const committed = await options.hooks().request(`/internal/approvals/${id}?viewer_user_id=${encodeURIComponent(session.email)}`);
-          if (committed.approval.status !== (input.decision === "approve" ? "approved" : "denied")) throw new ServiceError("The gateway did not commit the requested decision.", 409, result);
+          if (committed.approval.status !== (input.decision === "approve" ? "approved" : "denied")) throw new ServiceError("The approval service did not commit the requested decision.", 409, result);
           return Response.json({ ...result, ...committed });
         }
       }

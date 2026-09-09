@@ -1,7 +1,7 @@
 # Workshop services on Render. This file does not deploy anything by itself.
 # Apply it manually only after reviewing the configured services and costs.
 # One worker per persistent disk; redeploying preserves state. Use workshop reset.
-# Python Lead and Approvals toolkits are registered separately in Arcade.
+# Only the Python Sales toolkit is deployed in Arcade. Web/hooks own approvals.
 # Public hostnames come from RENDER_EXTERNAL_HOSTNAME, not the private host property.
 # New sync:false values on existing services must be set manually in the dashboard.
 # Copy the cg-idp workshop-web client credentials into cg-web after initial boot.
@@ -51,7 +51,7 @@ services:
   - key: PORT
     value: 8080
   - key: GOVERNANCE_DB_PATH
-    value: /data/governance.db
+    value: /data/governance-discount.db
   - key: ARCADE_HOOK_SECRET
     generateValue: true
   - key: APPROVALS_SERVICE_TOKEN
@@ -106,32 +106,15 @@ services:
     value: 'true'
   - key: WORKSHOP_SLACK_TEAM_ID
     sync: false
-  - key: ARCADE_LEAD_TOOLKIT
-    value: Lead
-  - key: ARCADE_APPROVALS_TOOLKIT
-    value: Approvals
+  - key: ARCADE_SALES_TOOLKIT
+    value: Sales
   - key: ARCADE_ELASTIC_HOOK_TOOLS
     sync: false
-  - key: ARCADE_ROUTE_TOOL_NAME
+  - key: ARCADE_DISCOUNT_TOOL_NAME
     fromService:
       name: cg-web
       type: web
-      envVarKey: ARCADE_ROUTE_TOOL_NAME
-  - key: ARCADE_CLASSIFY_TOOL_NAME
-    fromService:
-      name: cg-web
-      type: web
-      envVarKey: ARCADE_CLASSIFY_TOOL_NAME
-  - key: ARCADE_REQUEST_APPROVAL_TOOL_NAME
-    fromService:
-      name: cg-web
-      type: web
-      envVarKey: ARCADE_REQUEST_APPROVAL_TOOL_NAME
-  - key: ARCADE_DECIDE_TOOL_NAME
-    fromService:
-      name: cg-web
-      type: web
-      envVarKey: ARCADE_DECIDE_TOOL_NAME
+      envVarKey: ARCADE_DISCOUNT_TOOL_NAME
 - type: web
   name: cg-idp
   runtime: docker
@@ -190,7 +173,7 @@ services:
   - key: PORT
     value: 8080
   - key: MASTRA_DB_URL
-    value: file:/data/mastra.db
+    value: file:/data/mastra-discount.db
   - key: MODEL_ID
     value: anthropic/claude-sonnet-4-6
   - key: ANTHROPIC_API_KEY
@@ -201,13 +184,9 @@ services:
     sync: false
   - key: ARCADE_ELASTIC_TOOL_NAMES
     sync: false
-  - key: ARCADE_ROUTE_TOOL_NAME
+  - key: ARCADE_DISCOUNT_TOOL_NAME
     sync: false
-  - key: ARCADE_CLASSIFY_TOOL_NAME
-    sync: false
-  - key: ARCADE_REQUEST_APPROVAL_TOOL_NAME
-    sync: false
-  - key: ARCADE_DECIDE_TOOL_NAME
+  - key: ARCADE_GET_OFFER_TOOL_NAME
     sync: false
   - key: PERSONA_DANA_EMAIL
     fromService:
@@ -249,6 +228,13 @@ services:
       name: cg-hooks
       type: web
       envVarKey: WEB_SERVICE_TOKEN
+  - key: APPROVALS_SERVICE_TOKEN
+    fromService:
+      name: cg-hooks
+      type: web
+      envVarKey: APPROVALS_SERVICE_TOKEN
+  - key: WORKSHOP_VERIFICATION_USER_ID
+    value: verification@example.test
   - key: WORKSHOP_OPERATOR_TOKEN
     fromService:
       name: cg-hooks

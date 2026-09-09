@@ -1,5 +1,58 @@
 # Local verification
 
+## Discount pivot — 2026-09-09
+
+The current scenario is an AE requesting 30% off a $12,000 annual contract against a
+15% limit. Riley approves; Dana's original action creates one $8,400 offer and local
+activation-email draft. Mastra must read the saved offer back before reporting completion.
+
+- **591 Bun tests passed, 2,540 assertions, 32 files.** The connected test runs the real
+  IdP, hooks, Python Sales MCP server, business SQLite and Mastra LibSQL. It pauses before
+  Slack consent, survives a web-process restart, approves as Riley, resumes as Dana,
+  verifies the saved offer and runs the actual evidence collector. Replay adds no write.
+- **Fresh source-copy install passed** using frozen Bun root/IdP and Python dependencies.
+  `bun run test:workshop`: **184 passed, 1,405 assertions**; Python: **13 passed**;
+  Ruff and mypy passed. The copy had no previous dependencies, databases or `.env`.
+- **21 runtime tests** include 15% without approval; missing, failed and mismatched
+  read-back; empty or changed email drafts; and duplicate write/read tool configuration.
+- Root/workspace, IdP and script typechecks passed. Both generated contract checks passed.
+  The Next production build passed locally under Node 26.8.1. Node 22 container behavior
+  is checked by CI; a local Docker daemon was unavailable for this run.
+- Desktop (1440×1000) and mobile (390×844) browser checks passed with no page errors or
+  horizontal overflow. The current discount heading/prompt rendered, stage selection
+  worked, and governed execution required sign-in. No model ran during this UI check.
+- Render accepted `render.yaml`. Existing web/hooks environment updates preserve all
+  unrelated values and select fresh discount database paths; older history is retained.
+
+The full suite initially found an intermittent HTTP authentication failure while a test
+recreated its IdP on ephemeral ports. Keeping that test's identity server alive for the
+suite resolved the failure. The fresh-copy run also exposed a stale pooled socket in a
+short-lived control mock; its responses now close the connection. Both final suites
+above passed without production retries or weakened assertions. The connected collector's
+clock now advances normally, with an offset only for its expiry exercise.
+
+Reviews corrected three proof gaps: filtered display arguments need a separately attested
+original hash; a claimed completion needs an actual matching GetOffer result; the returned
+email draft must match creation. Cross-agent review also caught duplicate read/write tool
+configuration. The review coordinator exhausted its CLI routes; the final supplemental
+review was a fresh-context review by the same agent, with degraded independence.
+
+**Live integration remains unverified.** The hosted web service has no model key, Arcade
+key/gateway ID or observed Sales/Elastic tool names configured. No real Slack message or
+customer email was sent. The controlled tests establish local behavior, not real model
+reasoning, Arcade/Elastic integration, or timed fresh-account workshop completion.
+Follow [Testing](TESTING.md) for the separate live rehearsal.
+
+---
+
+# Historical routing verification
+
+> Historical evidence for the routing scenario checked on 2026-09-08. The current workshop
+> uses Sales discount offers, percentage-based permissions, GetOffer read-back and
+> activation-token redaction. All counts, Lead/Approvals names and outcomes below describe
+> the earlier implementation. They are not current setup requirements or proof that the
+> discount version passes. Record current results using [Testing](TESTING.md).
+
 Checked 2026-09-08. This records local implementation and deployment evidence. No live
 Slack message, complete cloud agent run, real CRM write, or prospect outreach was performed.
 

@@ -12,8 +12,8 @@ export class OAuthBrowser {
     }
     return response;
   }
-  async login(web: string, persona: string, email: string, password: string) {
-    const begin = await this.fetch(`${web}/auth/login?persona=${persona}&returnTo=%2F%3Frun%3Dpending-dana`);
+  async login(web: string, persona: string, email: string, password: string, returnTo = "/?run=pending-dana") {
+    const begin = await this.fetch(`${web}/auth/login?${new URLSearchParams({ persona, returnTo })}`);
     if (begin.status !== 303) throw new Error(`Login start failed: ${await begin.text()}`);
     return this.fetch(await this.authorize(begin.headers.get("location")!, email, password));
   }

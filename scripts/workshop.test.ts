@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { fixtureEvents, GOVERNED_PHONE, GOVERNED_INSTRUCTION } from "./seed-elastic";
+import { hash as fingerprint } from "./workshop-evidence";
+import { createHooksApp } from "../apps/hooks/src/app";
 
 const servers: ReturnType<typeof Bun.serve>[] = [];
 const dirs: string[] = [];
@@ -46,27 +48,31 @@ function elastic() {
   return { documents, requests, config: { ELASTICSEARCH_URL: url, ELASTIC_API_KEY: "elastic-test-secret", ELASTIC_GTM_INDEX: "context" } };
 }
 function proof() {
-  const body = { estimated_acv: 95000, owner_email: "drew@sales.example", rationale: "Enterprise security evidence evt-northwind-003" };
-  const receipt = { operation_key: "run:run-test", actor: "dana@example.test", action: "route", lead_id: "LD-2291", body, completed_at: "2026-09-08T12:03:00.000Z" };
+  const body = { list_price: 12000, discount_percent: 30, rationale: "Enterprise security evidence evt-northwind-003" };
+  const receipt = { operation_key: "run:run-test", actor: "dana@example.test", action: "discount", account_id: "ACC-2291", body, completed_at: "2026-09-08T12:03:00.000Z" };
   const canonical = (value: any): string => value && typeof value === "object" ? Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value);
-  const binding = { actor: receipt.actor, action: receipt.action, lead_id: receipt.lead_id, body };
+  const binding = { actor: receipt.actor, action: receipt.action, account_id: receipt.account_id, body };
   const hash = createHash("sha256").update(canonical(binding)).digest("hex");
   const evidence: any = {
-    run: { run_id: "run-test", requester_user_id: receipt.actor, stage: "governed", status: "completed", request_id: "request-test", operation_key: receipt.operation_key, tool_call_id: "approval-tool-call", created_at: "2026-09-08T12:00:00.000Z", resumed_at: "2026-09-08T12:04:00.000Z", text: "Routed Northwind using security evidence [evt-northwind-003].", error: null, tool_calls: [{ name: "Observed_Search", args: { query: "Northwind" } }, { name: "Exact_Route", args: { ...body, lead_id: receipt.lead_id, operation_key: receipt.operation_key } }] },
-    approval: { request_id: "request-test", requester_id: receipt.actor, approver_id: "riley@example.test", operation_key: receipt.operation_key, resource_id: receipt.lead_id, status: "approved", notification_status: "sent", grant_id: "grant-test", decided_at: "2026-09-08T12:02:00.000Z", expires_at: "2026-09-08T12:15:00.000Z", channel: "D123", ts: "1788868860.000001" },
-    action: { operation_key: receipt.operation_key, tool_name: "Exact_Route", arguments_hash: createHash("sha256").update(canonical({ ...body, lead_id: receipt.lead_id, operation_key: receipt.operation_key })).digest("hex"), receipt_binding_hash: hash },
-    denial: { execution_id: "denied-execution", operation_key: receipt.operation_key, request_id: "request-test", requester_id: receipt.actor, tool_name: "Lead.RouteLead" },
+    run: { run_id: "run-test", requester_user_id: receipt.actor, stage: "governed", status: "completed", request_id: "request-test", operation_key: receipt.operation_key, tool_call_id: "approval-tool-call", created_at: "2026-09-08T12:00:00.000Z", resumed_at: "2026-09-08T12:04:00.000Z", text: "Routed Northwind using security evidence [evt-northwind-003].", error: null, tool_calls: [{ name: "Observed_Search", args: { query: "Northwind" } }, { name: "Exact_Discount", args: { ...body, account_id: receipt.account_id, operation_key: receipt.operation_key } }] },
+    approval: { request_id: "request-test", requester_id: receipt.actor, approver_id: "riley@example.test", operation_key: receipt.operation_key, resource_id: receipt.account_id, status: "approved", notification_status: "sent", grant_id: "grant-test", decided_at: "2026-09-08T12:02:00.000Z", expires_at: "2026-09-08T12:15:00.000Z", channel: "D123", ts: "1788868860.000001" },
+    action: { operation_key: receipt.operation_key, tool_name: "Exact_Discount", arguments_hash: createHash("sha256").update(canonical({ ...body, account_id: receipt.account_id, operation_key: receipt.operation_key })).digest("hex"), receipt_binding_hash: hash },
+    denial: { execution_id: "denied-execution", operation_key: receipt.operation_key, request_id: "request-test", requester_id: receipt.actor, tool_name: "Sales.CreateDiscountedOffer" },
     events: [
       { seq: 1, id: "event-1", ts: "2026-09-08T12:00:10.000Z", user_id: receipt.actor, tool: "Elastic.Search", decision: "modify", hook: "post", execution_id: "elastic-execution", success: true, after: { content: [{ type: "text", text: JSON.stringify({ event_id: "evt-northwind-003", content: "SAML SSO and residency questions" }) }] } },
-      { seq: 2, id: "event-2", ts: "2026-09-08T12:00:20.000Z", user_id: receipt.actor, tool: "Lead.RouteLead", decision: "deny", hook: "pre", execution_id: "denied-execution" },
-      { seq: 3, id: "event-3", ts: "2026-09-08T12:01:00.000Z", user_id: receipt.actor, tool: "Lead.RouteLead", decision: "approval_requested", request_id: "request-test", operation_key: receipt.operation_key },
-      { seq: 4, id: "event-4", ts: "2026-09-08T12:01:01.000Z", user_id: receipt.actor, tool: "Lead.RouteLead", decision: "notification", request_id: "request-test", status: "sent", channel: "D123", ts_slack: "unused" },
-      { seq: 5, id: "event-5", ts: "2026-09-08T12:02:00.000Z", user_id: receipt.actor, tool: "Lead.RouteLead", decision: "approved", request_id: "request-test", operation_key: receipt.operation_key, grant_id: "grant-test", approver_id: "riley@example.test", verified_subject: "riley-idp-subject" },
-      { seq: 6, id: "event-6", ts: "2026-09-08T12:02:30.000Z", user_id: receipt.actor, tool: "Lead.RouteLead", decision: "allow", hook: "pre", execution_id: "write-execution", operation_key: receipt.operation_key },
+      { seq: 2, id: "event-2", ts: "2026-09-08T12:00:20.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "deny", hook: "pre", execution_id: "denied-execution" },
+      { seq: 3, id: "event-3", ts: "2026-09-08T12:01:00.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "approval_requested", request_id: "request-test", operation_key: receipt.operation_key },
+      { seq: 4, id: "event-4", ts: "2026-09-08T12:01:01.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "notification", request_id: "request-test", status: "sent", channel: "D123", ts_slack: "unused" },
+      { seq: 5, id: "event-5", ts: "2026-09-08T12:02:00.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "approved", request_id: "request-test", operation_key: receipt.operation_key, grant_id: "grant-test", approver_id: "riley@example.test", verified_subject: "riley-idp-subject" },
+      { seq: 6, id: "event-6", ts: "2026-09-08T12:02:30.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "allow", hook: "pre", execution_id: "write-execution", operation_key: receipt.operation_key },
     ],
   };
+  const savedOffer = { account_id: receipt.account_id, offer_id: "offer-test", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft", activation_email: { to: "buyer@northwind.example", subject: "Your annual offer", body: "Draft yearly offer at $8,400." } };
+  evidence.run.tool_calls.push({ name: "Exact_GetOffer", args: { account_id: receipt.account_id } });
+  evidence.events.push({ seq: 7, id: "event-7", ts: "2026-09-08T12:03:30.000Z", user_id: receipt.actor, tool: "Sales.GetOffer", decision: "modify", hook: "post", execution_id: "get-offer-execution", success: true, after: { content: [{ type: "text", text: JSON.stringify(savedOffer) }] } });
   // The owner stores Slack's receipt timestamp in the notification event's ts field.
   evidence.events[3].ts = evidence.approval.ts;
+  for (const call of evidence.run.tool_calls) call.arguments_hash = fingerprint(call.args);
   return { evidence, receipt };
 }
 function evidenceService(evidence: any, receipt: any, requests: string[]) {
@@ -77,7 +83,7 @@ function evidenceService(evidence: any, receipt: any, requests: string[]) {
     if (path === "/internal/operations/run%3Arun-test") return request.headers.get("authorization") === "Bearer lead-test-secret" ? Response.json(receipt) : new Response(null, { status: 401 });
     return new Response(null, { status: 404 });
   });
-  return { HOOKS_PUBLIC_HOST: host, LEAD_APP_PUBLIC_HOST: host, WORKSHOP_OPERATOR_TOKEN: "operator-test-secret", LEAD_INTERNAL_TOKEN: "lead-test-secret", PERSONA_DANA_EMAIL: "dana@example.test", PERSONA_RILEY_EMAIL: "riley@example.test", ARCADE_ELASTIC_TOOL_NAMES: "Observed_Search", ARCADE_ELASTIC_HOOK_TOOLS: '[{"toolkit":"Elastic","name":"Search","arguments":["query"]}]', ARCADE_ROUTE_TOOL_NAME: "Exact_Route" };
+  return { HOOKS_PUBLIC_HOST: host, LEAD_APP_PUBLIC_HOST: host, WORKSHOP_OPERATOR_TOKEN: "operator-test-secret", LEAD_INTERNAL_TOKEN: "lead-test-secret", PERSONA_DANA_EMAIL: "dana@example.test", PERSONA_RILEY_EMAIL: "riley@example.test", ARCADE_ELASTIC_TOOL_NAMES: "Observed_Search", ARCADE_ELASTIC_HOOK_TOOLS: '[{"toolkit":"Elastic","name":"Search","arguments":["query"]}]', ARCADE_DISCOUNT_TOOL_NAME: "Exact_Discount", ARCADE_GET_OFFER_TOOL_NAME: "Exact_GetOffer" };
 }
 async function cli(args: string[], config: Record<string, string> = {}) {
   const child = Bun.spawn([process.execPath, "--no-env-file", "scripts/workshop.ts", ...args], {
@@ -98,14 +104,14 @@ describe("workshop operator CLI", () => {
   });
   test("discovery writes only explicitly selected observed names", async () => {
     const methods: string[] = [];
-    const endpoint = mcp(["Observed_Search", "Exact_Route"], methods);
+    const endpoint = mcp(["Observed_Search", "Exact_Discount"], methods);
     const output = join(await temp(), "tools.json");
-    const result = await cli(["discover", "--output", output, "--elastic-tools", "Observed_Search"], { ...gatewayConfig(endpoint), ARCADE_ROUTE_TOOL_NAME: "Exact_Route" });
+    const result = await cli(["discover", "--output", output, "--elastic-tools", "Observed_Search"], { ...gatewayConfig(endpoint), ARCADE_DISCOUNT_TOOL_NAME: "Exact_Discount" });
     expect(result.code, result.out + result.err).toBe(0);
     expect(result.json()).toMatchObject({ status: "observed", live_proof: false });
     const saved = JSON.parse(await readFile(output, "utf8"));
-    expect(saved.configuration).toEqual({ ARCADE_ELASTIC_TOOL_NAMES: "Observed_Search", ARCADE_ROUTE_TOOL_NAME: "Exact_Route" });
-    expect(saved.observed.map((tool: any) => tool.name)).toEqual(["Observed_Search", "Exact_Route"]);
+    expect(saved.configuration).toEqual({ ARCADE_ELASTIC_TOOL_NAMES: "Observed_Search", ARCADE_DISCOUNT_TOOL_NAME: "Exact_Discount" });
+    expect(saved.observed.map((tool: any) => tool.name)).toEqual(["Observed_Search", "Exact_Discount"]);
     expect(JSON.stringify(saved)).not.toContain("arcade-test-secret");
     expect(methods).toContain("tools/list");
     expect(methods).not.toContain("tools/call");
@@ -132,7 +138,7 @@ describe("workshop operator CLI", () => {
       resets.push({ path, auth: request.headers.get("authorization"), body: await request.json() });
       if (path === "/operator/reset") return Response.json({ reset: true, active: false, reset_epoch: 7 });
       if (path === "/api/operator/reset") return Response.json({ reset: true, deleted_snapshots: 2 });
-      if (path === "/lead/internal/reset") return Response.json({ leads: 9, decisions: 6, operations: 0 });
+      if (path === "/lead/internal/reset") return Response.json({ accounts: 5, offers: 0, activation_emails: 0, decisions: 0, operations: 0 });
       if (path === "/idp/internal/reset") return Response.json({ reset: true, people: 4, oauth_clients_preserved: 2 });
       return new Response(null, { status: 404 });
     });
@@ -173,6 +179,22 @@ describe("workshop operator CLI", () => {
     }
     expect(await readFile(join(output, "operation-receipt.json"), "utf8")).not.toContain(receipt.body.rationale);
   });
+  test("capstone accepts filtered argument displays with the original attested fingerprint", async () => {
+    const { evidence, receipt } = proof();
+    evidence.run.tool_calls[1].args.rationale = "[removed]";
+    const result = await cli(["capstone", "--run-id", "run-test", "--output", join(await temp(), "proof")], evidenceService(evidence, receipt, []));
+    expect(result.code, result.out + result.err).toBe(0);
+    expect(result.json()).toMatchObject({ status: "passed", live_proof: false });
+    expect(result.json().checks).toContainEqual(expect.objectContaining({ boundary: "tool_trace", status: "verified" }));
+  });
+  test.each(["direct", "structuredContent"])("capstone accepts %s saved-offer output", async envelope => {
+    const { evidence, receipt } = proof();
+    const offer = JSON.parse(evidence.events[6].after.content[0].text);
+    evidence.events[6].after = envelope === "direct" ? offer : { structuredContent: offer };
+    const result = await cli(["capstone", "--run-id", "run-test", "--output", join(await temp(), "proof")], evidenceService(evidence, receipt, []));
+    expect(result.code, result.out + result.err).toBe(0);
+    expect(result.json().checks).toContainEqual(expect.objectContaining({ boundary: "saved_offer_check", status: "verified" }));
+  });
   test("setup emits stage-specific guide and observed configuration without inventing account setup", async () => {
     const endpoint = mcp(["Observed_Search"]);
     const output = join(await temp(), "setup.json");
@@ -183,11 +205,37 @@ describe("workshop operator CLI", () => {
     expect(JSON.parse(await readFile(output, "utf8")).configuration.ARCADE_ELASTIC_TOOL_NAMES).toBe("Observed_Search");
   });
   test("governed readiness requires its persistent service owners even when gateway discovery works", async () => {
-    const names = { ARCADE_ROUTE_TOOL_NAME: "Exact_Route", ARCADE_CLASSIFY_TOOL_NAME: "Exact_Classify", ARCADE_REQUEST_APPROVAL_TOOL_NAME: "Exact_Request", ARCADE_DECIDE_TOOL_NAME: "Exact_Decide" };
+    const names = { ARCADE_DISCOUNT_TOOL_NAME: "Exact_Discount", ARCADE_GET_OFFER_TOOL_NAME: "Exact_GetOffer" };
     const result = await cli(["readiness", "--stage", "governed"], { ...gatewayConfig(mcp(["Observed_Search", ...Object.values(names)])), ...names, ANTHROPIC_API_KEY: "model-test-secret" });
     expect(result.code).toBe(1);
     expect(result.json()).toMatchObject({ status: "incomplete" });
     expect(result.json().checks).toContainEqual(expect.objectContaining({ status: "missing", detail: expect.stringContaining("WORKSHOP_OPERATOR_TOKEN") }));
+  });
+  test("hook-tools prints only observed metadata without invoking a gateway or revealing payloads", async () => {
+    const seen: string[] = [];
+    const host = serve(request => {
+      seen.push(`${request.method} ${new URL(request.url).pathname}`);
+      expect(request.headers.get("authorization")).toBe("Bearer operator-test-secret");
+      return Response.json({ tools: [{ toolkit: "ElasticObserved", name: "ActualSearch", arguments: ["query"], inputs: { query: "PRIVATE_FIXTURE" } }] });
+    });
+    const result = await cli(["hook-tools"], { HOOKS_PUBLIC_HOST: host, WORKSHOP_OPERATOR_TOKEN: "operator-test-secret" });
+    expect(result.code, result.out + result.err).toBe(0);
+    expect(result.json()).toMatchObject({ status: "inventory", live_proof: false, tools: [{ toolkit: "ElasticObserved", name: "ActualSearch", arguments: ["query"] }] });
+    expect(result.out).not.toContain("PRIVATE_FIXTURE");
+    expect(result.out).not.toContain("operator-test-secret");
+    expect(seen).toEqual(["GET /operator/observed-tools"]);
+  });
+  test("first Elastic discovery accepts the fresh empty hook mapping", async () => {
+    const output = join(await temp(), "elastic.json");
+    const result = await cli(["discover", "--elastic-tools", "Observed_Search", "--output", output], { ...gatewayConfig(mcp(["Observed_Search"])), ARCADE_ELASTIC_HOOK_TOOLS: "[]" });
+    expect(result.code, result.out + result.err).toBe(0);
+    expect(JSON.parse(await readFile(output, "utf8")).configuration).toEqual({ ARCADE_ELASTIC_TOOL_NAMES: "Observed_Search" });
+  });
+  test("verification inventory ignores attendee selections while Elastic is unmapped", async () => {
+    const result = await cli(["discover", "--identity", "verification"], { ...gatewayConfig(mcp(["Exact_Get", "Exact_Discount"])), WORKSHOP_VERIFICATION_USER_ID: "verify@example.test", ARCADE_DISCOUNT_TOOL_NAME: "Hidden_Discount" });
+    expect(result.code, result.out + result.err).toBe(0);
+    expect(result.json()).toMatchObject({ status: "inventory", observed: [{ name: "Exact_Get" }, { name: "Exact_Discount" }] });
+    expect(result.json().configuration).toBeUndefined();
   });
   test("Elastic readiness discovers cited-search tools without governed service setup", async () => {
     const methods: string[] = [];
@@ -234,10 +282,19 @@ describe("workshop operator CLI", () => {
     ["missing native resume", "resumed_run", (e: any, _r: any) => { e.run.resumed_at = null; }],
     ["another request", "approval_binding", (e: any, _r: any) => { e.approval.request_id = "foreign"; }],
     ["another operation", "operation_receipt", (_e: any, r: any) => { r.operation_key = "foreign"; }],
-    ["changed saved body", "operation_receipt", (_e: any, r: any) => { r.body.estimated_acv = 300000; }],
+    ["changed saved body", "operation_receipt", (_e: any, r: any) => { r.body.list_price = 300000; }],
     ["invented citation", "source_citations", (e: any, _r: any) => { e.run.text = "Evidence evt-invented-001"; }],
     ["unexercised tool trace", "tool_trace", (e: any, _r: any) => { e.run.tool_calls = []; }],
-    ["changed tool trace arguments", "tool_trace", (e: any, _r: any) => { e.run.tool_calls[1].args.owner_email = "other@example.test"; }],
+    ["changed raw tool trace arguments", "tool_trace", (e: any, _r: any) => { e.run.tool_calls[1].args.discount_percent = 10; e.run.tool_calls[1].arguments_hash = fingerprint(e.run.tool_calls[1].args); }],
+    ["missing trace attestation", "tool_trace", (e: any, _r: any) => { delete e.run.tool_calls[1].arguments_hash; }],
+    ["changed trace operation", "tool_trace", (e: any, _r: any) => { e.run.tool_calls[1].args.operation_key = "other-operation"; }],
+    ["missing saved offer read-back", "saved_offer_check", (e: any, _r: any) => { e.events = e.events.filter((event: any) => event.tool !== "Sales.GetOffer"); }],
+    ["changed saved offer terms", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); offer.discount_percent = 10; e.events[6].after.content[0].text = JSON.stringify(offer); }],
+    ["wrong saved net price", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); offer.net_price = 9000; e.events[6].after = { structuredContent: offer }; }],
+    ["missing activation email draft", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); delete offer.activation_email; e.events[6].after = offer; }],
+    ["failed saved offer result", "saved_offer_check", (e: any, _r: any) => { e.events[6].after.isError = true; }],
+    ["offer read before allowed write", "saved_offer_check", (e: any, _r: any) => { e.events[6].seq = 0; }],
+    ["missing saved offer trace", "saved_offer_check", (e: any, _r: any) => { e.run.tool_calls = e.run.tool_calls.filter((call: any) => call.name !== "Exact_GetOffer"); }],
     ["unfiltered source", "filtered_evidence", (e: any, _r: any) => { e.events[0].after = { event_id: "evt-northwind-003", content: GOVERNED_PHONE }; }],
     ["uncertain delivery", "slack_acknowledgement", (e: any, _r: any) => { e.approval.notification_status = "uncertain"; }],
     ["another approval subject", "authenticated_approval", (e: any, _r: any) => { e.events[4].approver_id = "other@example.test"; }],
@@ -267,4 +324,37 @@ describe("workshop operator CLI", () => {
     expect(result.code).toBe(1);
     expect(result.json()).toMatchObject({ command, status: "degraded", live_proof: false });
   });
+});
+
+test("hooks replace supplied trace fingerprints with raw argument hashes before filtering", async () => {
+  const actor = "dana@example.test", verification = "verify@example.test";
+  const dependency = serve(request => new URL(request.url).pathname.startsWith("/internal/operations/") ? new Response(null, { status: 404 }) : Response.json({ account_id: "ACC-2291", list_price: 12000 }));
+  const app = createHooksApp({ dbPath: ":memory:", hookSecret: "hook", operatorToken: "operator", approvalsToken: "approvals", webToken: "web", leadHost: dependency, leadToken: "lead", idpHost: dependency, webOrigin: "http://localhost:3000", subjectEmails: { dana: actor, riley: "riley@example.test", sam: "sam@example.test", morgan: "morgan@example.test" }, verificationUserId: verification, elasticTools: [] });
+  async function call(path: string, token: string, body?: unknown, method = body === undefined ? "GET" : "POST") {
+    const response = await app.fetch(new Request(`http://localhost${path}`, { method, headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+    expect(response.status).toBe(200);
+    return response.json() as Promise<any>;
+  }
+  try {
+    const args = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Useful evidence PRIVATE_ARGUMENT_MARKER", operation_key: "trace-operation" };
+    const probe = { execution_id: "probe-denial", tool: { toolkit: "Sales", name: "CreateDiscountedOffer", version: "1" }, inputs: { ...args, operation_key: "probe", rationale: "" }, context: { user_id: verification } };
+    await call("/operator/verification", "operator", { operation_key: "probe" });
+    expect((await call("/pre", "hook", probe)).code).toBe("CHECK_FAILED");
+    await call("/post", "hook", { ...probe, execution_id: "probe-filter", success: true, output: { activation_token: "fixture-value" } });
+    await call("/operator/verification/confirm", "operator", { operation_key: "probe", denial_execution_id: "probe-denial", filter_execution_id: "probe-filter" });
+    await call("/operator/activate", "operator", {});
+    const policy = await call("/operator/policy", "operator");
+    policy.output_rules.push({ ...policy.output_rules[0], id: "trace-rationale", match: { toolkit: "Sales", tool: "CreateDiscountedOffer" }, fields: [], patterns: [{ id: "private-marker", regex: "PRIVATE_ARGUMENT_MARKER", strategy: "remove" }] });
+    await call("/operator/policy", "operator", policy, "PUT");
+    await call("/internal/runs", "web", { run_id: "trace-test", requester_user_id: actor, stage: "governed", message: "Offer research" });
+    const raw = { name: "Sales_CreateDiscountedOffer", mcpName: "Sales_CreateDiscountedOffer", args, arguments_hash: "f".repeat(64) };
+    const result = await call("/internal/runs/trace-test/result", "web", { status: "completed", text: "Done", tool_calls: [raw, { name: "trace-without-arguments", arguments_hash: "f".repeat(64) }] });
+    expect(result.run.tool_calls[0].args.rationale).toBe("Useful evidence ");
+    expect(result.run.tool_calls[0].arguments_hash).toBe(fingerprint(args));
+    expect(result.run.tool_calls[0].arguments_hash).not.toBe(fingerprint(result.run.tool_calls[0].args));
+    expect(result.run.tool_calls[1].arguments_hash).toBeUndefined();
+    const persisted = await call(`/internal/runs/trace-test?viewer_user_id=${actor}`, "web");
+    expect(persisted.run.tool_calls).toEqual(result.run.tool_calls);
+    expect(JSON.stringify(persisted)).not.toContain("PRIVATE_ARGUMENT_MARKER");
+  } finally { app.close(); }
 });

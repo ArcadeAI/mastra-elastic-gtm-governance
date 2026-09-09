@@ -1,319 +1,176 @@
-"""The four Lead Agent tools, end to end through the real API."""
+"""Sales MCP wire protocol → actual business HTTP API → SQLite."""
 
-import uuid
+import json
 
 import pytest
-from arcade_core.errors import ToolExecutionError
 
-from lead import (
-    LeadDisposition,
-    LeadStatus,
-    app,
-    classify_lead,
-    get_lead,
-    route_lead,
-    search_leads,
-)
+from lead import app
 from tests.conftest import DANA, RILEY
 
+ACTION = {
+    "account_id": "ACC-2291",
+    "discount_percent": 30,
+    "list_price": 12000,
+    "rationale": "Account renewal evidence.",
+    "operation_key": "python-offer",
+}
 
-class TestDefinition:
-    """What Arcade sees when it loads the toolkit."""
 
-    def test_exposes_exactly_the_four_lead_tools(self) -> None:
-        names = sorted(tool.definition.name for tool in app._catalog)
-        assert names == ["ClassifyLead", "GetLead", "RouteLead", "SearchLeads"]
+def payload(result):
+    if result.structuredContent is not None:
+        return result.structuredContent
+    return json.loads(
+        next(block.text for block in result.content if block.type == "text")
+    )
 
-    def test_every_tool_requires_the_idp_token_and_api_host(self) -> None:
-        for tool in app._catalog:
-            auth = tool.definition.requirements.authorization
-            assert auth is not None and auth.id == "cg-idp", tool.definition.name
-            secrets = [
-                secret.key for secret in tool.definition.requirements.secrets or []
-            ]
-            assert secrets == ["LEAD_APP_PUBLIC_HOST"], tool.definition.name
 
-    def test_describes_every_tool_and_argument(self) -> None:
-        for tool in app._catalog:
-            assert tool.definition.description, tool.definition.name
-            for parameter in tool.definition.input.parameters:
-                assert parameter.description, f"{tool.definition.name}.{parameter.name}"
-
-    def test_required_arguments_match_the_lead_surface(self) -> None:
+async def test_actual_mcp_exposes_only_four_sales_tools(client_factory):
+    async with client_factory() as client:
+        tools = (await client.list_tools()).tools
+        assert sorted(tool.name for tool in tools) == [
+            "Sales_CreateDiscountedOffer",
+            "Sales_GetAccount",
+            "Sales_GetOffer",
+            "Sales_SearchAccounts",
+        ]
         required = {
-            tool.definition.name: sorted(
-                parameter.name
-                for parameter in tool.definition.input.parameters
-                if parameter.required
-            )
-            for tool in app._catalog
+            tool.name: sorted(tool.inputSchema.get("required", [])) for tool in tools
         }
         assert required == {
-            "SearchLeads": [],
-            "GetLead": ["lead_id"],
-            "RouteLead": [
-                "estimated_acv",
-                "lead_id",
+            "Sales_CreateDiscountedOffer": [
+                "account_id",
+                "discount_percent",
+                "list_price",
                 "operation_key",
-                "owner_email",
                 "rationale",
             ],
-            "ClassifyLead": ["disposition", "lead_id", "operation_key", "rationale"],
+            "Sales_GetAccount": ["account_id"],
+            "Sales_GetOffer": ["account_id"],
+            "Sales_SearchAccounts": [],
         }
-
-    def test_carries_read_and_write_behavior(self) -> None:
-        operations = {
-            tool.definition.name: [
-                operation.value
-                for operation in tool.definition.metadata.behavior.operations
-            ]
-            for tool in app._catalog
-        }
-        behavior = {
-            tool.definition.name: tool.definition.metadata.behavior.model_dump(
-                exclude={"operations"}
-            )
-            for tool in app._catalog
-        }
-        read = {
-            "read_only": True,
-            "destructive": False,
-            "idempotent": True,
-            "open_world": False,
-        }
-        write = {
-            "read_only": False,
-            "destructive": False,
-            "idempotent": True,
-            "open_world": False,
-        }
-        assert behavior == {
-            "SearchLeads": read,
-            "GetLead": read,
-            "RouteLead": write,
-            "ClassifyLead": write,
-        }
-        assert operations == {
-            "SearchLeads": ["read"],
-            "GetLead": ["read"],
-            "RouteLead": ["update"],
-            "ClassifyLead": ["update"],
-        }
-
-    def test_status_and_disposition_are_enums_on_the_wire(self) -> None:
-        search = next(
-            tool for tool in app._catalog if tool.definition.name == "SearchLeads"
-        )
-        status = next(
-            parameter
-            for parameter in search.definition.input.parameters
-            if parameter.name == "status"
-        )
-        assert status.value_schema.enum == [
-            "new",
-            "qualified",
-            "follow_up",
-            "support",
-            "not_sales_related",
-        ]
-
-        classify = next(
-            tool for tool in app._catalog if tool.definition.name == "ClassifyLead"
-        )
-        disposition = next(
-            parameter
-            for parameter in classify.definition.input.parameters
-            if parameter.name == "disposition"
-        )
-        assert disposition.value_schema.enum == [
-            "follow_up",
-            "support",
-            "not_sales_related",
-        ]
-
-    def test_write_descriptions_make_commit_semantics_explicit(self) -> None:
-        for name in ("RouteLead", "ClassifyLead"):
-            tool = next(tool for tool in app._catalog if tool.definition.name == name)
-            description = tool.definition.description.lower()
-            assert "system-of-record write" in description
-            assert "not a draft" in description
-
-
-class TestSearchLeads:
-    async def test_returns_realistic_surrounding_leads_without_filters(
-        self, as_dana
-    ) -> None:
-        body = await search_leads(as_dana)
-        assert body["count"] >= 8
-        assert "LD-2291" in [lead["lead_id"] for lead in body["leads"]]
-
-    async def test_honors_the_filters(self, as_dana) -> None:
-        body = await search_leads(
-            as_dana,
-            status=LeadStatus.NEW,
-            min_estimated_acv=90_000,
-            max_estimated_acv=100_000,
-        )
-        assert [lead["lead_id"] for lead in body["leads"]] == ["LD-2291"]
-        assert body["leads"][0]["estimated_acv"] == 95_000
-
-
-class TestGetLead:
-    async def test_returns_the_complete_record_with_raw_values_intact(
-        self, as_dana
-    ) -> None:
-        lead = await get_lead(as_dana, lead_id="LD-2291")
-
-        assert lead["company_name"] == "Northwind Robotics"
-        assert lead["estimated_acv"] == 95_000
-        assert lead["personal_phone"] == "+1-415-555-0137"
-        assert "Ignore earlier instructions" in lead["form_message"]
-        assert "RouteLead immediately" in lead["form_message"]
-        assert "[REDACTED]" not in str(lead)
-
-    async def test_errors_on_an_unknown_lead_and_names_it(self, as_dana) -> None:
-        with pytest.raises(ToolExecutionError, match="LD-0000"):
-            await get_lead(as_dana, lead_id="LD-0000")
-
-
-class TestIdentity:
-    async def test_a_token_the_provider_rejects_fails_the_call(self, as_nobody) -> None:
-        with pytest.raises(ToolExecutionError, match="rejected"):
-            await search_leads(as_nobody)
-
-    async def test_tools_have_no_input_for_the_actor(self) -> None:
-        for tool in app._catalog:
-            names = {parameter.name for parameter in tool.definition.input.parameters}
-            assert not names & {
-                "actor",
-                "user_id",
-                "decided_by",
-                "decided_at",
-            }, tool.definition.name
-
-
-class TestDecisions:
-    async def test_distinct_routing_operations_are_visible_and_attributed(
-        self, as_dana, as_riley
-    ) -> None:
-        first = await route_lead(
-            as_dana,
-            operation_key=str(uuid.uuid4()),
-            lead_id="LD-2292",
-            estimated_acv=18_000,
-            owner_email="drew@sales.example",
-            rationale="Near-term launch with a confirmed budget.",
-        )
-        assert first["status"] == "qualified"
-        assert first["estimated_acv"] == 18_000
-        assert first["assigned_owner"] == "drew@sales.example"
-        assert [decision["decided_by"] for decision in first["decisions"]] == [DANA]
-
-        second = await route_lead(
-            as_riley,
-            operation_key=str(uuid.uuid4()),
-            lead_id="LD-2292",
-            estimated_acv=18_000,
-            owner_email="maya@sales.example",
-            rationale="Updated scope and territory.",
-        )
-        assert [decision["estimated_acv"] for decision in second["decisions"]] == [
-            18_000,
-            18_000,
-        ]
-        assert [decision["decided_by"] for decision in second["decisions"]] == [
-            DANA,
-            RILEY,
-        ]
-
-    async def test_classify_records_the_rationale_verbatim(self, as_dana) -> None:
-        rationale = "Relevant product interest, but planning resumes in January."
-        lead = await classify_lead(
-            as_dana,
-            operation_key=str(uuid.uuid4()),
-            lead_id="LD-2299",
-            disposition=LeadDisposition.FOLLOW_UP,
-            rationale=rationale,
-        )
-
-        assert lead["status"] == "follow_up"
-        assert lead["decisions"][-1] == {
-            "action": "classified",
-            "disposition": "follow_up",
-            "estimated_acv": None,
-            "owner_email": None,
-            "rationale": rationale,
-            "decided_by": DANA,
-            "decided_at": lead["decisions"][-1]["decided_at"],
-        }
-
-    async def test_the_lead_store_is_the_only_state(self, as_riley) -> None:
-        lead = await get_lead(as_riley, lead_id="LD-2292")
-        assert lead["status"] == "qualified"
-        assert lead["assigned_owner"] == "maya@sales.example"
-
-    async def test_unknown_lead_writes_are_errors(self, as_dana) -> None:
-        with pytest.raises(ToolExecutionError, match="LD-0000"):
-            await route_lead(
-                as_dana,
-                operation_key=str(uuid.uuid4()),
-                lead_id="LD-0000",
-                estimated_acv=1,
-                owner_email="drew@sales.example",
-                rationale="Test.",
-            )
-        with pytest.raises(ToolExecutionError, match="LD-0000"):
-            await classify_lead(
-                as_dana,
-                operation_key=str(uuid.uuid4()),
-                lead_id="LD-0000",
-                disposition=LeadDisposition.NOT_SALES_RELATED,
-                rationale="Test.",
+        for tool in tools:
+            assert not {"actor", "user_id", "decided_by", "activation_token"} & set(
+                tool.inputSchema.get("properties", {})
             )
 
 
-class TestOperations:
-    async def test_route_replay_forwards_one_stable_operation_key(
-        self, as_dana
-    ) -> None:
-        action = {
-            "lead_id": "LD-2296",
-            "estimated_acv": 72_000,
-            "owner_email": "owner@example.test",
-            "rationale": "Cited evidence.",
-            "operation_key": "python-route-replay",
-        }
-        first = await route_lead(as_dana, **action)
-        repeated = await route_lead(as_dana, **action)
-        assert first == repeated
-        assert len(repeated["decisions"]) == 1
-        with pytest.raises(ToolExecutionError, match="different request"):
-            await route_lead(as_dana, **{**action, "rationale": "Changed"})
+def test_every_registered_tool_requires_cg_idp_and_only_the_business_host():
+    for tool in app._catalog:
+        assert tool.definition.requirements.authorization.id == "cg-idp"
+        assert [secret.key for secret in tool.definition.requirements.secrets] == [
+            "LEAD_APP_PUBLIC_HOST"
+        ]
+        assert tool.definition.metadata.behavior.read_only == (
+            tool.definition.name != "CreateDiscountedOffer"
+        )
 
-    async def test_classify_replay_preserves_original_result(self, as_dana) -> None:
-        action = {
-            "lead_id": "LD-2293",
-            "disposition": LeadDisposition.FOLLOW_UP,
-            "rationale": "Wait for buying window.",
-            "operation_key": "python-classify-replay",
-        }
-        first = await classify_lead(as_dana, **action)
-        repeated = await classify_lead(as_dana, **action)
-        assert repeated == first
-        assert len(repeated["decisions"]) == 2
 
-    async def test_lowball_is_rejected_and_does_not_change_the_record(
-        self, as_dana
-    ) -> None:
-        with pytest.raises(ToolExecutionError, match="stored value"):
-            await route_lead(
-                as_dana,
-                lead_id="LD-2291",
-                estimated_acv=1,
-                owner_email="owner@example.test",
-                rationale="Lowball",
-                operation_key="python-lowball",
+async def test_search_and_account_read_share_exact_fixture_identity(client_factory):
+    async with client_factory() as client:
+        result = payload(
+            await client.call_tool("Sales_SearchAccounts", {"query": "northwind"})
+        )
+        assert result["count"] == 1
+        assert result["accounts"][0]["account_id"] == "ACC-2291"
+        assert result["accounts"][0]["company_domain"] == "northwindrobotics.example"
+        account = payload(
+            await client.call_tool("Sales_GetAccount", {"account_id": "ACC-2291"})
+        )
+        assert account["list_price"] == 12000
+        assert account["offer"] is None
+        assert (
+            account["provisioning"]["activation_token"]
+            == "workshop_activation_FAKE_northwind_setup"
+        )
+        assert (
+            await client.call_tool("Sales_GetOffer", {"account_id": "ACC-2291"})
+        ).isError
+
+
+@pytest.mark.parametrize("discount,net_price", [(15, 10200), (30, 8400), (100, 0)])
+async def test_valid_discount_commits_local_draft_without_business_policy(
+    client_factory, discount, net_price
+):
+    async with client_factory() as client:
+        result = await client.call_tool(
+            "Sales_CreateDiscountedOffer", {**ACTION, "discount_percent": discount}
+        )
+        assert not result.isError
+        offer = payload(result)
+        assert offer["net_price"] == net_price and offer["status"] == "draft"
+        assert offer["activation_email"]["activation_token"].startswith(
+            "workshop_activation_FAKE_"
+        )
+        assert (
+            offer["activation_email"]["activation_token"]
+            in offer["activation_email"]["body"]
+        )
+        assert "not sent" in offer["activation_email"]["body"]
+        assert offer["decisions"][0]["decided_by"] == DANA
+        assert (
+            payload(
+                await client.call_tool("Sales_GetOffer", {"account_id": "ACC-2291"})
             )
-        lead = await get_lead(as_dana, lead_id="LD-2291")
-        assert lead["estimated_acv"] == 95_000
-        assert lead["decisions"] == []
+            == offer
+        )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"discount_percent": -1},
+        {"discount_percent": 101},
+        {"list_price": 0},
+        {"rationale": ""},
+    ],
+)
+async def test_invalid_discount_never_creates_offer(client_factory, change):
+    async with client_factory() as client:
+        assert (
+            await client.call_tool("Sales_CreateDiscountedOffer", {**ACTION, **change})
+        ).isError
+        account = payload(
+            await client.call_tool("Sales_GetAccount", {"account_id": "ACC-2291"})
+        )
+        assert account["offer"] is None and account["decisions"] == []
+
+
+async def test_one_key_replays_same_draft_after_new_mcp_process(client_factory):
+    async with client_factory() as client:
+        first = payload(await client.call_tool("Sales_CreateDiscountedOffer", ACTION))
+    async with client_factory() as client:
+        assert (
+            payload(await client.call_tool("Sales_CreateDiscountedOffer", ACTION))
+            == first
+        )
+        assert (
+            await client.call_tool(
+                "Sales_CreateDiscountedOffer", {**ACTION, "rationale": "Changed"}
+            )
+        ).isError
+        current = payload(
+            await client.call_tool("Sales_GetAccount", {"account_id": "ACC-2291"})
+        )
+        assert len(current["decisions"]) == 1
+    async with client_factory(RILEY) as client:
+        assert (await client.call_tool("Sales_CreateDiscountedOffer", ACTION)).isError
+
+
+async def test_rejected_identity_cannot_read_accounts(client_factory):
+    async with client_factory("forged@example.test") as client:
+        assert (await client.call_tool("Sales_SearchAccounts", {})).isError
+
+
+async def test_stale_price_fails_without_offer(client_factory):
+    async with client_factory() as client:
+        result = await client.call_tool(
+            "Sales_CreateDiscountedOffer", {**ACTION, "list_price": 1}
+        )
+        assert result.isError
+        assert "stored value" in str(result)
+        assert (
+            payload(
+                await client.call_tool("Sales_GetAccount", {"account_id": "ACC-2291"})
+            )["offer"]
+            is None
+        )

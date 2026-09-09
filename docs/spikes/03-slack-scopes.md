@@ -1,5 +1,8 @@
 # Spike 03 — Does Arcade's stock Slack provider grant a user token with `chat:write`?
 
+> Historical transport spike. Its original domain and tool names are preserved as measured
+> evidence; use the current module guides for the Sales discount-offer workshop.
+
 > Historical evidence imported with the governance template. Approval examples in the
 > transcript use the former sample domain; the Slack and identity conclusions still apply.
 

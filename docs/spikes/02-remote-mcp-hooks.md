@@ -1,5 +1,8 @@
 # Spike 02 — Do contextual-access hooks fire for Remote MCP server tools?
 
+> Historical transport spike. Its original domain and tool names are preserved as measured
+> evidence; use the current module guides for the Sales discount-offer workshop.
+
 > Historical evidence imported with the governance template. Names such as
 > `loan-mcp-server` below are probe fixtures, not the current Lead Agent domain.
 

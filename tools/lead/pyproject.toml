@@ -1,7 +1,7 @@
 [project]
 name = "lead"
 version = "1.0.0"
-description = "Four stateless Lead Agent tools for discovering, inspecting, routing, and classifying inbound leads."
+description = "Four stateless Sales tools for accounts, discounted yearly offers, and local activation-email drafts."
 requires-python = ">=3.11"
 dependencies = [
     "arcade-mcp-server>=1.28.0,<2.0.0",

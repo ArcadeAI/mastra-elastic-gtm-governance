@@ -31,12 +31,7 @@ function stripComments(source: string): string {
   return source.replaceAll(/\/\*[\s\S]*?\*\//g, "").replaceAll(/^[ \t]*\/\/.*$/gm, "");
 }
 
-/**
- * Source only. `src/fixtures/leads.json` is exempt on purpose: it is domain
- * data, and one lead's `form_message` deliberately contains an
- * instruction aimed at whatever model reads the record — that is act 4's
- * payload, and it has to survive here to be stripped downstream.
- */
+/** The fixture contains synthetic account values; inspect executable source only. */
 async function sourceFiles(): Promise<{ path: string; text: string }[]> {
   const files = [];
 

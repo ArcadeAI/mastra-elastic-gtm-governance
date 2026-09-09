@@ -1,54 +1,26 @@
-# Lead slice verification
+# Discount business slice proof
 
-Implemented the selected Lead HTTP contract and Python header forwarding. This is local
-service proof, not a live Arcade/Elastic/Slack integration result or the full workshop gate.
+The first discount API test failed against the earlier endpoint surface, then passed with the new offer transaction. This is local service and MCP proof; no cloud gateway or external message delivery was exercised.
 
-## Checks
-
-- `bun test apps/lead-app`: 55 passed, 0 failed, 147 assertions across five files.
+- `bun test apps/lead-app/test`: 37 passed, 138 assertions across four files.
 - `bun run --cwd apps/lead-app typecheck`: passed.
-- `uv run --directory tools/lead --frozen --extra dev python -m pytest -q`: 20 passed.
-- `tools/lead/.venv/bin/python -m ruff check tools/lead/lead tools/lead/tests`: passed.
-- `tools/lead/.venv/bin/python -m mypy --config-file tools/lead/pyproject.toml tools/lead/lead`: passed.
-- `git diff --check`: passed.
+- `uv run --directory tools/lead --frozen --extra dev python -m pytest -q` from the repository root: 13 passed.
+- Python Ruff and mypy: passed.
 
-Tests require local HTTP listeners. The uv environment contains pytest as a Python module;
-its standalone `pytest` executable is absent, so invoke `python -m pytest`.
-
-## Behavior proof
-
-| Ticket rule portion | Executable evidence |
+| Behavior | Executable evidence |
 |---|---|
-| ATT1.R3: model amount cannot overwrite stored ACV | `operations.test.ts`: asserted ACV cannot replace stored ACV or record a failed write; Python lowball case |
-| ATT1.R4: exact original result after restart | `operations.test.ts`: approved operation replay survives a separate lead process restart |
-| ATT1.R4: response is original, not a later read | Route replay test first classifies the lead, reopens its database, and still receives the saved route response |
-| ATT1.R4: complete operation binding | One key binds actor, action, resource, and complete body; changed owner/rationale/amount/actor/resource/action all conflict |
-| ATT1.R4: one concurrent write | Eight concurrent classification deliveries return the same result with one decision |
-| ATT1.R4: receipt and decision commit atomically | `db.test.ts`: a failing receipt-insert trigger rolls back the lead update and decision; retry succeeds after the storage fault is removed |
-| OPS1.R2: preserve existing data on startup | `schema-upgrade.test.ts`: legacy rows/history survive upgrade and accept receipted writes |
-| OPS1.R2: reset known state | Internal reset restores nine leads and six historical decisions, clears receipts, and resets the exercised lead |
-| Internal boundaries | Missing, wrong, and unconfigured internal credentials are denied; value/receipt endpoints expose only their declared fields |
-| Python-to-HTTP forwarding | Both decorated write tools call the real local Lead API with stable operation keys and preserve replay/conflict semantics |
+| 30% offer at $12,000 becomes $8,400 | `discount.test.ts`: saved offer and local email draft read back identically |
+| Business API does not impose the AE limit | API cases accept 0%, 15%, 30%, fractional discounts, and 100%; MCP accepts 15%, 30%, and 100% |
+| Malformed, negative, >100%, and forged fields do not write | API and MCP boundary cases; no resulting offer or receipt |
+| Stored price cannot be replaced by a caller assertion | `LIST_PRICE_MISMATCH` response and unchanged account |
+| Exact operation binding | Changed actor, account, discount, price, or rationale conflicts |
+| Retries do not duplicate drafts | Eight concurrent HTTP retries, database reopen, and actual MCP subprocess restart |
+| Business process restart | `persistence.test.ts`: original response and one offer/email/decision survive process replacement |
+| Atomic persistence | Forced draft-insert storage failure leaves no offer, decision, or receipt; retry succeeds after recovery |
+| Existing deployment data survives | Earlier tables remain intact while new sales records persist across reopen |
+| Read and reset boundaries | Strict token checks, minimal internal value/receipt, explicit exercise reset |
+| Registered toolkit, not direct function calls | Python suite initializes real MCP, discovers exactly four Sales tools, and invokes them over stdio |
 
-The real HTTP service factory is `createApp({dbPath, idpHost, internalToken?})` from
-`src/index.ts`, returning `fetch` and `close`. Tests use actual Bun servers and SQLite;
-only the external IdP userinfo boundary is substituted in this slice.
+The initial trial token and each offer token start with `workshop_activation_FAKE_`. Activation email content is stored only in SQLite. No send path exists.
 
-The wider hooks tests still own grant/access rejection, and the wider agent tests own
-model-facing filtering and approval continuation. Direct decorated Python tool calls do
-not alone establish live MCP registration or actual Arcade authorization.
-
-## TDD and intentional baseline changes
-
-The initial new HTTP suite failed because `createApp` was absent. Python tests then showed
-nine failures for the missing operation-key argument, old metadata, and dependent writes,
-with eleven unaffected tests still passing. Implementation made both suites pass.
-
-Existing write tests now supply distinct operation keys and authenticated actors. Their
-previous mutable-estimate assertions deliberately changed to assertions against stored
-ACV. Distinct operations still create separate attributed history entries; retries of one
-operation do not. Tool metadata now declares both writes idempotent, matching their
-required key semantics. Existing raw-response, authentication, and domain-boundary checks
-remain present and passing.
-
-No external posts, deployments, commits, or live cloud tests were performed by this slice.
+Governance, authenticated approval, model-facing redaction, and agent continuation remain owned by the hooks and web integration suites. The account API deliberately returns its raw stored data.

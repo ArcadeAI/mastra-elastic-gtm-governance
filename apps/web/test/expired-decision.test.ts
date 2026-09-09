@@ -19,7 +19,7 @@ async function ready(url: string, process: ReturnType<typeof Bun.spawn>) {
   }
 }
 
-test("APR1.R2 expired approval-page decision is rejected through authenticated web and actual Decide MCP", async () => {
+test("APR1.R2 expired approval-page decision is rejected through authenticated web and hooks", async () => {
   const directory = mkdtempSync(join(tmpdir(), "workshop-expired-decision-"));
   const idpPort = freePort(), webPort = freePort();
   const idp = `http://127.0.0.1:${idpPort}`, web = `http://127.0.0.1:${webPort}`;
@@ -53,13 +53,16 @@ test("APR1.R2 expired approval-page decision is rejected through authenticated w
     await ready(`${idp}/health`, idpChild);
     const arcade = await credentials(); const browserClient = await credentials(true);
     for (const [persona, email] of [["dana", emails.dana], ["riley", emails.riley], ["verification", verification]]) tokens.set(email!, await new OAuthBrowser().token(idp, arcade, email!, `${persona}-demo-2026`));
-    config = { port: webPort, db: `file:${directory}/mastra.db`, hooks: hooksOrigin, gateway: gateway.url, emails, proof: join(directory, "model-observation.json"), session: { origin: web, idp, clientId: browserClient.client_id, clientSecret: browserClient.client_secret, secret: "local-web-session-secret-longer-than-32-characters", emails, demoMode: true } };
+    config = { port: webPort, db: `file:${directory}/mastra.db`, hooks: hooksOrigin, gateway: gateway.url, boundary: gateway.boundary, emails, proof: join(directory, "model-observation.json"), session: { origin: web, idp, clientId: browserClient.client_id, clientSecret: browserClient.client_secret, secret: "local-web-session-secret-longer-than-32-characters", emails, demoMode: true } };
     const operator = new HooksClient(hooksOrigin, "operator-test");
+    await operator.request("/operator/verification", { operation_key: "verification-1" });
     // Verification travels through the same gateway and actual Python Lead tool.
-    const filtered = await gateway.call("Lead.GetLead", { lead_id: "LD-2291" }, verification);
+    const filtered = await gateway.call("Sales.GetAccount", { account_id: "ACC-2291" }, verification);
     expect(JSON.stringify(filtered)).not.toContain("+1-415-555-0137");
-    const probe = await gateway.call(names.route, { lead_id: "LD-2291", estimated_acv: 95000, owner_email: emails.riley, rationale: "Operator proof", operation_key: "verification-1" }, verification) as any;
+    const probe = await gateway.call(names.discount, { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Operator proof", operation_key: "verification-1" }, verification) as any;
     expect(probe.code).toBe("CHECK_FAILED");
+    const proof = await operator.request("/operator/verification?operation_key=verification-1");
+    expect((await operator.request("/operator/verification/confirm", { operation_key: "verification-1", denial_execution_id: proof.denial.execution_id, filter_execution_id: proof.filter.execution_id })).confirmed).toBe(true);
     expect((await operator.request("/operator/activate", {})).active).toBe(true);
     await launch("start");
     const browser = new OAuthBrowser();
@@ -87,14 +90,14 @@ test("APR1.R2 expired approval-page decision is rejected through authenticated w
     const vote = await post(`/api/approvals/${requestId}/decision`, { decision: "approve" });
     expect(vote.status).toBeGreaterThanOrEqual(400);
     expect(vote.body.error).toContain("HTTP 409");
-    expect(gateway.toolExecutions.filter((call) => call.name === "Approvals_Decide")).toEqual([{ name: "Approvals_Decide", actor: emails.riley }]);
+    expect(gateway.toolExecutions.every((call) => call.name.startsWith("Sales_"))).toBe(true);
 
     const after = await (await browser.fetch(`${web}/api/approvals/${requestId}`)).json() as any;
     expect(after.approval.status).toBe("expired");
     expect(after.approval.grant_id).toBeNull();
     expect((await fetch(`${leadOrigin}/internal/operations/${encodeURIComponent(waiting.run.operation_key)}`, { headers: { authorization: "Bearer lead-test" } })).status).toBe(404);
-    expect(gateway.calls.filter((call) => call.name === names.route && call.actor === emails.dana && !call.denied)).toEqual([]);
-    const leadAfter = await (await fetch(`${leadOrigin}/leads/LD-2291`, { headers: { authorization: `Bearer ${tokens.get(emails.dana)}` } })).json() as any;
+    expect(gateway.calls.filter((call) => call.name === names.discount && call.actor === emails.dana && !call.denied)).toEqual([]);
+    const leadAfter = await (await fetch(`${leadOrigin}/accounts/ACC-2291`, { headers: { authorization: `Bearer ${tokens.get(emails.dana)}` } })).json() as any;
     expect(leadAfter.decisions.filter((decision: any) => decision.decided_by === emails.dana)).toEqual([]);
     expect(JSON.stringify(vote.body)).toMatch(/expired/i);
   } finally {
