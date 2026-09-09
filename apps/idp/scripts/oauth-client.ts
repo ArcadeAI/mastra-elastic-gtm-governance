@@ -18,8 +18,9 @@ const db = await openPeople(config.dbPath);
 const auth = createAuth({ db, baseURL: config.baseURL, secret: config.secret });
 
 const client = await ensureOAuthClient(auth, {
-  redirectUris: config.redirectUris,
+  redirectUris: process.argv.includes("--web") ? [config.webRedirectUri ?? (() => { throw new Error("WORKSHOP_WEB_REDIRECT_URI is required for --web"); })()] : config.redirectUris,
   secret: config.secret,
+  web: process.argv.includes("--web"),
 });
 
 const json = process.argv.includes("--json");

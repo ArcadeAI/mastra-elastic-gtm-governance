@@ -108,7 +108,7 @@ export interface LoginPageInput {
 }
 
 export function renderLoginPage({ oauthQuery, clientName, error, email }: LoginPageInput): string {
-  const lead = clientName
+  const introduction = clientName
     ? `<strong>${escape(clientName)}</strong> is asking you to sign in.`
     : "Sign in with your work email.";
 
@@ -116,7 +116,7 @@ export function renderLoginPage({ oauthQuery, clientName, error, email }: LoginP
     "Sign in",
     `<form class="card" method="post" action="/login">
       <h1>Sign in</h1>
-      <p>${lead}</p>
+      <p>${introduction}</p>
       ${error ? `<div class="error" role="alert">${escape(error)}</div>` : ""}
       <input type="hidden" name="oauth_query" value="${escape(oauthQuery)}">
       <label for="email">Email</label>

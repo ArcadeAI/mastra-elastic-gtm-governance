@@ -1,31 +1,24 @@
-/**
- * The control plane. Owns `governance.db`, serves Arcade's `/access`, `/pre`
- * and `/post` hooks, and fans decisions out to the UI over SSE.
- *
- * A stub for now: the point of this slice is that the deploy pipeline works
- * before any logic goes into it. The hook endpoints land in #12.
- */
-import { FAIL_CLOSED } from "@cg/governance-core";
+import { createHooksApp } from "./app";
+import { baseUrl, type HooksConfig } from "./policy";
 
-const SERVICE = "hooks";
-const port = Number(process.env.PORT ?? 8081);
-
-const server = Bun.serve({
-  port,
-  fetch(request) {
-    const { pathname } = new URL(request.url);
-
-    if (request.method === "GET" && pathname === "/health") {
-      return Response.json({
-        status: "ok",
-        service: SERVICE,
-        // Proves the workspace link resolved at runtime, not just at typecheck.
-        failure_mode: FAIL_CLOSED.effect === "deny" ? "fail-closed" : "unknown",
-      });
-    }
-
-    return new Response("Not found", { status: 404 });
-  },
-});
-
-console.log(`[${SERVICE}] listening on :${server.port}`);
+export function configFromEnv(env: Record<string, string | undefined> = process.env): HooksConfig {
+  const required = (name: string) => { const value = env[name]?.trim(); if (!value) throw new Error(`${name} is required.`); return value; };
+  return {
+    dbPath: env.GOVERNANCE_DB_PATH || "./governance.db",
+    hookSecret: env.ARCADE_HOOK_SECRET?.trim() || required("ARCADE_HOOK_SIGNING_SECRET"),
+    operatorToken: required("WORKSHOP_OPERATOR_TOKEN"), approvalsToken: required("APPROVALS_SERVICE_TOKEN"), webToken: required("WEB_SERVICE_TOKEN"),
+    leadHost: required("LEAD_APP_PUBLIC_HOST"), leadToken: required("LEAD_INTERNAL_TOKEN"), idpHost: required("IDP_PUBLIC_HOST"),
+    webOrigin: env.WEB_PUBLIC_ORIGIN || baseUrl(required("WEB_PUBLIC_HOST")),
+    subjectEmails: { dana: required("PERSONA_DANA_EMAIL"), riley: env.PERSONA_RILEY_EMAIL || "riley@example.test", sam: env.PERSONA_SAM_EMAIL || "sam@example.test", morgan: env.PERSONA_MORGAN_EMAIL || "morgan@example.test" },
+    verificationUserId: env.WORKSHOP_VERIFICATION_USER_ID || "verification@example.test",
+    elasticTools: JSON.parse(env.ARCADE_ELASTIC_HOOK_TOOLS || "[]"),
+    mcpToolNames: { route: env.ARCADE_ROUTE_TOOL_NAME, classify: env.ARCADE_CLASSIFY_TOOL_NAME, requestApproval: env.ARCADE_REQUEST_APPROVAL_TOOL_NAME, decide: env.ARCADE_DECIDE_TOOL_NAME },
+    leadToolkit: env.ARCADE_LEAD_TOOLKIT || "Lead", approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT || "Approvals",
+    soloSlackDelivery: env.WORKSHOP_SOLO_SLACK === "true", allowedSlackTeamId: env.WORKSHOP_SLACK_TEAM_ID,
+  };
+}
+if (import.meta.main) {
+  const app = createHooksApp(configFromEnv());
+  const server = Bun.serve({ port: Number(process.env.PORT || 8081), fetch: app.fetch });
+  console.log(`[hooks] listening on :${server.port}`);
+}

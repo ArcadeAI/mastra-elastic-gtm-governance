@@ -1,5 +1,5 @@
 {
-  "name": "mastra-contextual-governance",
+  "name": "mastra-elastic-gtm-governance",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -10,11 +10,19 @@
   "scripts": {
     "typecheck": "bun run --filter '*' typecheck",
     "build": "bun run --filter '*' build",
+    "test": "bun test",
+    "workshop": "bun scripts/workshop.ts",
+    "setup": "bun scripts/workshop.ts setup",
+    "doctor": "bun scripts/workshop.ts readiness",
+    "discover": "bun scripts/workshop.ts discover",
+    "reset": "bun scripts/workshop.ts reset",
+    "capstone": "bun scripts/workshop.ts capstone",
     "dev:hooks": "bun run --cwd apps/hooks dev",
-    "dev:loan-app": "bun run --cwd apps/loan-app dev",
+    "dev:lead-app": "bun run --cwd apps/lead-app dev",
     "dev:idp": "bun run --cwd apps/idp dev",
-    "dev:idp-stub": "bun run --cwd apps/loan-app dev:idp",
-    "dev:web": "bun run --cwd apps/web dev"
+    "dev:idp-stub": "bun run --cwd apps/lead-app dev:idp",
+    "dev:web": "bun run --cwd apps/web dev",
+    "elastic:seed": "bun scripts/seed-elastic.ts"
   },
   "devDependencies": {
     "@types/bun": "^1.3.0",
@@ -25,6 +33,7 @@
     "apps/idp is excluded from the workspace on purpose: it stands in for the enterprise IdP and Better Auth needs zod 4, which the override below forbids. It has its own lockfile — see apps/idp/package.json."
   ],
   "overrides": {
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "postcss": "8.5.23"
   }
 }

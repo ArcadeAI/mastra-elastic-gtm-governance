@@ -6,12 +6,13 @@
  * Better Auth serves the OAuth 2.1 endpoints; this file serves the two pages
  * the plugin redirects to (login and consent), turns their HTML form posts into
  * the JSON calls Better Auth expects, and answers `/health`. Nothing here knows
- * what a loan is or who is allowed to do what.
+ * what a sales lead is or who is allowed to do what.
  */
 import { createAuth, CONSENT_PAGE, LOGIN_PAGE } from "./auth.ts";
 import { ensureOAuthClient, findClientName } from "./client.ts";
 import { readConfig, usingDevSecret } from "./config.ts";
-import { countPeople, openPeople } from "./db.ts";
+import { countPeople, openPeople, resetPeople } from "./db.ts";
+import { timingSafeEqual } from "node:crypto";
 import { renderConsentPage, renderLoginPage, renderMessagePage } from "./pages.ts";
 
 const SERVICE = "idp";
@@ -25,6 +26,9 @@ const auth = createAuth({ db, baseURL: config.baseURL, secret: config.secret });
 const client = await ensureOAuthClient(auth, {
   redirectUris: config.redirectUris,
   secret: config.secret,
+});
+if (config.webRedirectUri) await ensureOAuthClient(auth, {
+  redirectUris: [config.webRedirectUri], secret: config.secret, web: true,
 });
 
 function html(body: string, status = 200): Response {
@@ -186,6 +190,18 @@ const server = Bun.serve({
   async fetch(request) {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    if (request.method === "POST" && pathname === "/internal/reset") {
+      const secret = process.env.WORKSHOP_OPERATOR_TOKEN;
+      const provided = request.headers.get("authorization") ?? "";
+      const expected = `Bearer ${secret ?? ""}`;
+      if (!secret || provided.length !== expected.length || !timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) return Response.json({ error: "Invalid operator credential" }, { status: 401 });
+      const before = db.query<{ clientId: string; clientSecret: string }, []>('SELECT "clientId", "clientSecret" FROM "oauthClient" ORDER BY "clientId"').all();
+      await resetPeople(db);
+      const after = db.query<{ clientId: string; clientSecret: string }, []>('SELECT "clientId", "clientSecret" FROM "oauthClient" ORDER BY "clientId"').all();
+      if (JSON.stringify(before) !== JSON.stringify(after)) return Response.json({ error: "OAuth client identity changed during reset" }, { status: 500 });
+      return Response.json({ reset: true, people: countPeople(db), oauth_clients_preserved: after.length });
+    }
 
     if (request.method === "GET" && pathname === "/health") {
       return Response.json({

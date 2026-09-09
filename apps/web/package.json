@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@cg/policy-schema": "workspace:*",
+    "@mastra/core": "^1.64.0",
+    "@mastra/libsql": "1.22.3",
+    "@mastra/mcp": "^1.17.3",
     "next": "^15.5.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

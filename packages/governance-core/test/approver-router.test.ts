@@ -2,8 +2,8 @@
  * ApproverRouter (#9). Table-driven: every row states the amount, who asked,
  * the roster, and who the router must land on — or that it must land on nobody.
  *
- * The roster is the demo cast from DESIGN.md, because "$95K goes to Riley, not
- * Morgan" is a line the presenter says out loud and this is where it is pinned.
+ * The roster is the demo cast from DESIGN.md, because "the $95K lead route goes
+ * to Riley, not Morgan" is a line the presenter says out loud and this pins it.
  */
 import { describe, expect, it } from "bun:test";
 import { aSubject, type Subject } from "@cg/policy-schema";
@@ -34,7 +34,7 @@ type Row = {
 
 const rows: readonly Row[] = [
   {
-    name: "the headline case: $95K from Dana goes to Riley, not Morgan",
+    name: "the headline lead: Dana's $95K route goes to Riley, not Morgan",
     amount: 95_000,
     requester: dana.user_id,
     roster: CAST,

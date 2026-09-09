@@ -19,7 +19,7 @@ const fixture = loadPeople({});
 const ONE_PERSON: PersonSeed = {
   persona: "dana",
   name: "Placeholder Person",
-  email: "placeholder@bank.example",
+  email: "placeholder@example.test",
   password: "placeholder-2026",
 };
 

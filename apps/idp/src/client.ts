@@ -23,6 +23,7 @@ export const OAUTH_CLIENT_NAME = "Arcade";
  * enforce for us.
  */
 export const OAUTH_CLIENT_ROW_ID = "arcade";
+export const WEB_CLIENT = { id: "workshop-web", name: "Workshop Agent" } as const;
 
 /**
  * PKCE is **on**. OAuth 2.1 requires it, Better Auth defaults to it, and
@@ -56,10 +57,11 @@ interface StoredClient {
  */
 export async function ensureOAuthClient(
   auth: Auth,
-  { redirectUris, secret }: { redirectUris: string[]; secret: string },
+  { redirectUris, secret, web = false }: { redirectUris: string[]; secret: string; web?: boolean },
 ): Promise<OAuthClientCredentials> {
   const ctx = await auth.$context;
-  const existing = await findStoredClient(auth);
+  const identity = web ? WEB_CLIENT : { id: OAUTH_CLIENT_ROW_ID, name: OAUTH_CLIENT_NAME };
+  const existing = await findStoredClient(auth, identity);
 
   if (existing) {
     if (!existing.clientSecret) {
@@ -98,10 +100,10 @@ export async function ensureOAuthClient(
       model: "oauthClient",
       forceAllowId: true,
       data: {
-        id: OAUTH_CLIENT_ROW_ID,
+        id: identity.id,
         clientId,
         clientSecret: await clientSecretStorage(secret).encrypt(clientSecret),
-        name: OAUTH_CLIENT_NAME,
+        name: identity.name,
         redirectUris,
         scopes: [...SCOPES],
         tokenEndpointAuthMethod: "client_secret_post",
@@ -119,7 +121,7 @@ export async function ensureOAuthClient(
     // Lost the race: another bootstrap inserted the row between our lookup
     // and our insert. Theirs is the client; ours never existed.
     if (!/UNIQUE|constraint/i.test(String(error))) throw error;
-    return ensureOAuthClient(auth, { redirectUris, secret });
+    return ensureOAuthClient(auth, { redirectUris, secret, web });
   }
 
   return { clientId, clientSecret, redirectUris, created: true };
@@ -135,18 +137,18 @@ export async function ensureOAuthClient(
  * that are neither, the boot fails loudly rather than serve credentials
  * Arcade does not have. A dead service is a thing a human can act on.
  */
-async function findStoredClient(auth: Auth): Promise<StoredClient | null> {
+async function findStoredClient(auth: Auth, identity: { id: string; name: string }): Promise<StoredClient | null> {
   const ctx = await auth.$context;
 
   const byId = await ctx.adapter.findOne<StoredClient>({
     model: "oauthClient",
-    where: [{ field: "id", value: OAUTH_CLIENT_ROW_ID }],
+    where: [{ field: "id", value: identity.id }],
   });
   if (byId) return byId;
 
   const byName = await ctx.adapter.findMany<StoredClient>({
     model: "oauthClient",
-    where: [{ field: "name", value: OAUTH_CLIENT_NAME }],
+    where: [{ field: "name", value: identity.name }],
     limit: 2,
   });
   if (byName.length === 1) {
@@ -154,12 +156,13 @@ async function findStoredClient(auth: Auth): Promise<StoredClient | null> {
     await ctx.adapter.update({
       model: "oauthClient",
       where: [{ field: "id", value: legacy.id }],
-      update: { id: OAUTH_CLIENT_ROW_ID },
+      update: { id: identity.id },
     });
-    return { ...legacy, id: OAUTH_CLIENT_ROW_ID };
+    return { ...legacy, id: identity.id };
   }
 
-  const total = await ctx.adapter.count({ model: "oauthClient" });
+  const all = await ctx.adapter.findMany<StoredClient>({ model: "oauthClient" });
+  const total = all.filter((client) => client.id !== OAUTH_CLIENT_ROW_ID && client.id !== WEB_CLIENT.id).length;
   if (total > 0) {
     throw new Error(
       `idp.db holds ${total} OAuth client row(s) this service did not write ` +

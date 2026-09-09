@@ -1,9 +1,12 @@
 # Spike 02 — Do contextual-access hooks fire for Remote MCP server tools?
 
+> Historical evidence imported with the governance template. Names such as
+> `loan-mcp-server` below are probe fixtures, not the current Lead Agent domain.
+
 **Answer: yes.** All three hooks — `/access`, `/pre`, `/post` — fire for tools served by a
 Remote MCP server registered in Arcade, with a payload identical in shape to the one hosted
-toolkits produce. `DESIGN.md`'s architecture holds: `apps/loan-mcp` can be an external Bun
-service.
+toolkits produce. The result is what lets the current design place Elastic's native Remote
+MCP server behind the same governance hooks as the hosted Lead toolkit.
 
 Resolves [#2](https://github.com/ArcadeAI/mastra-contextual-governance/issues/2).
 Clears open risk 1 in `DESIGN.md`.

@@ -3,7 +3,7 @@
 **This is a demo fixture standing in for the enterprise's real IdP** — the same category
 of thing as the persona switcher. A forker deletes this directory and points Arcade at
 their Okta. Nothing else in the template depends on it, and it depends on nothing else in
-the template: it is not a workspace member, and it knows people, not loans and not policy.
+the template: it is not a workspace member, and it knows people, not leads and not policy.
 
 Bun on Render, [Better Auth](https://www.better-auth.com) with the
 [`@better-auth/oauth-provider`](https://www.better-auth.com/docs/plugins/oauth-provider)
@@ -31,15 +31,15 @@ Arcade dashboard have no `/api/auth` prefix to forget.
 ## The people
 
 Four personas, seeded from [`src/fixtures/people.json`](./src/fixtures/people.json) the
-first time `idp.db` is opened, in one transaction, following the loan book's pattern
+first time `idp.db` is opened, in one transaction, following the lead system's pattern
 (#29): a seed that fails leaves no schema, so the next boot retries instead of coming up
 green and empty. Passwords are in the fixture. This is a demo IdP and pretending otherwise
 helps nobody.
 
-The emails are the join key for the whole system — Arcade `user_id`, OAuth subject, loan
-book actor. The fixture ships placeholder addresses; set `PERSONA_DANA_EMAIL` and the
+The emails are the join key for the whole system — Arcade `user_id`, OAuth subject, and
+lead-system actor. The fixture ships placeholder addresses; set `PERSONA_DANA_EMAIL` and the
 other three (the same variables the persona switcher uses) **before the first boot** to
-seed the addresses the Arcade accounts were created under (#13). A seed is not re-read;
+seed the addresses sent to Arcade as `Arcade-User-ID`. A seed is not re-read;
 change them afterwards and you need a reset.
 
 ## The OAuth client
@@ -83,7 +83,7 @@ Custom OAuth 2.0 provider, from the output of the script above:
 The userinfo payload, for reference:
 
 ```json
-{ "sub": "<user id>", "email": "dana.okafor@bank.example", "email_verified": true,
+{ "sub": "<user id>", "email": "dana@example.test", "email_verified": true,
   "name": "Dana Okafor", "given_name": "Dana", "family_name": "Okafor" }
 ```
 
@@ -148,3 +148,25 @@ directory carries its own `bun.lock`.
 | `IDP_PUBLIC_URL` | Public origin and OAuth issuer. Falls back to Render's `RENDER_EXTERNAL_URL`, then `http://localhost:PORT`. |
 | `IDP_OAUTH_REDIRECT_URIS` | Comma-separated. Defaults to Arcade Cloud's callback. |
 | `PERSONA_*_EMAIL` | The four persona addresses, read at first seed. |
+| `WORKSHOP_WEB_REDIRECT_URI` | Creates/preserves the separate ownerless `workshop-web` client for the exact web `/auth/callback` URL. |
+| `WORKSHOP_VERIFICATION_USER_ID` | Seeds an operator-only verification identity, excluded from the web role picker; password `verification-demo-2026`. |
+| `WORKSHOP_OPERATOR_TOKEN` | Authorizes `POST /internal/reset`; never provided to agent tools or browsers. |
+
+## The web client and fresh role login
+
+Read the web client's stable credentials with
+`bun run --cwd apps/idp oauth-client --web --json`. Arcade's existing client remains
+separate. Both clients are ownerless and both survive reset with their secrets
+unchanged. Treat the printed secrets as server credentials.
+
+The web starts each role switch with `prompt=login` and PKCE. The installed OAuth
+provider sends even an existing Dana session back through login before Riley can
+complete authorization. The web additionally checks the expected persona against
+the token's userinfo response. Tests exercise real login, consent, token exchange,
+and a stale/wrong persona; they never inject a browser session.
+
+`POST /internal/reset` with `Authorization: Bearer WORKSHOP_OPERATOR_TOKEN` uses
+the same transactional people reset as the local script. It reports
+`{reset:true,people:N,oauth_clients_preserved:N}` and checks both clients' stored
+IDs and secrets before/after. It invalidates browser and delegated tokens, so
+the next exercise requires sign-in and consent again.

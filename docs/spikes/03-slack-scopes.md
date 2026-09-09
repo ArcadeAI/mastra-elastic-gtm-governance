@@ -1,5 +1,8 @@
 # Spike 03 — Does Arcade's stock Slack provider grant a user token with `chat:write`?
 
+> Historical evidence imported with the governance template. Approval examples in the
+> transcript use the former sample domain; the Slack and identity conclusions still apply.
+
 **Answer: yes.** Arcade's stock Slack provider (`arcade-slack`) issues a delegated **user**
 token carrying `chat:write`, `im:write`, `users:read` and `users:read.email` when those scopes
 are requested through the Arcade authorization API. A `chat.postMessage` with a `blocks`

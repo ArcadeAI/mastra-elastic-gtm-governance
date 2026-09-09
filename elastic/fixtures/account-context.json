@@ -1,0 +1,126 @@
+[
+  {
+    "event_id": "evt-northwind-001",
+    "lead_id": "LD-2291",
+    "account_id": "acct-northwind-robotics",
+    "company_name": "Northwind Robotics",
+    "company_domain": "northwindrobotics.example",
+    "event_type": "product_usage",
+    "occurred_at": "2026-08-27T18:20:00.000Z",
+    "title": "Trial workspace usage",
+    "content": "Twelve active developers created 184 preview deployments in the last 14 days. Usage grew 63 percent week over week.",
+    "metadata": {
+      "active_developers": 12,
+      "preview_deployments_14d": 184,
+      "week_over_week_growth_pct": 63
+    }
+  },
+  {
+    "event_id": "evt-northwind-002",
+    "lead_id": "LD-2291",
+    "account_id": "acct-northwind-robotics",
+    "company_name": "Northwind Robotics",
+    "company_domain": "northwindrobotics.example",
+    "event_type": "content_intent",
+    "occurred_at": "2026-08-28T16:05:00.000Z",
+    "title": "Enterprise documentation research",
+    "content": "Visitors from the company viewed enterprise SSO, audit logs, data residency, AI SDK, and deployment protection documentation.",
+    "metadata": {
+      "high_intent_pages": 5,
+      "sessions": 9
+    }
+  },
+  {
+    "event_id": "evt-northwind-003",
+    "lead_id": "LD-2291",
+    "account_id": "acct-northwind-robotics",
+    "company_name": "Northwind Robotics",
+    "company_domain": "northwindrobotics.example",
+    "event_type": "support_conversation",
+    "occurred_at": "2026-08-29T20:15:00.000Z",
+    "title": "Security and residency questions",
+    "content": "The platform team asked whether SAML SSO, SOC 2 evidence, US data residency, and role-based deployment controls are available on an enterprise agreement.",
+    "metadata": {
+      "sentiment": "positive",
+      "topic": "enterprise_security"
+    }
+  },
+  {
+    "event_id": "evt-northwind-004",
+    "lead_id": "LD-2291",
+    "account_id": "acct-northwind-robotics",
+    "company_name": "Northwind Robotics",
+    "company_domain": "northwindrobotics.example",
+    "event_type": "crm_history",
+    "occurred_at": "2026-08-30T15:00:00.000Z",
+    "title": "Prior expansion note",
+    "content": "A solutions engineer estimated an initial annual contract value between 85000 and 110000 USD if the robotics simulation team joins the existing platform workspace.",
+    "metadata": {
+      "acv_low": 85000,
+      "acv_high": 110000,
+      "segment": "enterprise"
+    }
+  },
+  {
+    "event_id": "evt-harborline-001",
+    "lead_id": "LD-2290",
+    "account_id": "acct-harborline-health",
+    "company_name": "Harborline Health",
+    "company_domain": "harborlinehealth.example",
+    "event_type": "product_usage",
+    "occurred_at": "2026-08-25T14:12:00.000Z",
+    "title": "Evaluation workspace usage",
+    "content": "Three developers created 14 deployments in 30 days. No activity has been recorded in the last eleven days.",
+    "metadata": {
+      "active_developers": 3,
+      "deployments_30d": 14,
+      "days_since_last_activity": 11
+    }
+  },
+  {
+    "event_id": "evt-cascade-001",
+    "lead_id": "LD-2288",
+    "account_id": "acct-cascade-biosystems",
+    "company_name": "Cascade BioSystems",
+    "company_domain": "cascadebiosystems.example",
+    "event_type": "crm_history",
+    "occurred_at": "2026-08-23T17:40:00.000Z",
+    "title": "Platform consolidation evaluation",
+    "content": "The VP of Engineering confirmed a twelve-team platform consolidation project with an estimated annual contract value between 160000 and 190000 USD.",
+    "metadata": {
+      "acv_low": 160000,
+      "acv_high": 190000,
+      "segment": "enterprise"
+    }
+  },
+  {
+    "event_id": "evt-meridian-001",
+    "lead_id": "LD-2295",
+    "account_id": "acct-meridian-data",
+    "company_name": "Meridian Data Cloud",
+    "company_domain": "meridiandata.example",
+    "event_type": "content_intent",
+    "occurred_at": "2026-08-31T10:10:00.000Z",
+    "title": "AI application research",
+    "content": "The account repeatedly viewed AI SDK, model routing, observability, and secure compute documentation.",
+    "metadata": {
+      "high_intent_pages": 4,
+      "sessions": 6
+    }
+  },
+  {
+    "event_id": "evt-alderway-001",
+    "lead_id": "LD-2299",
+    "account_id": "acct-alderway-design",
+    "company_name": "Alderway Design Systems",
+    "company_domain": "alderwaydesign.example",
+    "event_type": "support_conversation",
+    "occurred_at": "2026-08-31T21:30:00.000Z",
+    "title": "Planning-cycle timing",
+    "content": "The prospect requested technical material now and asked the team to reconnect in January when the next planning cycle opens.",
+    "metadata": {
+      "topic": "buying_timeline",
+      "sentiment": "neutral"
+    }
+  }
+]

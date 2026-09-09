@@ -59,14 +59,14 @@ jobs:
           NEXT_TELEMETRY_DISABLED: "1"
 
   toolkits:
-    name: test tools/loan
+    name: test Python toolkits
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: astral-sh/setup-uv@v6
 
-      # The toolkit's tests boot the real `apps/loan-app` as a subprocess and
+      # The toolkit's tests boot the real `apps/lead-app` as a subprocess and
       # drive the four tools through it, so Bun is needed here too.
       - uses: oven-sh/setup-bun@v2
         with:
@@ -75,9 +75,25 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
+      - name: Lint
+        working-directory: tools/lead
+        run: uv run --frozen --extra dev ruff check lead tests
+
+      - name: Typecheck
+        working-directory: tools/lead
+        run: uv run --frozen --extra dev python -m mypy
+
       - name: Test
-        working-directory: tools/loan
-        run: uv run --frozen --extra dev pytest
+        working-directory: tools/lead
+        run: uv run --frozen --extra dev python -m pytest
+
+      - name: Lint approvals
+        working-directory: tools/approvals
+        run: uv run --frozen --extra dev ruff check approvals tests
+
+      - name: Test approvals against local HTTP servers
+        working-directory: tools/approvals
+        run: uv run --frozen --extra dev python -m pytest
 
   images:
     name: build ${{ matrix.service }} image
@@ -85,8 +101,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [hooks, loan-app, web, idp]
+        service: [hooks, lead-app, web, idp]
         include:
+          - service: hooks
+            smoke_env: -e ARCADE_HOOK_SECRET=ci-hook -e WORKSHOP_OPERATOR_TOKEN=ci-operator -e APPROVALS_SERVICE_TOKEN=ci-approvals -e WEB_SERVICE_TOKEN=ci-web -e LEAD_INTERNAL_TOKEN=ci-lead -e LEAD_APP_PUBLIC_HOST=localhost:8082 -e IDP_PUBLIC_HOST=localhost:8083 -e WEB_PUBLIC_HOST=localhost:3000 -e PERSONA_DANA_EMAIL=dana@example.test
           # cg-idp refuses to boot under NODE_ENV=production without a
           # BETTER_AUTH_SECRET, on purpose: on Render the secret is generated
           # once and encrypts the OAuth client secret at rest, and a boot that

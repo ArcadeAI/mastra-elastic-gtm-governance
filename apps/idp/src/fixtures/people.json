@@ -3,25 +3,25 @@
     {
       "persona": "dana",
       "name": "Dana Okafor",
-      "email": "dana.okafor@bank.example",
+      "email": "dana@example.test",
       "password": "dana-demo-2026"
     },
     {
       "persona": "sam",
       "name": "Sam Reyes",
-      "email": "sam.reyes@bank.example",
+      "email": "sam@example.test",
       "password": "sam-demo-2026"
     },
     {
       "persona": "riley",
       "name": "Riley Chen",
-      "email": "riley.chen@bank.example",
+      "email": "riley@example.test",
       "password": "riley-demo-2026"
     },
     {
       "persona": "morgan",
       "name": "Morgan Ellis",
-      "email": "morgan.ellis@bank.example",
+      "email": "morgan@example.test",
       "password": "morgan-demo-2026"
     }
   ]

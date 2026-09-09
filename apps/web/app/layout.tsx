@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Contextual Governance — Mastra × Arcade",
+  title: "Governed Lead Agent — Mastra × Elastic × Arcade",
   description:
-    "An agent doing real work in a real business system, with Arcade enforcing deterministic control on every tool call.",
+    "A governed inbound Lead Agent that researches participant-owned Elastic data through an Arcade gateway.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

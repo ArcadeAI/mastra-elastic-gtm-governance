@@ -4,7 +4,7 @@
  * tokens, consents).
  *
  * This service knows who someone is and nothing else: no titles, no limits, no
- * loans. Authority lives in `apps/hooks`; the loan book lives in the business
+ * leads. Authority lives in `apps/hooks`; lead data lives in the business
  * system. Everything here is identity.
  */
 import { Database } from "bun:sqlite";
@@ -21,7 +21,7 @@ import fixture from "./fixtures/people.json" with { type: "json" };
 import SCHEMA from "./schema.sql" with { type: "text" };
 
 const personSchema = z.object({
-  persona: z.enum(["dana", "sam", "riley", "morgan"]),
+  persona: z.enum(["dana", "sam", "riley", "morgan", "verification"]),
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
@@ -46,17 +46,22 @@ export interface Person {
  * when that variable is set.
  *
  * The email is the join key across the whole system — Arcade `user_id`, OAuth
- * subject, loan-book actor — and the Arcade accounts are created by hand on
+ * subject, lead-system actor — and the Arcade accounts are created by hand on
  * #13 under whatever addresses are available. `.env.example` already carries
  * these four variables for the persona switcher; reading them here is what
  * keeps `idp.db` and the Arcade accounts on the same string without a second
  * place to edit. The fixture's own addresses are the fallback for a local run.
  */
 export function loadPeople(env: Record<string, string | undefined> = process.env): PersonSeed[] {
-  return fixtureSchema.parse(fixture).people.map((person) => {
+  const people = fixtureSchema.parse(fixture).people.map((person) => {
     const override = env[`PERSONA_${person.persona.toUpperCase()}_EMAIL`]?.trim();
     return override ? { ...person, email: override } : person;
   });
+  if (env.WORKSHOP_VERIFICATION_USER_ID?.trim()) people.push(personSchema.parse({
+    persona: "verification", name: "Gateway Verification", email: env.WORKSHOP_VERIFICATION_USER_ID.trim(), password: "verification-demo-2026",
+  }));
+  if (new Set(people.map((person) => person.email)).size !== people.length) throw new Error("Demo identities must have distinct email addresses");
+  return people;
 }
 
 /**
@@ -140,7 +145,7 @@ async function hashAll(people: PersonSeed[]): Promise<HashedPerson[]> {
  * and on a disk that persists, it stays that way. A forker who gives two
  * personas the same email is one boot away from that.
  *
- * Same shape as the loan book's seed (#29), copied rather than reinvented.
+ * Same shape as the lead system's seed (#29), copied rather than reinvented.
  * Exported for the test that holds this line.
  */
 export async function seed(db: Database, people: PersonSeed[]): Promise<void> {

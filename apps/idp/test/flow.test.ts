@@ -57,8 +57,8 @@ async function runScript(name: string, ...args: string[]): Promise<{ code: numbe
   return { code, out, err };
 }
 
-async function credentials(): Promise<Credentials> {
-  const { code, out, err } = await runScript("oauth-client.ts", "--json");
+async function credentials(web = false): Promise<Credentials> {
+  const { code, out, err } = await runScript("oauth-client.ts", "--json", ...(web ? ["--web"] : []));
   expect(err).toBe("");
   expect(code).toBe(0);
   return JSON.parse(out) as Credentials;
@@ -80,6 +80,7 @@ beforeAll(async () => {
     IDP_DB_PATH: dbPath,
     IDP_PUBLIC_URL: baseUrl,
     IDP_OAUTH_REDIRECT_URIS: REDIRECT_URI,
+    WORKSHOP_WEB_REDIRECT_URI: REDIRECT_URI,
     BETTER_AUTH_SECRET: SECRET,
   };
 
@@ -175,7 +176,7 @@ async function authorizeAs(
   browser: Browser,
   creds: Credentials,
   persona: { email: string; password: string; name: string },
-  { expectConsent }: { expectConsent: boolean },
+  { expectConsent, forceLogin = false, clientName = "Arcade" }: { expectConsent: boolean; forceLogin?: boolean; clientName?: string },
 ): Promise<{ accessToken: string; refreshToken: string | undefined }> {
   const { verifier, challenge } = pkce();
   const state = "state-" + crypto.randomUUID();
@@ -183,7 +184,7 @@ async function authorizeAs(
   // 1. Authorize. No session: the plugin sends the browser to the login page
   //    with the whole request signed into the query.
   const authorize = await browser.fetch(
-    authorizeUrl(creds.client_id, { code_challenge: challenge, code_challenge_method: "S256", state }),
+    authorizeUrl(creds.client_id, { code_challenge: challenge, code_challenge_method: "S256", state, ...(forceLogin ? { prompt: "login" } : {}) }),
   );
   let location = authorize.headers.get("location") ?? "";
 
@@ -193,7 +194,7 @@ async function authorizeAs(
     expect(loginPage.status).toBe(200);
     const loginHtml = await loginPage.text();
     expect(loginHtml).toContain("Sign in");
-    expect(loginHtml).toContain("Arcade");
+    expect(loginHtml).toContain(clientName);
     expect(loginHtml).toContain('name="oauth_query"');
 
     // 3. Submit the form. The session cookie is set and the plugin resumes
@@ -216,7 +217,7 @@ async function authorizeAs(
     const consentHtml = await consentPage.text();
     expect(consentHtml).toContain(persona.name);
     expect(consentHtml).toContain(persona.email);
-    expect(consentHtml).toContain("Arcade");
+    expect(consentHtml).toContain(clientName);
     for (const scope of ["openid", "profile", "email", "offline_access"]) {
       expect(consentHtml).toContain(`<code>${scope}</code>`);
     }
@@ -538,6 +539,30 @@ describe("reset does not rotate the OAuth client", () => {
 
     const { accessToken } = await authorizeAs(new Browser(), before, dana, { expectConsent: true });
     expect((await userinfo(accessToken)).email).toBe(dana.email);
+  });
+});
+
+describe("workshop web identity", () => {
+  test("APR1.R2 forces fresh Riley authentication despite a Dana IdP session", async () => {
+    const web = await credentials(true);
+    const arcade = await credentials();
+    expect(web.client_id).not.toBe(arcade.client_id);
+    const browser = new Browser();
+    const first = await authorizeAs(browser, web, dana, { expectConsent: true, clientName: "Workshop Agent" });
+    expect((await userinfo(first.accessToken)).email).toBe(dana.email);
+    const second = await authorizeAs(browser, web, riley, { expectConsent: true, forceLogin: true, clientName: "Workshop Agent" });
+    expect((await userinfo(second.accessToken)).email).toBe(riley.email);
+  });
+
+  test("OPS1.R2 reset preserves both ownerless clients and their secrets", async () => {
+    const before = [await credentials(), await credentials(true)];
+    expect((await runScript("reset.ts")).code).toBe(0);
+    const after = [await credentials(), await credentials(true)];
+    expect(after.map((client) => [client.client_id, client.client_secret])).toEqual(before.map((client) => [client.client_id, client.client_secret]));
+    for (let i = 0; i < before.length; i++) {
+      const token = await authorizeAs(new Browser(), before[i]!, dana, { expectConsent: true, clientName: i ? "Workshop Agent" : "Arcade" });
+      expect((await userinfo(token.accessToken)).email).toBe(dana.email);
+    }
   });
 });
 

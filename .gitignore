@@ -17,10 +17,18 @@ build/
 # data — bootstrapped from checked-in fixtures, never committed
 *.db
 *.db-journal
+*.db-wal
+*.db-shm
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.workshop/
+.workshop-evidence/
 
 # local agent scratch — see prompts/README.md
 prompts/
+.project/
+.safeword/
 
 # os
 .DS_Store

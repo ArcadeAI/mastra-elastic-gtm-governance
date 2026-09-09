@@ -21,6 +21,7 @@ export interface IdpConfig {
   baseURLIsFallback: boolean;
   secret: string;
   redirectUris: string[];
+  webRedirectUri?: string;
 }
 
 export function readConfig(env: Record<string, string | undefined> = process.env): IdpConfig {
@@ -48,6 +49,7 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     baseURLIsFallback: !configuredURL,
     secret: secret || DEV_SECRET,
     redirectUris,
+    ...(env.WORKSHOP_WEB_REDIRECT_URI?.trim() ? { webRedirectUri: env.WORKSHOP_WEB_REDIRECT_URI.trim() } : {}),
   };
 }
 
