@@ -42,9 +42,14 @@ email equality are additionally enforced by the runtime before it records comple
 The controlled model, Arcade, Elastic and Slack boundaries establish local behavior,
 not live model quality or gateway provenance.
 
-**Live integration remains unverified.** The hosted web service still needs a model key,
-Arcade key/gateway ID and observed Sales/Elastic tool names. No real Slack message or
-customer email was sent. A real-service rehearsal and a timed fresh-account workshop run
+**Live model check passed.** The hosted supplied-data stage completed a real
+`claude-sonnet-4-6` request with provider response metadata, calculated the $8,400 annual
+price, and stated that no action was taken. Tool calls, authorization links and pending
+approvals were empty. The web service has its model credential configured.
+
+**Full live integration remains unverified.** The hosted service still needs the Arcade
+key/gateway ID and observed Sales/Elastic tool names. No real Slack message or customer
+email was sent. A complete connected rehearsal and a timed fresh-account workshop run
 remain separate checks in [Testing](TESTING.md). Partner teaching allocations remain
 55 minutes each, with a 20-minute capstone.
 
