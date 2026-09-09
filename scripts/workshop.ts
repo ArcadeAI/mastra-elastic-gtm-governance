@@ -1,11 +1,12 @@
 #!/usr/bin/env bun
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { configFromEnv, seedElastic, verifyElastic, resetElastic, validateElasticConfig, type FixtureVariant } from "./seed-elastic";
 import { hash, safeArtifact, verifyEvidence } from "./workshop-evidence";
+import { starterRule, testRule, verifyRead, policyWithRule, LAB_RULE_ID } from "./hook-lab";
 
 type Check = { boundary: string; status: "verified" | "configured" | "missing" | "failed" | "unexercised"; detail: string };
 type Report = { command: string; status: string; live_proof: boolean; checks: Check[]; [name: string]: unknown };
@@ -17,6 +18,7 @@ const values = (value: string) => [...new Set(value.split(",").map(s => s.trim()
 function parse(args: string[]) {
   const command = args.shift() ?? "setup";
   const options: Options = {};
+  if (command === "hook-lab") options.action = args.shift() || "";
   for (let i = 0; i < args.length; i++) {
     const name = args[i]!;
     if (!name.startsWith("--") || name.slice(2) in options) throw new Error(`Unexpected or repeated argument: ${name}`);
@@ -58,8 +60,8 @@ function liveEndpoints(report: Report, addresses: string[]) {
   if (invalid.length) report.checks.push({ boundary: "live_endpoints", status: "failed", detail: "Live proof excludes local, private, test and non-HTTPS endpoints. No local substitute can qualify." });
   return !invalid.length;
 }
-async function jsonRequest(base: string, path: string, token = "", body?: unknown) {
-  const response = await fetch(`${urlFor(base)}${path}`, { method: body === undefined ? "GET" : "POST", redirect: "error", signal: AbortSignal.timeout(8000), headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+async function jsonRequest(base: string, path: string, token = "", body?: unknown, method?: "PUT") {
+  const response = await fetch(`${urlFor(base)}${path}`, { method: method ?? (body === undefined ? "GET" : "POST"), redirect: "error", signal: AbortSignal.timeout(8000), headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   if (!response.ok) throw new Error(`${path.split("?")[0]} returned HTTP ${response.status}.`);
   return await response.json() as any;
 }
@@ -223,7 +225,7 @@ async function reset(options: Options): Promise<Report> {
   const steps: Array<[string, () => Promise<any>, (value: any) => boolean]> = [
     ["hooks", () => jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/reset", env("WORKSHOP_OPERATOR_TOKEN"), {}), value => value.reset === true && value.active === false && Number.isInteger(value.reset_epoch) && value.reset_epoch > 0],
     ["web", () => jsonRequest(env("WEB_PUBLIC_ORIGIN"), "/api/operator/reset", env("WORKSHOP_OPERATOR_TOKEN"), { reset_epoch: owners.hooks.reset_epoch }), value => value.reset === true && Number.isInteger(value.deleted_snapshots) && value.deleted_snapshots >= 0],
-    ["sales", () => jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/reset", env("LEAD_INTERNAL_TOKEN"), {}), value => value.accounts > 0 && value.offers === 0 && value.activation_emails === 0 && value.decisions === 0 && value.operations === 0],
+    ["sales", () => jsonRequest(env("LEAD_APP_PUBLIC_HOST"), "/internal/reset", env("LEAD_INTERNAL_TOKEN"), {}), value => value.accounts > 0 && value.offers === 0 && value.follow_up_emails === 0 && value.decisions === 0 && value.operations === 0],
     ["idp", () => jsonRequest(env("IDP_PUBLIC_HOST"), "/internal/reset", env("WORKSHOP_OPERATOR_TOKEN"), {}), value => value.reset === true && value.people >= 4 && value.oauth_clients_preserved === 2],
     ["elastic", async () => ({ documents: await resetElastic(config), variant: "clean" }), value => value.documents === 8],
   ];
@@ -367,14 +369,14 @@ async function verifyGovernance(options: Options): Promise<Report> {
       // symbol. Inspect that model-facing copy as well as the structured value.
       const { getMcpCallToolContent, getMcpCallToolMeta } = require("@mastra/mcp");
       const representations = { value: result.value, content: getMcpCallToolContent(result.value), meta: getMcpCallToolMeta(result.value) };
-      if (result.failed || value?.account_id !== "ACC-2291" || value?.list_price !== 12000 || /activation_token|workshop_activation_FAKE_|personal_phone|\+1-\d{3}-555-\d{4}|Ignore earlier instructions/.test(JSON.stringify(representations)) || !after.filter?.execution_id || after.filter.execution_id === before.filter?.execution_id) throw new Error("No fresh filtered account read was verified. Complete cg-idp consent as the verification identity in Arcade, then check the post hook and retry.");
+      if (result.failed || value?.account_id !== "ACC-2291" || value?.list_price !== 12000 || /api_key|workshop_support_FAKE_|activation_token|workshop_activation_FAKE_|personal_phone|\+1-\d{3}-555-\d{4}|Ignore earlier instructions/.test(JSON.stringify(representations)) || !after.filter?.execution_id || after.filter.execution_id === before.filter?.execution_id) throw new Error("No fresh filtered account read was verified. Complete cg-idp consent as the verification identity in Arcade, then check the post hook and retry.");
       filterExecutionId = after.filter.execution_id;
       return "Actual gateway GetAccount returned Northwind without fixture markers; hooks recorded a new filtered execution.";
     });
     await check(report, "authority_denial", async () => {
       // Empty rationale is a second guard: the Sales API rejects it before
       // creating a draft even when the Arcade pre hook is missing or ignored.
-      const result = await execute(env("ARCADE_DISCOUNT_TOOL_NAME"), { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "", operation_key: operation });
+      const result = await execute(env("ARCADE_DISCOUNT_TOOL_NAME"), { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "", customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", operation_key: operation });
       const after = await jsonRequest(env("HOOKS_PUBLIC_HOST"), path, env("WORKSHOP_OPERATOR_TOKEN"));
       const returned = JSON.stringify(result.value);
       if (!result.failed || !after.denial?.execution_id || after.denial.operation_key !== operation || !returned?.includes(after.denial.denial_id) || !/CHECK_FAILED|exceeds your/.test(returned)) throw new Error("No matching authority denial was returned by the gateway. Check pre-hook enforcement and verification identity consent; the empty-rationale guard prevented a draft.");
@@ -420,6 +422,58 @@ async function hookTools(options: Options): Promise<Report> {
   return report;
 }
 
+
+async function hookLab(options: Options): Promise<Report> {
+  const action = String(options.action ?? ""), toolkit = env("ARCADE_SALES_TOOLKIT") || "Sales";
+  if (!["init", "test", "apply", "verify"].includes(action)) throw new Error("Use hook-lab init, test, apply, or verify.");
+  allowed(options, ["action", ...(action === "init" ? ["output"] : action === "verify" ? ["read-tool"] : ["file"])]);
+  const report: Report = { command: "hook-lab", action, status: "incomplete", live_proof: false, proof_scope: action === "verify" ? "gateway_read" : action === "apply" ? "policy_update" : "local_fixture", checks: [] };
+  if (action === "init") {
+    if (!options.output) throw new Error("Supply --output for the starter rule JSON file.");
+    const file = String(options.output);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, JSON.stringify(starterRule(toolkit), null, 2) + "\n", { mode: 0o600, flag: "wx" });
+    return { ...report, status: "guide", output: file, detail: "Starter saved. Run test, add the internal contact field removal, then test again." };
+  }
+  if (action === "test" || action === "apply") {
+    if (!options.file) throw new Error("Supply --file with your lab rule JSON file.");
+    let value: unknown;
+    try { value = JSON.parse(await readFile(String(options.file), "utf8")); } catch { throw new Error("The lab rule file could not be read as JSON."); }
+    const rule = testRule(value, toolkit);
+    report.checks.push({ boundary: "local_fixture", status: "verified", detail: "The production output filter removed the internal support contact and retained the account, renewal, unresolved issue and commercial fields. No gateway was called." });
+    if (action === "test") return { ...report, status: "passed" };
+    if (!requireConfig(report, ["HOOKS_PUBLIC_HOST", "WORKSHOP_OPERATOR_TOKEN"])) return report;
+    const policy = await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/policy", env("WORKSHOP_OPERATOR_TOKEN"));
+    const candidate = policyWithRule(policy, rule);
+    if (candidate) await jsonRequest(env("HOOKS_PUBLIC_HOST"), "/operator/policy", env("WORKSHOP_OPERATOR_TOKEN"), candidate, "PUT");
+    report.checks.push({ boundary: "operator_policy", status: "verified", detail: candidate ? "Saved the lab rule using the current policy version; preserved subjects, authority rules and every other output rule." : "The same lab rule is already saved; policy version was unchanged." });
+    return { ...report, status: "passed", rule_id: LAB_RULE_ID, changed: candidate !== null };
+  }
+  const readName = String(options["read-tool"] ?? "");
+  if (!readName) throw new Error("Supply --read-tool with the exact GetAccount name observed by attendee discovery.");
+  if (!requireConfig(report, ["ARCADE_API_KEY", env("ARCADE_MCP_URL") ? "ARCADE_MCP_URL" : "ARCADE_GATEWAY_ID", "PERSONA_DANA_EMAIL"])) return report;
+  const hostname = new URL(gatewayUrl()).hostname;
+  report.connection_scope = /^(localhost|127\.|0\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[)/.test(hostname) || /\.(test|invalid|localhost|local)$/.test(hostname) ? "local" : "remote";
+  await check(report, "gateway_read", async () => withGateway(env("PERSONA_DANA_EMAIL"), async (client, require) => {
+    const discovered = await client.listToolDefinitionsWithErrors({ perServerTimeoutMs: 8000 });
+    if (Object.keys(discovered.errors ?? {}).length) throw new Error("Gateway discovery failed; no read was verified.");
+    const tools: Record<string, any> = Object.assign({}, ...Object.values(await client.listToolsets()));
+    if (!tools[readName]?.execute) throw new Error("The supplied read tool was not observed in attendee gateway discovery. No tool was called.");
+    const { RequestContext } = require("@mastra/core/request-context"), { noopObserve } = require("@mastra/core/tools");
+    let result: any;
+    try { result = await tools[readName].execute({ account_id: "ACC-2291" }, { requestContext: new RequestContext(), observe: noopObserve }); }
+    catch (error) { report.authorizationUrls = consentLinks(error instanceof Error ? { message: error.message, cause: error.cause } : error); throw new Error("The gateway account read failed. Complete Dana's delegated Sales consent and check the gateway hooks."); }
+    report.authorizationUrls = consentLinks(result);
+    if (result?.isError) throw new Error("The gateway returned a tool error; no account read was verified.");
+    const { getMcpCallToolContent, getMcpCallToolMeta } = require("@mastra/mcp");
+    verifyRead(toolValue(result), { value: result, content: getMcpCallToolContent(result), meta: getMcpCallToolMeta(result) });
+    return "An actual gateway account read as Dana retained renewal, unresolved support issue and price while removing internal contact and credentials. This verifies the read only, not approval or Slack delivery.";
+  }));
+  finish(report);
+  if (report.status === "configured") report.status = "passed";
+  return report;
+}
+
 async function main() {
   const { command, options } = parse(process.argv.slice(2));
   if (env("WORKSHOP_ELASTIC_MODE") && !["owned", "shared-read-only"].includes(env("WORKSHOP_ELASTIC_MODE"))) throw new Error("WORKSHOP_ELASTIC_MODE must be owned or shared-read-only.");
@@ -432,7 +486,8 @@ async function main() {
   if (command === "verify-governance") return verifyGovernance(options);
   if (command === "activate") return activate(options);
   if (command === "hook-tools") return hookTools(options);
-  throw new Error(`Unknown command ${command}. Use setup, readiness, discover, hook-tools, verify-governance, activate, seed, reset, or capstone.`);
+  if (command === "hook-lab") return hookLab(options);
+  throw new Error(`Unknown command ${command}. Use setup, readiness, discover, hook-tools, hook-lab, verify-governance, activate, seed, reset, or capstone.`);
 }
 
 if (import.meta.main) {

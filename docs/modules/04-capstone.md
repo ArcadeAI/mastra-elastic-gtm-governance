@@ -1,97 +1,125 @@
-# Capstone: check the approved offer
+# Capstone: write and verify one output hook
 
 **Owner:** Arcade with all partner TAs. **Budget:** 20 minutes.
 
-This is the discount-version acceptance exercise. Previous routing-test results do not
-certify it. Start with the completed Module 3 run and save evidence before changing state.
+Start with the completed Module 3 renewal run. Use 5 minutes to inspect it, 12 minutes
+for the hook lab and gateway check, and 3 minutes to save evidence and reset. Earlier
+workshop test counts do not certify this revision; record current results.
 
-## Inspect one complete journey
+## Inspect the renewal journey
 
-Follow Dana's original request through Elastic evidence, `GetAccount`, the 30% denial,
-Riley's self-DM request, authenticated approval, exact continuation and `GetOffer`.
-Northwind is `ACC-2291`; annual list price is $12,000, discount is 30%, and net price is
-$8,400. Dana's permission is 15%; Riley's is 40%.
+Northwind is `ACC-2291`; annual list price is $12,000, the requested discount is 30%, and
+the approved draft is $8,400. Dana's ceiling is 15%; Riley's is 40%. Inspect:
 
-The saved offer has `status: "draft"`. Its activation email is also a local draft. The
-agent must verify the saved terms with `GetOffer` after creation. Check both the account
-provisioning result and the activation email: the synthetic activation token must not
-reach the model or its answer, while prices remain readable.
+- At least two Elastic source IDs covering declining usage and the unresolved SCIM issue.
+  The agent must distinguish the open issue from an unverified cause of declining usage.
+- Dana's denial, Riley's authenticated approval of the exact terms and `customer_message`,
+  and continuation of Dana's original action with one operation receipt.
+- `GetOffer` after creation, confirming the saved offer and exact follow-up email. The
+  recipient comes from the account; the API appends canonical terms and the draft label.
+- Absence of the fake pasted API key, synthetic personal phone and known fixture instruction
+  from model-facing results. Legitimate prices and unresolved support details remain.
 
-| Check | Evidence of success |
-|---|---|
-| 1. Research | At least two Elastic source IDs support the recommendation; unconfirmed budget and competitor scope are identified. |
-| 2. Access | Sam cannot discover or execute `CreateDiscountedOffer`. |
-| 3. Narrow permission | Dana's 30% action is denied against the 15% ceiling. The list price is independently read from the account. |
-| 4. Human approval | Dana cannot self-approve. Riley authenticates and approves the exact saved terms. The Slack recipient alone has no authority. |
-| 5. Exact continuation | The original Dana run resumes through Arcade with unchanged inputs and one operation receipt. Changed percentage, list price or rationale cannot reuse the grant. |
-| 6. Read-back | `GetOffer(ACC-2291)` verifies 30%, $12,000 list, $8,400 net and draft status after creation. |
-| 7. Redaction | Synthetic activation tokens, personal phone fields and seeded instructions are absent from model-facing account/offer/email results; legitimate prices remain. |
-| 8. Replay and audit | Repeating the same operation creates no second write. Audit correlates research, denial, self-DM, Riley's identity, continuation and read-back. |
+No customer email, signature request or real provisioning occurs. A delivered self-DM
+alone does not establish approval or successful read-back.
 
-A delivered DM alone is not a pass. This exercise sends no customer email, provisions no
-real account and requests no external signature.
+## Write one output hook
+
+The baseline already removes the pasted credential and personal phone. You will add a
+rule that removes the internal support owner's email from **Sales.GetAccount** while
+preserving the renewal date, issue and price. This changes output filtering, not the agent.
+
+From the repository root:
 
 ```sh
-bun run capstone --run-id '<completed-run-id>' --output .workshop/evidence --live
+bun run workshop hook-lab init --output .workshop/renewal-rule.json
+bun run workshop hook-lab test --file .workshop/renewal-rule.json
 ```
 
-The collector reads existing records and starts no agent. Missing or independently
-unverified cloud evidence stays incomplete. Keep manual read-back and model-output
-observations with the evidence even if the collector cannot attest those boundaries.
-
-## Change the evidence
-
-In your own Kibana Dev Tools, add this synthetic event to the dedicated workshop index:
+Init writes an OutputRule with ID `renewal-contact-redaction`, scoped to Sales.GetAccount,
+and an empty `fields` list. The first test should fail: the internal owner email remains.
+Open the generated JSON in your editor. Retain its ID, match and other settings, and replace
+the value of `fields` with:
 
 ```json
-PUT gtm-account-context/_doc/evt-northwind-005?refresh=wait_for
-{
-  "event_id": "evt-northwind-005",
-  "account_id": "ACC-2291",
-  "company_name": "Northwind Robotics",
-  "company_domain": "northwindrobotics.example",
-  "event_type": "crm_history",
-  "occurred_at": "2026-08-31T22:00:00.000Z",
-  "title": "Budget and competitor clarification",
-  "content": "Finance confirmed an annual budget of 10200 USD. Procurement found that the 9000 USD competitor quote excludes automated provisioning and audit retention. The buyer is willing to consider a 15 percent renewal discount on the 12000 USD list price. No offer has been accepted or sent.",
-  "metadata": { "confirmed_annual_budget": 10200, "requested_discount_percent": 15, "currency": "USD" }
-}
+[{ "path": "support.internal_owner_email", "strategy": "remove" }]
 ```
 
-This operator write uses your own setup access, never the gateway's read-only key. The
-[index API](https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-index)
-waits for search visibility. Expect nine events. In **Connect evidence**, ask the original
-question again using the latest account history. Inspect the citation to `evt-northwind-005`
-and any changed recommendation. That stage has no offer-write tool. A changed recommendation
-does not rewrite the previously approved offer or grant permission for different terms.
+Run the local test again:
 
-## Change and restore permission
+```sh
+bun run workshop hook-lab test --file .workshop/renewal-rule.json
+```
 
-Save evidence, then reset the exercise. The reset removes the ninth event and clears draft
-offers, grants, sessions and policy activation:
+**Local checkpoint:** the real filter removes the field and preserves the account, $12,000
+list price, renewal date and unresolved support issue. A wrong path or lost context must
+fail. This uses the local renewal fixture; it does not prove the deployed gateway uses
+your rule and does not send a Slack message.
+
+Apply the tested rule to your own hooks service:
+
+```sh
+bun run workshop hook-lab apply --file .workshop/renewal-rule.json
+```
+
+Apply uses `HOOKS_PUBLIC_HOST` and `WORKSHOP_OPERATOR_TOKEN`, validates the rule and updates
+the current policy while preserving existing access, discount and privacy controls. A
+failed test is not permission to apply. This is a policy change; it does not redeploy
+services or create an approval request.
+The rule affects subsequent GetAccount results. It does not rewrite the offer or follow-up
+draft already saved in Module 3.
+
+Verify the real connection using the exact GetAccount name from gateway discovery:
+
+```sh
+bun run workshop hook-lab verify --read-tool '<exact-observed-GetAccount-name>'
+```
+
+This calls the gateway as Dana using `PERSONA_DANA_EMAIL`. Complete Dana's Sales consent
+if requested, then rerun. It is a read: no model, business write or Slack message.
+
+**Gateway checkpoint:** the report identifies gateway-read proof, with the internal email
+absent and the account's issue, renewal and commercial details intact. Save both the local
+fixture and gateway reports. Neither a local pass nor an applied policy alone establishes
+that this boundary worked. A configuration or consent failure stays incomplete.
+Expect `status: "passed"`, `proof_scope: "gateway_read"`, and `connection_scope: "remote"`
+for your hosted gateway. `live_proof: false` is intentional: this check proves the read,
+not the complete approval workflow.
+
+## Save evidence and reset
+
+```sh
+bun run capstone --run-id '<completed-run-id>' --output .workshop/evidence
+```
+
+This reads the existing renewal run. Keep the hook-lab reports alongside it. Missing or
+independently unverified cloud evidence remains incomplete; `--live` does not turn service
+records into independently verified cloud proof.
+
+Close eligible failed, denied or expired waits first, then:
 
 ```sh
 bun run reset --variant clean
 ```
 
-Follow the [verification login and probe](../OPERATOR.md#5-verify-governance-before-running-the-action)
-again, then:
+Reset clears exercise offers, grants, native snapshots, lab policy and extra Elastic events,
+while preserving both OAuth clients. Do not reset an executing worker. A partial reset is
+incomplete. Reverify and activate before another governed exercise. Revoke the setup write
+key after your optional exercises are complete.
 
-```sh
-bun run workshop verify-governance --read-tool '<exact-observed-GetAccount-name>'
-bun run workshop activate
-bun run workshop seed --variant governed
-```
+## Optional extensions after the workshop
 
-Through the [operator policy API](../OPERATOR.md#inspect-edit-and-activate-policy), raise
-Dana's `clearance` to `30`. A fresh 30% offer action should be allowed directly. Restore
-Dana to `15`; a new operation at 30% should be denied and can request another self-DM.
-Neither change requires editing the agent. Do not reuse a completed receipt as proof of a
-new permission decision. Save separate probe evidence and reset before another exercise.
+- In your own Kibana Dev Tools, add a ninth synthetic event that confirms the buyer's budget
+  or changes the support update. Ask the saved question again in **Connect evidence** and
+  compare the cited answer. That stage cannot change an offer. Use your setup key for the
+  index write; the gateway key stays read-only. Reset removes the added event.
+- Through the [operator policy API](../OPERATOR.md#inspect-edit-and-activate-policy), raise
+  Dana's `clearance` to `30` for a fresh operation. Restore it to `15` and observe a fresh
+  denial. A governed run can send another self-DM; a completed receipt is not evidence of
+  a new permission decision.
+- Check Sam's missing creation tool, rejected Dana self-approval, changed-message grant
+  rejection and duplicate-operation replay. Preserve evidence before resetting.
 
-If time is exhausted, record the presenter's demonstration as watched, not independently
-completed. Participants on shared read-only Elastic cannot claim the fixture-mutation check.
-
-Finish with `bun run reset --variant clean`, then revoke the setup write key. Reset preserves
-both OAuth clients and requires sign-in again. Close denied/expired or undelivered waits
-through the UI first; do not reset an executing worker. A partial reset remains incomplete.
+Participants on shared read-only Elastic cannot claim the index-mutation exercise. Record
+TA help, watched demonstrations and incomplete checks rather than counting them as solo
+completion.

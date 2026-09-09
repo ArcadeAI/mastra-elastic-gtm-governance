@@ -123,7 +123,7 @@ export function createHooksApp(config: HooksConfig) {
     requireThat(response.ok, 503, "Operation receipt could not be read.");
     return await response.json() as Receipt;
   }
-  function actionBody(inputs: Inputs) { return { discount_percent: inputs.discount_percent, list_price: inputs.list_price, rationale: inputs.rationale }; }
+  function actionBody(inputs: Inputs) { return { discount_percent: inputs.discount_percent, list_price: inputs.list_price, rationale: inputs.rationale, customer_message: inputs.customer_message }; }
   function exactReceipt(saved: Receipt, inputs: Inputs, actor: string) { return saved.operation_key === inputs.operation_key && saved.actor === actor && saved.account_id === inputs.account_id && saved.action === "discount" && canonical(saved.body) === canonical(actionBody(inputs)); }
   function deny(actor: string, tool: ToolRef, reason: string, executionId: string) { audit(actor, tool, "deny", { hook: "pre", reason }, executionId); return { code: "CHECK_FAILED", error_message: reason }; }
   function stageAllows(actor: string, tool: ToolRef) { return state().active || actor === config.verificationUserId || config.elasticTools.some(t => t.toolkit === tool.toolkit && t.name === tool.name); }
@@ -138,8 +138,9 @@ export function createHooksApp(config: HooksConfig) {
     const write = tool.toolkit === salesToolkit && tool.name === "CreateDiscountedOffer";
     let value: number | null = null;
     if (write) {
-      if (Object.keys(inputs).some(key => !["account_id", "discount_percent", "list_price", "rationale", "operation_key"].includes(key))) return deny(actor, tool, "Unexpected offer arguments. Email draft recipients are determined by the account. Do not retry.", request.execution_id);
+      if (Object.keys(inputs).some(key => !["account_id", "discount_percent", "list_price", "rationale", "customer_message", "operation_key"].includes(key))) return deny(actor, tool, "Unexpected offer arguments. Email draft recipients are determined by the account. Do not retry.", request.execution_id);
       if (typeof inputs.operation_key !== "string" || !keyPattern.test(inputs.operation_key) || typeof inputs.account_id !== "string") return deny(actor, tool, "A valid operation_key and account_id are required. Do not retry.", request.execution_id);
+      if (typeof inputs.customer_message !== "string" || !inputs.customer_message.trim() || inputs.customer_message.length > 4000) return deny(actor, tool, "A nonblank customer_message of at most 4000 characters is required. Do not retry.", request.execution_id);
       const existing = await receipt(inputs.operation_key);
       person = subject(actor); compiled = policy().compiled;
       if (!person || !stageAllows(actor, tool)) return deny(actor, tool, "This identity or stage cannot use this tool. Do not retry.", request.execution_id);

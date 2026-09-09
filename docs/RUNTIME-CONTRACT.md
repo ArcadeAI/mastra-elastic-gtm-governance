@@ -1,8 +1,8 @@
-# Discount-offer runtime contract
+# At-risk renewal runtime contract
 
-This describes the Northwind discount scenario. Use [Testing](TESTING.md) for current
-checks. [Historical verification](LOCAL-VERIFICATION.md) predates this pivot and does not
-certify its implementation, live integration or workshop timing.
+This describes the Northwind renewal revision. Use [Testing](TESTING.md) for current
+checks. The [verification record](LOCAL-VERIFICATION.md) dates earlier results; they do
+not certify this revision's implementation, live integration or workshop timing.
 
 ## Account and offer API
 
@@ -13,9 +13,9 @@ IdP; an actor is never a model-supplied argument.
 | Endpoint | Contract |
 |---|---|
 | `GET /accounts` | Search account records. |
-| `GET /accounts/:id` | Account, commercial context, trial provisioning and current offer. |
-| `POST /accounts/:id/offers` | `{discount_percent,list_price,rationale}` with `Idempotency-Key`. Creates a draft offer and activation email. |
-| `GET /accounts/:id/offer` | Saved offer, including draft terms and activation email. |
+| `GET /accounts/:id` | Account, subscription/renewal context, unresolved support case and current offer. |
+| `POST /accounts/:id/offers` | `{discount_percent,list_price,rationale,customer_message}` with `Idempotency-Key`. Creates a draft offer and follow-up email. |
+| `GET /accounts/:id/offer` | Saved offer, including draft terms and follow-up email. |
 | `GET /internal/accounts/:id/value` | `{account_id,list_price}` for independent price validation. |
 | `GET /internal/operations/:key` | `{operation_key,actor,action:"discount",account_id,body,completed_at}`; 404 if absent. |
 | `POST /internal/reset` | Restore account fixtures and clear exercise offers/decisions/receipts. |
@@ -26,17 +26,23 @@ and `GetOffer`. The latter takes `account_id`, not an offer ID.
 
 The Northwind account is `ACC-2291`, with `product: "B2B identity and access software"`,
 `billing_cycle: "yearly"` and `list_price: 12000`. Account output includes the billing
-contact, `provisioning.activation_token`, and an optional offer. The synthetic token starts
-with `workshop_activation_FAKE_` and exists only in the workshop fixture.
+contact, active subscription, October 31 renewal, `support` and an optional offer.
+Support case CS-1042 is open for SCIM deprovisioning delays, without a confirmed fix date.
+`support.api_key` contains a fake pasted credential beginning `workshop_support_FAKE_`;
+`support.internal_owner_email` is the field used by the attendee hook lab.
 
 Offer output contains `account_id`, `offer_id`, `discount_percent`, `list_price`,
-`net_price`, `status: "draft"`, `activation_email` and decisions. The activation-email
-object contains `to`, `subject`, `body` and its synthetic `activation_token`.
+`net_price`, `status: "draft"`, `follow_up_email` and decisions. The follow-up-email
+object contains only `to`, `subject` and `body`. The API sets the recipient from
+`billing_contact.email` and builds a draft subject. The body preserves the agent's
+`customer_message` verbatim and appends canonical annual list/discount/net terms and the
+local-draft label. The agent cannot supply a different recipient or override those terms.
 No customer email or external signature request is sent.
 
 `discount_percent` uses percentage units in the 0–100 range, so 30 means 30%. For Northwind, 30% of
 $12,000 produces $8,400 net. `list_price` asserts the stored value and cannot overwrite it.
-A nonempty rationale is required. The host supplies the operation key, which binds the
+A nonempty rationale and a nonblank `customer_message` of at most 4,000 characters are
+required. Riley reviews the proposed message with the exact commercial terms. The host supplies the operation key, which binds the
 actor, action, account and exact validated business body. An identical replay returns the
 saved response; a changed request conflicts. A transaction commits the offer and receipt
 together so repeated continuation cannot create a second write for that operation.
@@ -63,8 +69,8 @@ and independently reads list price. Only a discount-permission denial can be rem
 a grant. Grants cannot override an access or identity denial.
 
 An approval binds every saved input: requester, account, tool, percentage, list price,
-rationale and operation key. Changing one requires a new action. The post-hook removes
-activation-token fields and fake token strings, personal phone fields and the known fixture
+rationale, customer message and operation key. Changing one requires a new action. The post-hook removes
+API-key fields and the fake credential string, personal phone fields and the known fixture
 instruction from model-facing output, including nested JSON/MCP text and email drafts.
 Legitimate prices and discount values remain visible. Unsupported sensitive content fails
 closed. The filter demonstrates fixture rules, not universal injection or secret detection.
@@ -88,6 +94,12 @@ probe. The empty rationale also fails API validation if the pre-hook is missing.
 requires fresh filtered output and the matching authority rejection returned through the
 gateway; callbacks alone cannot activate normal roles. It confirms the completed attempt
 with hooks before `activate`. No model, approval request or Slack call runs in verification.
+
+The later `hook-lab` exercise is separate from setup activation. Init emits an incomplete
+Sales.GetAccount output rule; test uses the real local filter and renewal fixture. Apply
+validates that rule and preserves existing policy. Verify reads ACC-2291 through the
+observed GetAccount tool as Dana: `support.internal_owner_email` must be absent while the
+unresolved issue, renewal and price remain. Local fixture success is not gateway proof.
 
 ## Host approval and notification
 
@@ -125,10 +137,11 @@ Riley's authenticated approval page records the decision with hooks. Resume clai
 waiting run with a lease, rebuilds the same agent and MCP tools, and invokes native
 `resumeGenerate` with the saved run/tool-call IDs. It reconnects as Dana and executes the
 same action through Arcade. The agent is instructed to call `GetOffer(account_id)` to verify the saved
-30%/$12,000/$8,400 draft terms and inspect the filtered activation-email draft.
+30%/$12,000/$8,400 draft terms and inspect the saved follow-up-email draft.
 
 Completion requires an actual successful GetOffer result after the write, matching the
-saved offer ID, account, discount, list price, net price and draft status. If the read is
+saved offer ID, account, discount, list price, net price, draft status and exact nonblank
+email recipient, subject and body from creation. If the read is
 missing, fails or disagrees, report the saved offer and failed read-back instead of a
 completed run; another write is not a repair. Connected local tests use a scripted model
 and do not establish that a live model will obey the instruction.

@@ -1,7 +1,7 @@
 """Sales tools are stateless clients of the account and discounted-offer API.
 
 The Python package and service-secret names stay stable for deployment. The
-exposed MCP toolkit is Sales. Activation emails are local drafts, never sent.
+exposed MCP toolkit is Sales. Follow-up emails are local drafts, never sent.
 """
 
 import re
@@ -26,7 +26,7 @@ __all__ = [
 app = MCPApp(
     name="sales",
     version="1.0.0",
-    instructions="Inspect an account, create its discounted yearly offer and local activation-email draft, then double-check the saved offer. Account IDs look like ACC-2291. No email is sent.",
+    instructions="Inspect an account, create its discounted yearly offer and local follow-up email draft, then double-check the saved offer. Account IDs look like ACC-2291. No email is sent.",
 )
 IDP_PROVIDER_ID = "cg-idp"
 IDP_SCOPES = ["openid", "email"]
@@ -161,9 +161,9 @@ async def get_account(
     context: Context, account_id: AccountId
 ) -> Annotated[
     dict[str, Any],
-    "Account, billing contact, trial provisioning, current offer, and decision history.",
+    "Account, billing contact, active subscription and open support case, current offer, and decision history.",
 ]:
-    """Inspect the account's current yearly list price, billing contact, trial activation record, and any existing offer. Copy list_price exactly when creating an offer; it is an assertion, not a price update."""
+    """Inspect the account's current yearly list price, billing contact, active subscription and open support case, and any existing offer. Copy list_price exactly when creating an offer; it is an assertion, not a price update."""
     return await _call(context, "GET", _account_path(account_id))
 
 
@@ -188,11 +188,15 @@ async def create_discounted_offer(
         str,
         "Reason for the offer, with supporting account evidence. Stored verbatim for a human reader.",
     ],
+    customer_message: Annotated[
+        str,
+        "Customer-facing renewal follow-up, 1–4000 characters and not blank. Ground it in the account evidence; do not claim an unresolved support issue is fixed. Recipient, subject, and canonical annual terms are added by the API.",
+    ],
 ) -> Annotated[
     dict[str, Any],
-    "Saved discounted offer and local activation-email draft, including net price and decision history.",
+    "Saved discounted offer and local follow-up email draft, including net price and decision history.",
 ]:
-    """Commit a discounted yearly offer and activation-email draft in one system-of-record transaction. The offer status is draft and no email is sent. A stable operation_key with the identical actor and arguments returns the original saved result; changed arguments conflict. Inspect the account first, then double-check the saved offer with get_offer."""
+    """Commit a discounted yearly offer and follow-up email draft in one system-of-record transaction. The offer status is draft and no email is sent. A stable operation_key with the identical actor and arguments returns the original saved result; changed arguments conflict. Inspect the account first, then double-check the saved offer with get_offer."""
     return await _call(
         context,
         "POST",
@@ -202,6 +206,7 @@ async def create_discounted_offer(
             "discount_percent": discount_percent,
             "list_price": list_price,
             "rationale": rationale,
+            "customer_message": customer_message,
         },
     )
 
@@ -214,7 +219,7 @@ async def create_discounted_offer(
 async def get_offer(
     context: Context, account_id: AccountId
 ) -> Annotated[
-    dict[str, Any], "The saved draft offer and activation email for the account."
+    dict[str, Any], "The saved draft offer and follow-up email for the account."
 ]:
-    """Double-check the most recently saved offer, its exact discount, yearly net price, local activation-email draft, and decision history. Returns an error if no offer has been saved. This is a read and never sends email."""
+    """Double-check the most recently saved offer, its exact discount, yearly net price, local follow-up email draft, and decision history. Returns an error if no offer has been saved. This is a read and never sends email."""
     return await _call(context, "GET", f"{_account_path(account_id)}/offer")

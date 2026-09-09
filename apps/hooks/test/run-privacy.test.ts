@@ -11,7 +11,7 @@ test("run reads and stored traces apply tool-scoped output restrictions", async 
     return response.json() as Promise<any>;
   }
   try {
-    const hook = { execution_id: "verify", context: { user_id: "verify@example.test" }, tool: { toolkit: "Sales", name: "CreateDiscountedOffer", version: "1.0.0" }, inputs: { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Fit", operation_key: "verify" } };
+    const hook = { execution_id: "verify", context: { user_id: "verify@example.test" }, tool: { toolkit: "Sales", name: "CreateDiscountedOffer", version: "1.0.0" }, inputs: { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "Fit", operation_key: "verify" } };
     await call("/operator/verification", "operator", { operation_key: hook.inputs.operation_key });
     await call("/pre", "hook", hook);
     await call("/post", "hook", { ...hook, execution_id: "verify-filter", success: true, output: { personal_phone: "+1-415-555-0137" } });

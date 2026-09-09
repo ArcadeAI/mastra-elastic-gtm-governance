@@ -11,7 +11,7 @@
     "typecheck": "bun run --filter '*' typecheck",
     "build": "bun run --filter '*' build",
     "test": "bun test",
-    "test:workshop": "bun test apps/web/test/connected.test.ts apps/web/test/runtime.test.ts apps/web/test/approval-client.test.ts apps/hooks/test scripts/workshop.test.ts scripts/governance-check.test.ts scripts/seed-elastic.test.ts",
+    "test:workshop": "bun test apps/web/test/connected.test.ts apps/web/test/runtime.test.ts apps/web/test/approval-client.test.ts apps/hooks/test scripts/workshop.test.ts scripts/governance-check.test.ts scripts/seed-elastic.test.ts scripts/hook-lab.test.ts",
     "workshop": "bun scripts/workshop.ts",
     "setup": "bun scripts/workshop.ts setup",
     "doctor": "bun scripts/workshop.ts readiness",

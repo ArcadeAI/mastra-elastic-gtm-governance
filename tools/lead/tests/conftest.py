@@ -2,7 +2,7 @@
 
 The toolkit is stateless, so tests drive every tool through the real API:
 `bun apps/lead-app/src/index.ts`, configured with a fresh temporary
-`leads.db`. The identity stand-in serves the same `/oauth2/userinfo` endpoint
+`renewal.db`. The identity stand-in serves the same `/oauth2/userinfo` endpoint
 that the API uses in production.
 """
 
@@ -105,7 +105,7 @@ def lead_app_host(idp_port: int) -> str:
     env = {
         **os.environ,
         "PORT": str(port),
-        "LEADS_DB_PATH": str(tmp / "leads.db"),
+        "LEADS_DB_PATH": str(tmp / "renewal.db"),
         "IDP_PUBLIC_HOST": f"localhost:{idp_port}",
     }
     child = subprocess.Popen(

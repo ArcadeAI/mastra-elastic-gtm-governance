@@ -19,7 +19,7 @@ test("real hooks and Sales HTTP preserve exact approved discounts across restart
   let lead = Bun.serve({ port: 0, fetch: business.fetch });
   const config: HooksConfig = { dbPath: join(dir, "hooks.db"), hookSecret: "hook", operatorToken: "operator", approvalsToken: "approvals", webToken: "web", leadHost: lead.url.origin, leadToken: "lead-internal", idpHost: identity.url.origin, webOrigin: "http://localhost:3000", subjectEmails: { dana, riley, sam: "sam@example.test", morgan: "morgan@example.test" }, verificationUserId: "verification@example.test", elasticTools: [], soloSlackDelivery: true, now: () => now };
   let controls = createHooksApp(config), hooks = Bun.serve({ port: 0, fetch: controls.fetch });
-  const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Qualified from eight events", operation_key: "exact-approved-1" };
+  const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "Qualified from eight events", operation_key: "exact-approved-1" };
   async function request(path: string, body: unknown, token = "hook", headers: Record<string, string> = {}) {
     const response = await fetch(new URL(path, hooks.url), { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json", ...headers }, body: JSON.stringify(body) });
     return { status: response.status, body: await response.json() as any };
@@ -35,7 +35,7 @@ test("real hooks and Sales HTTP preserve exact approved discounts across restart
     expect((await request("/operator/verification", { operation_key: "probe" }, "operator")).status).toBe(200);
     expect((await pre({ ...action, operation_key: "probe", rationale: "" }, config.verificationUserId, denialExecutionId)).body.code).toBe("CHECK_FAILED");
     const raw = await read();
-    expect(raw.provisioning.activation_token).toStartWith("workshop_activation_FAKE_");
+    expect(raw.support.api_key).toStartWith("workshop_support_FAKE_");
     expect(raw.offer).toBeNull();
     // The setup probe is invalid at the business API even if hooks are absent.
     expect((await write({ ...action, operation_key: "hookless-probe", rationale: "" })).status).toBe(400);
@@ -68,9 +68,9 @@ test("real hooks and Sales HTTP preserve exact approved discounts across restart
     expect(JSON.stringify(filtered.body)).toContain("Qualified from eight events");
     expect(JSON.stringify(filtered.body)).not.toContain(INJECTION);
     expect(JSON.stringify(filtered.body)).not.toContain("+1-415-555-0137");
-    expect(JSON.stringify(first)).toContain("workshop_activation_FAKE_");
-    expect(JSON.stringify(filtered.body)).not.toContain("workshop_activation_FAKE_");
-    expect(JSON.stringify(filtered.body)).not.toContain("activation_token");
+    expect(first.follow_up_email.body).toContain(action.customer_message);
+    expect(JSON.stringify(filtered.body)).not.toContain("workshop_support_FAKE_");
+    expect(JSON.stringify(filtered.body)).not.toContain("api_key");
     expect(filtered.body.override.output).toMatchObject({ account_id: "ACC-2291", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft" });
     db.query("UPDATE sales_accounts SET data=json_set(data, '$.list_price', 13000) WHERE account_id='ACC-2291'").run(); db.close();
     now += 20 * 60_000;
@@ -86,11 +86,12 @@ test("real hooks and Sales HTTP preserve exact approved discounts across restart
     expect((await read()).decisions).toHaveLength(1);
     expect((await pre({ ...action, operation_key: "fresh" })).body.code).toBe("CHECK_FAILED");
     expect((await pre({ ...action, discount_percent: 31 })).body.code).toBe("CHECK_FAILED");
+    expect((await pre({ ...action, customer_message: "The SCIM issue has been resolved." })).body.code).toBe("CHECK_FAILED");
     expect((await pre({ ...action, list_price: 13000 })).body.code).toBe("CHECK_FAILED");
     expect((await pre({ ...action, sender: "other@example.test" })).body.code).toBe("CHECK_FAILED");
     expect((await pre(action, riley)).body.code).toBe("CHECK_FAILED");
     const receipt = await fetch(new URL(`/internal/operations/${action.operation_key}`, lead.url), { headers: { authorization: "Bearer lead-internal" } });
-    expect(await receipt.json()).toMatchObject({ actor: dana, operation_key: action.operation_key, action: "discount", account_id: action.account_id, body: { discount_percent: 30, list_price: 12000, rationale: action.rationale } });
+    expect(await receipt.json()).toMatchObject({ actor: dana, operation_key: action.operation_key, action: "discount", account_id: action.account_id, body: { discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: action.rationale } });
   } finally { hooks.stop(true); controls.close(); lead.stop(true); business.close(); identity.stop(true); rmSync(dir, { recursive: true, force: true }); }
 });
 

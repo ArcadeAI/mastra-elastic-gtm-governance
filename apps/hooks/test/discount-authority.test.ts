@@ -4,7 +4,7 @@ import { createHooksApp } from "../src/app";
 const dana = "dana@example.test", riley = "riley@example.test", morgan = "morgan@example.test";
 const cleanups: Array<() => void> = [];
 afterEach(() => { while (cleanups.length) cleanups.pop()!(); });
-const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "A justified annual offer", operation_key: "discount-test" };
+const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "A justified annual offer", operation_key: "discount-test" };
 
 async function fixture() {
   let price = 12000;
@@ -91,6 +91,15 @@ test("an approved discount cannot execute after its authoritative list price cha
   expect((await pre(action)).body.code).toBe("CHECK_FAILED");
   expect((await pre({ ...action, list_price: 13000 })).body.code).toBe("CHECK_FAILED");
   setPrice(12000);
+  expect((await pre({ ...action, customer_message: "The issue is resolved" })).body.code).toBe("CHECK_FAILED");
   expect((await pre({ ...action, discount_percent: 31 })).body.code).toBe("CHECK_FAILED");
   expect((await pre(action)).body.code).toBe("OK");
+});
+
+
+test.each([undefined, "", "   ", "x".repeat(4001)])("invalid customer message cannot create an authority denial (%#)", async customer_message => {
+  const { pre } = await fixture();
+  const denied = await pre({ ...action, customer_message });
+  expect(denied.body.code).toBe("CHECK_FAILED");
+  expect(denied.body.error_message).not.toContain("denial_id=");
 });

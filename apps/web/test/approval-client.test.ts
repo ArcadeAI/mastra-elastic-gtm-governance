@@ -66,7 +66,7 @@ async function fixture(rationale = "Qualified account") {
     if (!response.ok) throw new Error(`Fixture hook request ${path} failed: ${response.status}`);
     return result;
   }
-  const action = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale, operation_key: "local-operation" };
+  const action = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale, customer_message: "Let us review your renewal and open support issue.", operation_key: "local-operation" };
   const pre = (user: string) => ({ execution_id: crypto.randomUUID(), context: { user_id: user }, tool: { toolkit: "Sales", name: "CreateDiscountedOffer", version: "1.0.0" }, inputs: action });
   const verificationDenial = pre("verify@example.test"), verificationFilter = pre("verify@example.test");
   await hookCall("/operator/verification", "operator", { operation_key: action.operation_key });

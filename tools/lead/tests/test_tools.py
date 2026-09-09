@@ -12,6 +12,7 @@ ACTION = {
     "discount_percent": 30,
     "list_price": 12000,
     "rationale": "Account renewal evidence.",
+    "customer_message": "Your SCIM deprovisioning issue remains unresolved. We will keep you informed as the investigation progresses.",
     "operation_key": "python-offer",
 }
 
@@ -39,6 +40,7 @@ async def test_actual_mcp_exposes_only_four_sales_tools(client_factory):
         assert required == {
             "Sales_CreateDiscountedOffer": [
                 "account_id",
+                "customer_message",
                 "discount_percent",
                 "list_price",
                 "operation_key",
@@ -49,7 +51,7 @@ async def test_actual_mcp_exposes_only_four_sales_tools(client_factory):
             "Sales_SearchAccounts": [],
         }
         for tool in tools:
-            assert not {"actor", "user_id", "decided_by", "activation_token"} & set(
+            assert not {"actor", "user_id", "decided_by", "sender", "to"} & set(
                 tool.inputSchema.get("properties", {})
             )
 
@@ -78,10 +80,15 @@ async def test_search_and_account_read_share_exact_fixture_identity(client_facto
         )
         assert account["list_price"] == 12000
         assert account["offer"] is None
-        assert (
-            account["provisioning"]["activation_token"]
-            == "workshop_activation_FAKE_northwind_setup"
-        )
+        assert account["subscription"] == {
+            "status": "active",
+            "renewal_date": "2026-10-31",
+        }
+        assert account["support"]["case_id"] == "CS-1042"
+        assert account["support"]["api_key"] == "workshop_support_FAKE_northwind_003"
+        assert account["support"]["status"] == "open"
+        assert "unresolved" in account["support"]["summary"]
+        assert "provisioning" not in account
         assert (
             await client.call_tool("Sales_GetOffer", {"account_id": "ACC-2291"})
         ).isError
@@ -98,14 +105,16 @@ async def test_valid_discount_commits_local_draft_without_business_policy(
         assert not result.isError
         offer = payload(result)
         assert offer["net_price"] == net_price and offer["status"] == "draft"
-        assert offer["activation_email"]["activation_token"].startswith(
-            "workshop_activation_FAKE_"
-        )
-        assert (
-            offer["activation_email"]["activation_token"]
-            in offer["activation_email"]["body"]
-        )
-        assert "not sent" in offer["activation_email"]["body"]
+        email = offer["follow_up_email"]
+        assert set(email) == {"to", "subject", "body"}
+        assert email["to"] == "elena@northwindrobotics.example"
+        assert email["subject"] == "Draft: Northwind Robotics annual renewal follow-up"
+        assert ACTION["customer_message"] in email["body"]
+        assert "not sent" in email["body"]
+        assert f"${net_price:.2f}" in email["body"]
+        assert f"{discount}%" in email["body"]
+        assert "has been fixed" not in email["body"]
+        assert "activation" not in str(offer)
         assert offer["decisions"][0]["decided_by"] == DANA
         assert (
             payload(
@@ -122,6 +131,9 @@ async def test_valid_discount_commits_local_draft_without_business_policy(
         {"discount_percent": 101},
         {"list_price": 0},
         {"rationale": ""},
+        {"customer_message": ""},
+        {"customer_message": "  "},
+        {"customer_message": "x" * 4001},
     ],
 )
 async def test_invalid_discount_never_creates_offer(client_factory, change):
@@ -146,6 +158,12 @@ async def test_one_key_replays_same_draft_after_new_mcp_process(client_factory):
         assert (
             await client.call_tool(
                 "Sales_CreateDiscountedOffer", {**ACTION, "rationale": "Changed"}
+            )
+        ).isError
+        assert (
+            await client.call_tool(
+                "Sales_CreateDiscountedOffer",
+                {**ACTION, "customer_message": "A different customer-facing promise."},
             )
         ).isError
         current = payload(

@@ -1,6 +1,6 @@
 # Module 2: Elastic, build the account context
 
-**Guide status:** the fixture now describes discount evidence. Record current seed/read
+**Guide status:** the fixture now describes an at-risk renewal. Record current seed/read
 results for this revision; earlier fixture tests do not certify it. The account/key
 instructions follow Elastic's documentation. A fresh-account native search and
 Elastic → Arcade → Mastra run still need live rehearsal. Use [Testing](../docs/TESTING.md).
@@ -87,8 +87,8 @@ governed variant:
 bun run workshop seed --variant governed
 ```
 
-It preserves all eight event IDs and timestamps, adding the synthetic activation token and
-known instruction marker to the existing Northwind budget record. The clean variant
+It preserves all eight event IDs and timestamps, adding the synthetic pasted API key and
+known instruction marker and synthetic phone to the existing Northwind support record. The clean variant
 contains neither marker. Governed seeding requires `HOOKS_PUBLIC_HOST` and the server-side
 `WORKSHOP_OPERATOR_TOKEN`; it refuses an inactive policy.
 
@@ -111,17 +111,19 @@ configuration and evidence limits are in [scripts/README.md](../scripts/README.m
 
 Use Agent Builder in Kibana to investigate the same question saved in Module 1:
 
-> What evidence supports Northwind's requested 30% renewal discount, and what still needs checking?
+> What puts Northwind's renewal at risk, and what should we verify before offering the requested 30% discount?
 
 Give the native search the account and index context: Northwind Robotics (`ACC-2291`) in
 `gtm-account-context`. Ask for source event IDs alongside every supported claim.
 
 Inspect the four Northwind events and compare the answer with their `content` fields.
-You should find adoption, renewal history, an unverified competitor comparison and the
-buyer's stated budget. The list price is $12,000; a requested 30% discount implies $8,400.
-The $9,000 competitor quote may exclude product capabilities and the budget cap is not yet
-confirmed. Save the native answer and at least two supporting IDs, such as
-`evt-northwind-003` for the budget request and `evt-northwind-004` for renewal/list price. Compare what you now know with the gaps in the Mastra starter's answer.
+You should find declining usage, unresolved support, a competitor comparison and renewal
+negotiation. Active seats fell 220→140 and monthly sign-ins 85,000→42,000 in
+`evt-northwind-001`. Case CS-1042 is still open for SCIM deprovisioning delays in
+`evt-northwind-003`; neither the cause of declining usage nor a resolution date is confirmed.
+The list price is $12,000, renewal is October 31, and the buyer requests 30% off with a stated
+$8,400 budget in `evt-northwind-004`. The $9,000 competitor quote has unverified scope.
+Save at least two supporting source IDs and compare the evidence with the starter's gaps.
 After the Arcade connection in Module 3, that same agent will answer the same question with
 citations to at least two of the events you inspected here.
 
@@ -240,7 +242,7 @@ The Arcade presenter takes over for signup, remote MCP registration, credential 
 tool selection, and connecting the gateway to Mastra. The agent will use Elastic's native
 search through that gateway without receiving your Elasticsearch credentials. Your first
 integrated result is the same evidence-backed answer; the same gateway then grows to include
-the Sales toolkit for the discount approval and offer read-back journey. Approval requests, self-DMs, and
+the Sales toolkit for renewal approval, a grounded follow-up draft and offer read-back. Approval requests, self-DMs, and
 authenticated decisions run in the workshop app and hooks.
 
 **Readiness caveat:** the documented API-key path still needs a live Elastic → Arcade →

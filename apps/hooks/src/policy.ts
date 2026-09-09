@@ -24,7 +24,7 @@ export function catalogue(config: HooksConfig): ToolCatalogue {
   const result: Record<string, Record<string, string[]>> = {
     [config.salesToolkit ?? "Sales"]: {
       SearchAccounts: ["query?"], GetAccount: ["account_id"],
-      CreateDiscountedOffer: ["account_id", "discount_percent", "list_price", "rationale", "operation_key"],
+      CreateDiscountedOffer: ["account_id", "discount_percent", "list_price", "rationale", "customer_message", "operation_key"],
       GetOffer: ["account_id"],
     },
   };
@@ -52,11 +52,11 @@ export function baseline(config: HooksConfig): PolicyDocument {
     ],
     rules: [...rules, { id: "authority-limit", description: "Compare the requested discount percentage with the actor's current authority.", hook: "pre", match: { toolkit: lead, tool: "CreateDiscountedOffer" }, subjects: null,
       conditions: [{ input: "discount_percent", operator: "exceeds_clearance", value: null }], effect: "deny", reason: "This request exceeds your authority. Do not retry.", priority: 100 }],
-    output_rules: [{ id: "fixture-privacy-integrity", description: "Remove activation credentials, fixture phones, and the known injected instruction.", match: { toolkit: "*", tool: "*" },
-      fields: [{ path: "activation_token", strategy: "remove" }, { path: "personal_phone", strategy: "remove" }],
-      patterns: [{ id: "fixture-activation-token", regex: "workshop_activation_FAKE_[A-Za-z0-9_-]+", strategy: "remove" }, { id: "fixture-phone", regex: "\\+1-\\d{3}-555-\\d{4}", strategy: "remove" },
+    output_rules: [{ id: "fixture-privacy-integrity", description: "Remove support API keys, legacy activation credentials, fixture phones, and the known injected instruction.", match: { toolkit: "*", tool: "*" },
+      fields: [{ path: "api_key", strategy: "remove" }, { path: "activation_token", strategy: "remove" }, { path: "personal_phone", strategy: "remove" }],
+      patterns: [{ id: "fixture-support-key", regex: "workshop_support_FAKE_[A-Za-z0-9_-]+", strategy: "remove" }, { id: "fixture-activation-token", regex: "workshop_activation_FAKE_[A-Za-z0-9_-]+", strategy: "remove" }, { id: "fixture-phone", regex: "\\+1-\\d{3}-555-\\d{4}", strategy: "remove" },
         { id: "fixture-instruction", regex: INJECTION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), strategy: "remove" }],
-      reason: "Activation credentials, synthetic personal phone, and known injected instruction removed.", priority: 10 }],
+      reason: "Support API keys, legacy activation credentials, synthetic personal phone, and known injected instruction removed.", priority: 10 }],
   });
   validatePolicy(doc, config);
   return doc;

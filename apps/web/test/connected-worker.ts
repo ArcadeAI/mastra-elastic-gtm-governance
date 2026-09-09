@@ -12,7 +12,7 @@ import { GOVERNED_PHONE, GOVERNED_INSTRUCTION } from "../../../scripts/seed-elas
 const config = JSON.parse(readFileSync(process.argv[2]!, "utf8"));
 const storage = new LibSQLStore({ id: "connected-proof", url: config.db });
 const hooks = new HooksClient(config.hooks, "web-test");
-const action = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: `Enterprise qualification supported by evt-northwind-001 and evt-northwind-003 ${config.privateMarker ?? ""}`.trim(), operation_key: "untrusted-model-key" };
+const action = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, customer_message: "Your renewal is approaching and we recognize the unresolved SCIM support issue. Let us review the proposed terms and support next steps together.", rationale: `Renewal risk supported by evt-northwind-001 and evt-northwind-003 ${config.privateMarker ?? ""}`.trim(), operation_key: "untrusted-model-key" };
 const observed: any[] = [];
 function latestToolResult(input: any, mcpName: string) {
   const exposed = input.tools.find((tool: any) => tool.description === mcpName);
@@ -28,9 +28,9 @@ const steps = config.phase === "start" ? [
     const expected = ["Elastic.Search", "Sales.SearchAccounts", "Sales.GetAccount", names.discount, "Sales.GetOffer"].sort();
     if (JSON.stringify(offered) !== JSON.stringify(expected)) throw new Error(`Unexpected governed model toolset: ${JSON.stringify(offered)}`);
     const data = JSON.stringify(input.prompt);
-    if (data.includes(GOVERNED_PHONE) || data.includes(GOVERNED_INSTRUCTION) || data.includes("workshop_activation_FAKE_") || data.includes("activation_token")) throw new Error("Unfiltered fixture data reached the model");
+    if (data.includes(GOVERNED_PHONE) || data.includes(GOVERNED_INSTRUCTION) || data.includes("workshop_support_FAKE_") || data.includes("api_key")) throw new Error("Unfiltered fixture data reached the model");
     for (const id of ["evt-northwind-001", "evt-northwind-002", "evt-northwind-003", "evt-northwind-004"]) if (!data.includes(id)) throw new Error(`Governed evidence ${id} was lost before the model`);
-    if (!data.includes("evt-northwind-001") || !data.includes("85000 successful sign-ins")) throw new Error("Real evidence was lost before the model");
+    if (!data.includes("evt-northwind-001") || !data.includes("42000 successful sign-ins")) throw new Error("Real evidence was lost before the model");
     writeFileSync(config.proof, JSON.stringify({ filtered_model_observation: true, source_id: "evt-northwind-001", offered_tools: offered }));
     return { name: names.discount, args: action };
   },
@@ -40,19 +40,19 @@ const steps = config.phase === "start" ? [
   },
 ] : [(input: any) => {
   const prompt = JSON.stringify(input.prompt);
-  if (!prompt.includes("evt-northwind-001") || !prompt.includes("85000 successful sign-ins")) throw new Error("Native snapshot did not restore original evidence context");
-  if (prompt.includes("workshop_activation_FAKE_") || prompt.includes("activation_token")) throw new Error("Offer creation leaked an activation token to the model");
+  if (!prompt.includes("evt-northwind-001") || !prompt.includes("42000 successful sign-ins")) throw new Error("Native snapshot did not restore original evidence context");
+  if (prompt.includes("workshop_support_FAKE_") || prompt.includes("api_key")) throw new Error("Offer creation leaked an support API key to the model");
   if (!prompt.includes('8400')) throw new Error("Approved offer terms were lost");
   return { name: names.getOffer, args: { account_id: "ACC-2291" } };
 }, (input: any) => {
   const offer = latestToolResult(input, names.getOffer);
   const created = latestToolResult(input, names.discount);
   const readback = JSON.stringify(offer);
-  if (readback.includes("workshop_activation_FAKE_") || readback.includes("activation_token")) throw new Error("GetOffer leaked an activation token to the model");
+  if (readback.includes("workshop_support_FAKE_") || readback.includes("api_key")) throw new Error("GetOffer leaked an support API key to the model");
   if (offer.account_id !== "ACC-2291" || typeof offer.offer_id !== "string" || offer.offer_id !== created.offer_id || offer.discount_percent !== 30 || offer.list_price !== 12000 || offer.net_price !== 8400 || offer.status !== "draft") throw new Error("GetOffer did not return the exact saved offer terms");
-  if (offer.activation_email?.to !== "elena@northwindrobotics.example" || !offer.activation_email?.subject?.includes("Northwind Robotics") || !offer.activation_email?.body?.includes("not sent")) throw new Error("GetOffer lost the saved activation-email draft");
-  for (const field of ["to", "subject", "body"]) if (offer.activation_email[field] !== created.activation_email?.[field]) throw new Error(`GetOffer changed the saved email ${field}`);
-  return `Saved and checked ${offer.account_id} offer ${offer.offer_id} and activation-email draft to ${offer.activation_email.to}: ${offer.discount_percent}% off $${offer.list_price.toLocaleString("en-US")}, $${offer.net_price.toLocaleString("en-US")} annually. No email sent. Evidence: evt-northwind-001 (85000 successful sign-ins), evt-northwind-003 (budget request). ${config.privateMarker ?? ""}`.trim();
+  if (offer.follow_up_email?.to !== "elena@northwindrobotics.example" || !offer.follow_up_email?.subject?.includes("Northwind Robotics") || !offer.follow_up_email?.body?.includes("not sent")) throw new Error("GetOffer lost the saved follow-up email draft");
+  for (const field of ["to", "subject", "body"]) if (offer.follow_up_email[field] !== created.follow_up_email?.[field]) throw new Error(`GetOffer changed the saved email ${field}`);
+  return `Saved and checked ${offer.account_id} offer ${offer.offer_id} and follow-up email draft to ${offer.follow_up_email.to}: ${offer.discount_percent}% off $${offer.list_price.toLocaleString("en-US")}, $${offer.net_price.toLocaleString("en-US")} annually. No email sent. Evidence: evt-northwind-001 (42000 successful sign-ins), evt-northwind-003 (unresolved SCIM support). ${config.privateMarker ?? ""}`.trim();
 }];
 const approvals = createApprovalClient({ hooksHost: config.hooks, serviceToken: "approvals-test", arcadeKey: "local-key", arcadeBaseUrl: config.boundary, slackBaseUrl: `${config.boundary}/slack` });
 const runtime = createRuntime({ approvals, model: scriptedModel(steps, observed), hooks, storage, names,

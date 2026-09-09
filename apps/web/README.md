@@ -5,14 +5,17 @@ agent grows through three capabilities:
 
 1. **Build your agent:** assess the supplied request for Northwind's 30% renewal discount
    and identify missing evidence. Only a model credential is required.
-2. **Connect evidence:** retrieve renewal, competitor, budget and usage context through
+2. **Connect evidence:** retrieve declining usage, open SCIM support, renewal and budget context through
    the Arcade gateway. Cite source IDs and retain uncertainty. This stage has no writes.
 3. **Act with approval:** Dana prepares a 30% offer on a $12,000 annual list price. Arcade
    blocks it against Dana's 15% permission. The app requests Riley's review in a self-DM;
    Riley's 40% authority permits approval. Dana's exact run resumes, saves one $8,400 draft
    offer, and is instructed to call `GetOffer` to verify its terms and inspect the redacted email draft.
 
-The offer and activation email stay in the workshop account system as drafts. No customer
+The agent supplies the required `customer_message`, grounded in cited evidence and explicit
+about uncertainty. Riley reviews the exact message with the discount. The API chooses the
+recipient and appends canonical terms and a draft label to `follow_up_email`.
+The offer and follow-up email stay in the workshop account system as drafts. No customer
 email, real provisioning or external signature request occurs. The governed Run can send
 the Slack self-DM before anyone selects Approve. If consent is pending, complete it as Dana,
 then use **Retry Slack notification** for the saved request. Delivery must be confirmed
@@ -64,5 +67,6 @@ hooks, web storage, the account service, IdP and Elastic; both OAuth clients are
 
 Use [Testing](../../docs/TESTING.md) for installation and `bun run test:workshop`. Current
 acceptance checks must establish discount enforcement, exact continuation, one draft offer,
-GetOffer read-back, activation-token redaction and replay. Local controlled collaborators
+GetOffer read-back, pasted-key/phone redaction and replay. The capstone uses `hook-lab` to
+remove `support.internal_owner_email` and verify the effect through the gateway. Local controlled collaborators
 prove application behavior separately from live cloud consent and workshop timing.

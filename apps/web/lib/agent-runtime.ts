@@ -115,10 +115,10 @@ export function createRuntime(options: RuntimeOptions) {
           if (execution.committedWrite && action) {
             const terms = action.arguments;
             const netPrice = Math.round((Number(terms.list_price) * (100 - Number(terms.discount_percent)) / 100 + Number.EPSILON) * 100) / 100;
-            const email = emailDraftSchema.safeParse(offer?.activation_email);
+            const email = emailDraftSchema.safeParse(offer?.follow_up_email);
             const sameEmail = email.success && savedEmail !== undefined && email.data.to === savedEmail.to && email.data.subject === savedEmail.subject && email.data.body === savedEmail.body;
             execution.verifiedOffer = !output?.isError && !offer?.error && offer?.offer_id === savedOfferId && offer?.account_id === terms.account_id && offer?.discount_percent === terms.discount_percent && offer?.list_price === terms.list_price && offer?.net_price === netPrice && offer?.status === "draft" && sameEmail;
-            if (!execution.verifiedOffer) throw new ServiceError("The offer was saved, but its read-back did not verify the exact terms and activation-email draft.", 409);
+            if (!execution.verifiedOffer) throw new ServiceError("The offer was saved, but its read-back did not verify the exact terms and follow-up email draft.", 409);
           }
           return output;
         });
@@ -141,8 +141,8 @@ export function createRuntime(options: RuntimeOptions) {
         execution.committedWrite = !executionError && !output?.isError && !payload?.error && payload?.account_id === action.arguments.account_id && typeof payload?.offer_id === "string";
         if (execution.committedWrite) {
           savedOfferId = payload.offer_id;
-          const email = emailDraftSchema.safeParse(payload.activation_email);
-          // Compare only the model-safe draft fields. Provisioning tokens never
+          const email = emailDraftSchema.safeParse(payload.follow_up_email);
+          // Compare only the model-safe draft fields. Extra metadata never
           // participate in verification and need not survive output filtering.
           savedEmail = email.success ? email.data : undefined;
           execution.verifiedOffer = false;
@@ -213,7 +213,7 @@ export function createRuntime(options: RuntimeOptions) {
           else {
             const failed = result.authorizationUrls.length > 0 || (execution!.attemptedWrite && (!execution!.committedWrite || !execution!.verifiedOffer));
             if (failed) result.status = "failed";
-            persisted = await hooks().request(`/internal/runs/${runId}/result`, { status: result.status, text: result.text, tool_calls: result.toolCalls, model: result.model, ...(failed ? { error: execution!.committedWrite ? "The offer was saved, but GetOffer did not verify its terms and activation-email draft. Inspect the saved offer before starting another exercise." : "The pending action did not complete. Finish required authorization or inspect delivery status, then start a new exercise." } : {}) });
+            persisted = await hooks().request(`/internal/runs/${runId}/result`, { status: result.status, text: result.text, tool_calls: result.toolCalls, model: result.model, ...(failed ? { error: execution!.committedWrite ? "The offer was saved, but GetOffer did not verify its terms and follow-up email draft. Inspect the saved offer before starting another exercise." : "The pending action did not complete. Finish required authorization or inspect delivery status, then start a new exercise." } : {}) });
           }
           // The control plane owns display filtering. Keep canonical action
           // arguments private and return its stored display copy to the browser.
@@ -244,7 +244,7 @@ export function createRuntime(options: RuntimeOptions) {
         const result = publicResult(output, runId, calls);
         const failed = result.status !== "completed" || !execution.committedWrite || !execution.verifiedOffer;
         if (failed) result.status = "failed";
-        const persisted = await hooks().request(`/internal/runs/${runId}/result`, { lease_id: claim.lease_id, status: result.status, text: result.text, tool_calls: result.toolCalls, model: result.model, ...(failed ? { error: execution.committedWrite ? "The offer was saved, but GetOffer did not verify its terms and activation-email draft. Inspect the saved offer before starting another exercise." : "The approved action did not complete. Inspect authorization and the operation receipt before retrying." } : {}) });
+        const persisted = await hooks().request(`/internal/runs/${runId}/result`, { lease_id: claim.lease_id, status: result.status, text: result.text, tool_calls: result.toolCalls, model: result.model, ...(failed ? { error: execution.committedWrite ? "The offer was saved, but GetOffer did not verify its terms and follow-up email draft. Inspect the saved offer before starting another exercise." : "The approved action did not complete. Inspect authorization and the operation receipt before retrying." } : {}) });
         return { ...result, error: persisted.run.error, text: persisted.run.text, toolCalls: persisted.run.tool_calls };
       } finally { await client.disconnect(); }
     },

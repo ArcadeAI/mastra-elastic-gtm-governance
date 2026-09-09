@@ -1,14 +1,21 @@
-# Governed discount offers
+# Govern an at-risk renewal
 
 The agent helps an account executive prepare Northwind's annual renewal offer for B2B
 identity and access software. The account's list price is $12,000. Dana requests a 30%
 discount, exceeding her 15% permission; Riley's 40% ceiling is sufficient to approve it.
-The approved draft is $8,400 and its activation email remains a local draft.
+The approved draft is $8,400 and its follow-up email remains a local draft.
+
+Renewal is October 31. Active seats fell 220→140 and monthly sign-ins 85,000→42,000.
+Support case CS-1042 remains open for SCIM deprovisioning delays. The cause of declining
+usage and the issue's resolution date are unverified; the agent must not invent either.
 
 The scenario follows Andrew's feedback: approval should govern a specific commercial
 permission. A deal's dollar value alone is a weak explanation for why an AE cannot route
 it. Here the control applies directly to `CreateDiscountedOffer.discount_percent`, while
 Elastic supplies the reasons a manager should consider. Evidence never grants permission.
+Guru's execution-hook emphasis becomes visible in two places: the pre-hook independently
+checks commercial terms, and the post-hook removes a fake API key pasted into the support
+ticket. Attendees then write one additional redaction rule themselves.
 
 ## Teaching sequence
 
@@ -20,7 +27,8 @@ the same onsite/remote path. Capstone adds 20 minutes.
    source IDs, an MCP URL and a separate read-only key.
 3. Arcade first connects that evidence to the same Mastra agent. Then the attendee adds
    Sales tools, verifies hooks and completes approval, exact continuation and read-back.
-4. Capstone inspects the single saved offer, safe email draft and negative cases.
+4. Capstone inspects the saved draft, writes and locally tests an output rule, applies it
+   without replacing existing controls, then verifies it through the gateway.
 
 The first agent runs locally. Commit instruction changes before deploying the same code,
 then use the hosted web origin for OAuth and the governed exercise. Follow
@@ -38,14 +46,19 @@ The single custom deployment is **Sales**, from the existing `tools/lead` direct
 | Tool | Purpose |
 |---|---|
 | `SearchAccounts` | Find the account. |
-| `GetAccount` | Read commercial context, stored list price and trial provisioning data. |
-| `CreateDiscountedOffer` | Save a draft offer and activation email for the exact approved terms. |
+| `GetAccount` | Read subscription, renewal, stored list price and the unresolved support case. |
+| `CreateDiscountedOffer` | Save a draft offer and follow-up email for the exact approved terms. |
 | `GetOffer` | Read the saved result and check the terms after creation. |
 
-`CreateDiscountedOffer` receives `account_id`, `discount_percent`, `list_price`, `rationale`
+`CreateDiscountedOffer` receives `account_id`, `discount_percent`, `list_price`, `rationale`, `customer_message`
 and a host-supplied `operation_key`. Percentages use 0–100 units: 30 means 30%, not 0.30.
 `list_price` is a USD equality assertion against the account record. The API computes
 `net_price`; the model does not set it independently.
+
+The required `customer_message` is the agent's evidence-grounded follow-up text, not a
+server-written generic sentence. It is nonblank, at most 4,000 characters, and bound into
+the exact human approval and operation receipt. Riley reviews it with the terms. The API
+chooses the recipient from the account and appends canonical annual prices and draft label.
 
 Web and hooks handle human review and Slack delivery. No approval toolkit, customer-email
 tool or signature-provider integration is part of this exercise. Existing service and
@@ -66,15 +79,15 @@ sequenceDiagram
     D->>W: Prepare Northwind's 30% renewal offer
     W->>M: Start governed run
     M->>A: GetAccount and Elastic evidence
-    A-->>M: Cited context with activation token removed
-    M->>A: CreateDiscountedOffer at 30%
+    A-->>M: Cited context with pasted API key and phone removed
+    M->>A: CreateDiscountedOffer at 30% with customer message
     A->>H: Check Dana's 15% permission
     H-->>A: Deny and persist exact action
     A-->>W: Denial reaches host wrapper
     W->>H: Request human review for owned run
     W->>S: Deliver request with Arcade-authorized Slack identity
     Note over W,M: Persist native suspended run
-    S-->>R: Link to exact pending terms
+    S-->>R: Link to exact pending terms and customer message
     R->>W: Authenticate and approve
     W->>H: Validate Riley's identity and 40% permission
     H-->>W: Exact grant
@@ -84,7 +97,7 @@ sequenceDiagram
     B-->>A: $12,000 list, 30%, $8,400 net, draft email
     A-->>M: Filtered result
     M->>A: GetOffer for ACC-2291
-    A-->>M: Saved terms and redacted activation-email draft
+    A-->>M: Saved terms and follow-up draft
     M-->>D: Verified terms, citations and draft status
 ```
 
@@ -108,17 +121,19 @@ the offer. Lead-named internal service tokens remain server/operator configurati
 | Per-user credentials | Arcade authorizes the actual caller against the demo IdP or remote MCP. |
 | Action permission | Pre-hook compares the requested discount percentage with the caller's ceiling. |
 | Price integrity | Hooks and API compare the asserted list price with the stored account value. |
-| Human exception | Riley grants only Dana's exact saved action. A different percentage, price or rationale conflicts. |
-| Output | Post-hooks remove synthetic activation tokens, personal phone fields and the seeded instruction while preserving legitimate prices. |
+| Human exception | Riley grants only Dana's exact saved action. A different percentage, price, rationale or customer message conflicts. |
+| Output | Post-hooks remove synthetic pasted API keys, personal phone fields and the seeded instruction while preserving legitimate prices. |
 | Write replay | One SQLite transaction commits the draft offer and operation receipt. An identical retry returns the saved result. |
 | Human messaging | Delivery claims prevent automatic reposting after an uncertain Slack outcome. |
 
-The synthetic activation token appears naturally in trial provisioning from `GetAccount`
-and the activation-email draft from `GetOffer`. Its prefix is `workshop_activation_FAKE_`.
-The model should check the visible draft terms without learning or reproducing that token.
+The fake pasted key appears in `GetAccount.support.api_key` and the governed Elastic
+support event. Its prefix is `workshop_support_FAKE_`. It demonstrates a specific configured
+filter, while the issue, renewal date and legitimate prices remain useful to the agent.
+The follow-up draft should acknowledge the unresolved issue without claiming it caused
+the decline or promising an unconfirmed fix.
 The agent is instructed to call `GetOffer` after creation. The host requires that successful
-read-back to match the saved offer ID, account, percentage, list price, net price and draft
-status before reporting completion. A missing or mismatched result reports the saved offer
+read-back to match the saved offer ID, account, percentage, list price, net price, draft
+status and nonblank email recipient/subject/body before reporting completion. A missing or mismatched result reports the saved offer
 and failed verification; it must not create another offer. Configure its exact observed
 name in `ARCADE_GET_OFFER_TOOL_NAME`. Connected tests use a scripted model; the live model's
 read-back and final wording need a separate rehearsal.
@@ -146,11 +161,17 @@ runs a filtered `GetAccount` and a 30% denied offer probe. Its empty rationale i
 rejected by the API if the pre-hook is missing. No model, approval or Slack call is part
 of that probe. Activation requires the CLI's fresh end-to-end confirmation.
 
-Northwind is `ACC-2291`. The eight Elastic events describe usage, renewal, a competitor
-quote and a stated budget, including uncertainty. A $9,000 competitor quote may have
+Northwind is `ACC-2291`. The eight Elastic events describe declining usage, unresolved
+support, renewal, a competitor quote and a stated budget. A $9,000 competitor quote may have
 different scope; the $8,400 budget is unconfirmed. Neither is an instruction or approval.
 The clean fixture stays in use until governance is verified. The governed variant adds
-synthetic token/instruction markers to one existing event without changing its ID or date.
+synthetic pasted-key/phone/instruction markers to the support event without changing its ID or date.
+
+The [hook lab](docs/modules/04-capstone.md#write-one-output-hook) starts with an intentionally
+incomplete OutputRule for Sales.GetAccount. The attendee removes
+`support.internal_owner_email`, proves the local filter preserves useful context, applies
+the rule through the authenticated policy API, then verifies an actual gateway read as
+Dana. The local result and gateway result are separate proof boundaries; neither sends Slack.
 
 Reset coordinates all state owners and clears draft offers, grants, snapshots and extra
 Elastic documents, while preserving both OAuth clients. Preserve evidence first, then
@@ -159,5 +180,5 @@ is explicitly degraded for fixture mutation.
 
 The exercise stores drafts. It sends no customer email, requests no external signature,
 and provisions no real customer account. Only an authorized Slack self-DM is an external
-message. Current local, live and timed results must be recorded for this discount version;
-older routing-test counts do not establish its correctness.
+message. Current local, live and timed results must be recorded for this renewal revision;
+checks from older workshop versions do not establish its correctness.

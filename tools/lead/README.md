@@ -5,9 +5,9 @@ The exposed custom toolkit is **Sales**. Its directory and Python package remain
 | Arcade tool | Inputs | Behavior |
 |---|---|---|
 | `Sales.SearchAccounts` | `query?` | Find account summaries |
-| `Sales.GetAccount` | `account_id` | Inspect current list price, billing contact, trial provisioning, and current offer |
-| `Sales.CreateDiscountedOffer` | `account_id`, `discount_percent`, `list_price`, `rationale`, `operation_key` | Persist an offer and local activation-email draft together |
-| `Sales.GetOffer` | `account_id` | Double-check the saved offer and activation draft |
+| `Sales.GetAccount` | `account_id` | Inspect current list price, billing contact, active subscription and open support case, and current offer |
+| `Sales.CreateDiscountedOffer` | `account_id`, `discount_percent`, `list_price`, `rationale`, `customer_message`, `operation_key` | Persist an offer and local renewal follow-up email draft together |
+| `Sales.GetOffer` | `account_id` | Double-check the saved offer and follow-up draft |
 
 Local MCP wire names use underscores, such as `Sales_CreateDiscountedOffer`. Discover the exact names exposed by the configured Arcade gateway before configuring the workshop.
 
@@ -15,7 +15,9 @@ Every tool requires `cg-idp` OAuth and the `LEAD_APP_PUBLIC_HOST` secret. The to
 
 `CreateDiscountedOffer` forwards the stable `operation_key` as `Idempotency-Key`. Identical actor/account/arguments return the original saved draft. Changed arguments conflict. `list_price` asserts the current yearly amount and cannot update it. For Northwind `ACC-2291`, $12,000 at 30% yields $8,400. The business API applies no approval policy; hooks own that decision.
 
-Activation emails remain local drafts in SQLite. No email is sent. Raw responses contain only clearly synthetic `workshop_activation_FAKE_...` tokens, allowing gateway redaction to be demonstrated on the subsequent read.
+`customer_message` is required, nonblank, and at most 4,000 characters. Write a customer-facing renewal follow-up grounded in account evidence without claiming an open support issue is fixed. The API fixes the recipient and subject and adds the canonical annual list/discount/net terms. Changing the message on an existing operation key conflicts just like changing its price.
+
+The saved `follow_up_email` contains only `to`, `subject`, and `body`; there is no sender or send operation. No email is sent. Northwind's account detail includes the unresolved SCIM support summary and a synthetic `support.api_key` plus `support.internal_owner_email` for gateway filtering. New renewal databases use a fresh path (`./renewal.db` by default); earlier exercise records are not converted.
 
 ```sh
 uv sync --frozen --extra dev

@@ -48,7 +48,7 @@ function elastic() {
   return { documents, requests, config: { ELASTICSEARCH_URL: url, ELASTIC_API_KEY: "elastic-test-secret", ELASTIC_GTM_INDEX: "context" } };
 }
 function proof() {
-  const body = { list_price: 12000, discount_percent: 30, rationale: "Enterprise security evidence evt-northwind-003" };
+  const body = { list_price: 12000, discount_percent: 30, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "Enterprise security evidence evt-northwind-003" };
   const receipt = { operation_key: "run:run-test", actor: "dana@example.test", action: "discount", account_id: "ACC-2291", body, completed_at: "2026-09-08T12:03:00.000Z" };
   const canonical = (value: any): string => value && typeof value === "object" ? Array.isArray(value) ? `[${value.map(canonical).join(",")}]` : `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonical(value[key])}`).join(",")}}` : JSON.stringify(value);
   const binding = { actor: receipt.actor, action: receipt.action, account_id: receipt.account_id, body };
@@ -67,7 +67,7 @@ function proof() {
       { seq: 6, id: "event-6", ts: "2026-09-08T12:02:30.000Z", user_id: receipt.actor, tool: "Sales.CreateDiscountedOffer", decision: "allow", hook: "pre", execution_id: "write-execution", operation_key: receipt.operation_key },
     ],
   };
-  const savedOffer = { account_id: receipt.account_id, offer_id: "offer-test", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft", activation_email: { to: "buyer@northwind.example", subject: "Your annual offer", body: "Draft yearly offer at $8,400." } };
+  const savedOffer = { account_id: receipt.account_id, offer_id: "offer-test", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft", follow_up_email: { to: "buyer@northwind.example", subject: "Your annual offer", body: `LOCAL WORKSHOP DRAFT — not sent.\n\n${body.customer_message}\n\nAnnual list price: $12000.00. Discount: 30%. Annual net price: $8400.00.` } };
   evidence.run.tool_calls.push({ name: "Exact_GetOffer", args: { account_id: receipt.account_id } });
   evidence.events.push({ seq: 7, id: "event-7", ts: "2026-09-08T12:03:30.000Z", user_id: receipt.actor, tool: "Sales.GetOffer", decision: "modify", hook: "post", execution_id: "get-offer-execution", success: true, after: { content: [{ type: "text", text: JSON.stringify(savedOffer) }] } });
   // The owner stores Slack's receipt timestamp in the notification event's ts field.
@@ -138,7 +138,7 @@ describe("workshop operator CLI", () => {
       resets.push({ path, auth: request.headers.get("authorization"), body: await request.json() });
       if (path === "/operator/reset") return Response.json({ reset: true, active: false, reset_epoch: 7 });
       if (path === "/api/operator/reset") return Response.json({ reset: true, deleted_snapshots: 2 });
-      if (path === "/lead/internal/reset") return Response.json({ accounts: 5, offers: 0, activation_emails: 0, decisions: 0, operations: 0 });
+      if (path === "/lead/internal/reset") return Response.json({ accounts: 5, offers: 0, follow_up_emails: 0, decisions: 0, operations: 0 });
       if (path === "/idp/internal/reset") return Response.json({ reset: true, people: 4, oauth_clients_preserved: 2 });
       return new Response(null, { status: 404 });
     });
@@ -291,7 +291,7 @@ describe("workshop operator CLI", () => {
     ["missing saved offer read-back", "saved_offer_check", (e: any, _r: any) => { e.events = e.events.filter((event: any) => event.tool !== "Sales.GetOffer"); }],
     ["changed saved offer terms", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); offer.discount_percent = 10; e.events[6].after.content[0].text = JSON.stringify(offer); }],
     ["wrong saved net price", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); offer.net_price = 9000; e.events[6].after = { structuredContent: offer }; }],
-    ["missing activation email draft", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); delete offer.activation_email; e.events[6].after = offer; }],
+    ["missing follow-up email draft", "saved_offer_check", (e: any, _r: any) => { const offer = JSON.parse(e.events[6].after.content[0].text); delete offer.follow_up_email; e.events[6].after = offer; }],
     ["failed saved offer result", "saved_offer_check", (e: any, _r: any) => { e.events[6].after.isError = true; }],
     ["offer read before allowed write", "saved_offer_check", (e: any, _r: any) => { e.events[6].seq = 0; }],
     ["missing saved offer trace", "saved_offer_check", (e: any, _r: any) => { e.run.tool_calls = e.run.tool_calls.filter((call: any) => call.name !== "Exact_GetOffer"); }],
@@ -336,7 +336,7 @@ test("hooks replace supplied trace fingerprints with raw argument hashes before 
     return response.json() as Promise<any>;
   }
   try {
-    const args = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Useful evidence PRIVATE_ARGUMENT_MARKER", operation_key: "trace-operation" };
+    const args = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "Useful evidence PRIVATE_ARGUMENT_MARKER", operation_key: "trace-operation" };
     const probe = { execution_id: "probe-denial", tool: { toolkit: "Sales", name: "CreateDiscountedOffer", version: "1" }, inputs: { ...args, operation_key: "probe", rationale: "" }, context: { user_id: verification } };
     await call("/operator/verification", "operator", { operation_key: "probe" });
     expect((await call("/pre", "hook", probe)).code).toBe("CHECK_FAILED");

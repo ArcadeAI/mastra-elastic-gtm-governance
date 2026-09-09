@@ -61,7 +61,7 @@ test("ATT1.R6 / APR1.R2 real IdP, hooks, Python MCP and Sales survive the waitin
     // Verification travels through the same gateway and actual Python Sales tool.
     const filtered = await gateway.call("Sales.GetAccount", { account_id: "ACC-2291" }, verification);
     expect(JSON.stringify(filtered)).not.toContain("+1-415-555-0137");
-    const probe = await gateway.call(names.discount, { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Operator proof", operation_key: "verification-1" }, verification) as any;
+    const probe = await gateway.call(names.discount, { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Operator proof", customer_message: "Local verification draft.", operation_key: "verification-1" }, verification) as any;
     expect(probe.code).toBe("CHECK_FAILED");
     const proof = await operator.request("/operator/verification?operation_key=verification-1");
     expect((await operator.request("/operator/verification/confirm", { operation_key: "verification-1", denial_execution_id: proof.denial.execution_id, filter_execution_id: proof.filter.execution_id })).confirmed).toBe(true);
@@ -113,6 +113,7 @@ test("ATT1.R6 / APR1.R2 real IdP, hooks, Python MCP and Sales survive the waitin
     expect(started.body.model).toEqual(waiting.run.model);
     const originalAttempt = gateway.calls.find((call) => call.name === names.discount && call.actor === emails.dana);
     expect(originalAttempt?.args.rationale).toContain(privateMarker);
+    expect(started.body.approval.inputs.customer_message).toBe(originalAttempt!.args.customer_message);
     const receiptBefore = await fetch(`${leadOrigin}/internal/operations/${encodeURIComponent(waiting.run.operation_key)}`, { headers: { authorization: "Bearer lead-test" } }); expect(receiptBefore.status).toBe(404);
     expect((await post(`/api/runs/${runId}/resume`, {})).status).toBe(409);
     // The self-DM link plus valid CSRF never turns Dana into the assigned Riley.
@@ -158,11 +159,14 @@ test("ATT1.R6 / APR1.R2 real IdP, hooks, Python MCP and Sales survive the waitin
     const leadAfter = await (await fetch(`${leadOrigin}/accounts/ACC-2291`, { headers: { authorization: `Bearer ${tokens.get(emails.dana)}` } })).json() as any;
     expect(leadAfter.decisions.filter((decision: any) => decision.decided_by === emails.dana)).toHaveLength(1);
     expect(leadAfter.offer).toMatchObject({ discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft" });
-    expect(leadAfter.offer.activation_email.activation_token).toStartWith("workshop_activation_FAKE_");
+    expect(leadAfter.support.api_key).toBe("workshop_support_FAKE_northwind_003");
+    expect(leadAfter.offer.follow_up_email.body).toContain(originalAttempt!.args.customer_message);
+    expect(leadAfter.offer.follow_up_email).not.toHaveProperty("api_key");
+    expect(receipt.body.customer_message).toBe(originalAttempt!.args.customer_message);
     expect(gateway.calls.filter(call => call.name === "Sales.GetOffer" && call.actor === emails.dana)).toHaveLength(1);
     expect(resumed.body.text).toContain("$8,400");
     expect(resumed.body.text).toContain("No email sent");
-    expect(JSON.stringify(resumed.body)).not.toContain("workshop_activation_FAKE_");
+    expect(JSON.stringify(resumed.body)).not.toContain("workshop_support_FAKE_");
     const safeAudit = await (await browser.fetch(`${web}/api/audit?run_id=${runId}`)).json() as any;
     expect(safeAudit.events.length).toBeGreaterThan(4); expect(JSON.stringify(safeAudit)).not.toContain("+1-415-555-0137");
     expect(persisted.run.tool_calls.find((call: any) => call.mcpName === names.discount).args.operation_key).toBe(waiting.run.operation_key);
@@ -175,6 +179,36 @@ test("ATT1.R6 / APR1.R2 real IdP, hooks, Python MCP and Sales survive the waitin
     const [collected, collectorError, collectorCode] = await Promise.all([new Response(collector.stdout).text(), new Response(collector.stderr).text(), collector.exited]);
     expect(collectorCode, collected + collectorError).toBe(0);
     expect(JSON.parse(collected)).toMatchObject({ status: "passed", live_proof: false });
+    // The attendee-authored rule travels through the CLI, real hooks policy,
+    // gateway boundary and actual Python account tool. It changes no account data.
+    const labFile = join(directory, "renewal-rule.json");
+    async function lab(...args: string[]) {
+      const process_ = Bun.spawn([process.execPath, "--no-env-file", "scripts/workshop.ts", "hook-lab", ...args], {
+        cwd: join(import.meta.dir, "../../.."), env: { PATH: process.env.PATH!, HOOKS_PUBLIC_HOST: hooksOrigin, WORKSHOP_OPERATOR_TOKEN: "operator-test", ARCADE_API_KEY: "local-test-key", ARCADE_MCP_URL: gateway.url, PERSONA_DANA_EMAIL: emails.dana }, stdout: "pipe", stderr: "pipe",
+      });
+      const [out, err, code] = await Promise.all([new Response(process_.stdout).text(), new Response(process_.stderr).text(), process_.exited]);
+      expect(out + err).not.toContain("workshop_support_FAKE_");
+      return { code, out, err, result: out ? JSON.parse(out) : null };
+    }
+    expect((await lab("init", "--output", labFile)).code).toBe(0);
+    expect((await lab("test", "--file", labFile)).code).toBe(1);
+    const labRule = JSON.parse(readFileSync(labFile, "utf8"));
+    labRule.fields = [{ path: "support.internal_owner_email", strategy: "remove" }];
+    writeFileSync(labFile, JSON.stringify(labRule));
+    expect((await lab("test", "--file", labFile)).result).toMatchObject({ status: "passed", proof_scope: "local_fixture" });
+    const policyBeforeLab = await operator.request("/operator/policy");
+    const appliedLab = await lab("apply", "--file", labFile);
+    expect(appliedLab.code, appliedLab.out + appliedLab.err).toBe(0);
+    const policyAfterLab = await operator.request("/operator/policy");
+    expect(policyAfterLab.subjects).toEqual(policyBeforeLab.subjects);
+    expect(policyAfterLab.rules).toEqual(policyBeforeLab.rules);
+    const verifiedLab = await lab("verify", "--read-tool", "Sales.GetAccount");
+    expect(verifiedLab.code, verifiedLab.out + verifiedLab.err).toBe(0);
+    expect(verifiedLab.result).toMatchObject({ status: "passed", proof_scope: "gateway_read", connection_scope: "local", live_proof: false });
+    expect(gateway.posts).toHaveLength(1);
+    const accountAfterLab = await (await fetch(`${leadOrigin}/accounts/ACC-2291`, { headers: { authorization: `Bearer ${tokens.get(emails.dana)}` } })).json() as any;
+    expect(accountAfterLab.support.internal_owner_email).toBe("oncall@northwindrobotics.example");
+    expect(accountAfterLab.offer).toEqual(leadAfter.offer);
     // A permitted action with a transport failure has no authority denial.
     // Actual hooks must reject host approval creation for this unrelated error.
     await launch("start");

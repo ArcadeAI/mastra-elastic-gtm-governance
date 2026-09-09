@@ -98,10 +98,10 @@ as the health-check path, and automatic deployments off.
 
 | Create order | Dockerfile | Disk | Runtime storage setting |
 |---|---|---|---|
-| 1. `cg-web` | `apps/web/Dockerfile` | `agent-snapshots` | `MASTRA_DB_URL=file:/data/mastra-discount.db` |
+| 1. `cg-web` | `apps/web/Dockerfile` | `agent-snapshots` | `MASTRA_DB_URL=file:/data/mastra-renewal.db` |
 | 2. `cg-idp` | `apps/idp/Dockerfile` | `identity` | `IDP_DB_PATH=/data/idp.db` |
-| 3. `cg-lead-app` | `apps/lead-app/Dockerfile` | `leads` | `LEADS_DB_PATH=/data/leads.db` |
-| 4. `cg-hooks` | `apps/hooks/Dockerfile` | `governance` | `GOVERNANCE_DB_PATH=/data/governance-discount.db` |
+| 3. `cg-lead-app` | `apps/lead-app/Dockerfile` | `leads` | `LEADS_DB_PATH=/data/renewal.db` |
+| 4. `cg-hooks` | `apps/hooks/Dockerfile` | `governance` | `GOVERNANCE_DB_PATH=/data/governance-renewal.db` |
 
 Set `PORT=8080` on each service. Copy its other settings from `render.yaml` into the
 service's Environment page. For manual creation, resolve every `fromService` entry into
@@ -344,13 +344,16 @@ If Slack delivery succeeds but the snapshot acknowledgement fails, the run can r
 the request or the request expires, close the exercise before resetting. A successful
 Slack delivery alone does not prove that the agent saved a resumable wait.
 
-## Upgrade an existing routing deployment
+## Upgrade an earlier workshop deployment
 
-For the discount version, change hooks to
-`GOVERNANCE_DB_PATH=/data/governance-discount.db` and web to
-`MASTRA_DB_URL=file:/data/mastra-discount.db`, then redeploy both. Use the corresponding
-relative paths for local services. These new files start with discount policy and empty
-run state; keep the old databases as history. Do not load the old ACV policy into the Sales
-catalog. IdP and `LEADS_DB_PATH` stay unchanged; the account service uses the new Sales
-tables without requiring old rows to be deleted. Update the gateway/tool settings and
-repeat metadata discovery, verification and activation before a governed discount run.
+For this renewal revision, set the account service's `LEADS_DB_PATH=/data/renewal.db`,
+hooks' `GOVERNANCE_DB_PATH=/data/governance-renewal.db`, and web's
+`MASTRA_DB_URL=file:/data/mastra-renewal.db`, then redeploy all three. Use the corresponding
+relative paths locally. These new files start with the renewal fixture, current policy
+and empty run state; retain the old databases as history. Earlier offers are not converted
+into the new follow-up-email contract. IdP and both OAuth clients stay unchanged. Redeploy
+the single Sales toolkit with its required `customer_message`, update observed tool names,
+then repeat metadata discovery, verification and activation before a governed run.
+
+After the approval exercise, follow the [capstone hook lab](modules/04-capstone.md#write-one-output-hook)
+to test and apply one output rule without replacing the baseline policy.

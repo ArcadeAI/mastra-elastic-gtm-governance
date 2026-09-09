@@ -37,6 +37,6 @@ export function mcpBoundary(tools: Record<string, { schema: Record<string, unkno
   } });
 }
 
-export const discountArguments = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Enterprise interest documented in evt-1", operation_key: "model-forged-key" };
+export const discountArguments = { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Renewal risk documented in evt-1", customer_message: "Thank you for reviewing the renewal with us. We will discuss the open support issue and proposed terms.", operation_key: "model-forged-key" };
 export const names = { discount: "Sales.CreateDiscountedOffer", getOffer: "Sales.GetOffer" };
 export const objectSchema = { type: "object", additionalProperties: true };

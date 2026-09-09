@@ -1,8 +1,58 @@
 # Local verification
 
-## Discount pivot — 2026-09-09
+## At-risk renewal and hook lab — 2026-09-09
 
-The current scenario is an AE requesting 30% off a $12,000 annual contract against a
+Northwind's declining usage and unresolved SCIM support case inform a 30% renewal offer.
+Dana's 15% ceiling requires Riley's approval of the exact terms and customer message.
+The action saves one $8,400 offer and follow-up email draft, then verifies both through
+GetOffer. The support record contains a synthetic pasted API key; useful issue and renewal
+context survives filtering. No customer email transport exists.
+
+- **614 Bun tests passed, 2,859 assertions, 33 files.** The connected test runs the real
+  IdP, hooks, Python Sales MCP server, business SQLite and Mastra LibSQL. It pauses,
+  survives a web-process restart, approves as Riley, resumes Dana's exact action, and
+  checks the saved offer and authored email. Replay adds no write or notification.
+- **Fresh source-copy install passed** with frozen root/IdP Bun and Python dependencies.
+  `bun run test:workshop`: **200 passed, 1,684 assertions, 14 files**. The copy contained
+  no previous dependencies, databases or `.env`. Bun 1.3.14 and Python 3.12.13 were used.
+- **16 Python Sales tests passed** against registered MCP tools and the real business
+  service. Ruff and mypy passed. Business tests reject missing/blank/oversized messages,
+  changed-message approval/receipt reuse, and changed idempotent actions after restart.
+- The connected test also executes the actual hook-lab CLI: initialize an incomplete
+  rule, observe its failure, author the field removal, test, apply to the real hooks
+  service, and verify a real Sales GetAccount call through the local gateway boundary.
+  Existing discount authority is unchanged. This produces local evidence, not cloud proof.
+- Root/workspace, IdP and script typechecks passed. Both generated contract checks passed.
+  The Next production build passed under local Node 26.8.1; Node 22 images are checked
+  separately by CI.
+- Desktop (1440×1000) and mobile (390×844) browser checks passed with no page errors or
+  horizontal overflow. Renewal prompts and stage controls rendered, and governed
+  execution required sign-in. No model ran during the browser checks.
+- Render accepted the four-service Blueprint. Configuration selects fresh renewal
+  database files and preserves previous discount history.
+
+Cross-agent review found and corrected two hook-lab gaps: phone values hidden in MCP text
+or metadata could escape verification, and an extra same-value field replacement could
+override an existing privacy rule. Regression tests now reject both. The exercise accepts
+exactly the intended support-owner-email removal. These were cross-agent checks; no new
+independent external review is claimed.
+
+The evidence collector checks saved terms and populated email fields. Exact offer ID and
+email equality are additionally enforced by the runtime before it records completion.
+The controlled model, Arcade, Elastic and Slack boundaries establish local behavior,
+not live model quality or gateway provenance.
+
+**Live integration remains unverified.** The hosted web service still needs a model key,
+Arcade key/gateway ID and observed Sales/Elastic tool names. No real Slack message or
+customer email was sent. A real-service rehearsal and a timed fresh-account workshop run
+remain separate checks in [Testing](TESTING.md). Partner teaching allocations remain
+55 minutes each, with a 20-minute capstone.
+
+---
+
+## Historical discount pivot — 2026-09-09
+
+The previous scenario was an AE requesting 30% off a $12,000 annual contract against a
 15% limit. Riley approves; Dana's original action creates one $8,400 offer and local
 activation-email draft. Mastra must read the saved offer back before reporting completion.
 
@@ -48,8 +98,8 @@ Follow [Testing](TESTING.md) for the separate live rehearsal.
 # Historical routing verification
 
 > Historical evidence for the routing scenario checked on 2026-09-08. The current workshop
-> uses Sales discount offers, percentage-based permissions, GetOffer read-back and
-> activation-token redaction. All counts, Lead/Approvals names and outcomes below describe
+> uses renewal offers, percentage-based permissions, GetOffer read-back and support-key
+> redaction. All counts, Lead/Approvals names and outcomes below describe
 > the earlier implementation. They are not current setup requirements or proof that the
 > discount version passes. Record current results using [Testing](TESTING.md).
 

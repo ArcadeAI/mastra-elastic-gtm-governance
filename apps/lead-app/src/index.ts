@@ -70,7 +70,7 @@ export function createApp(options: { dbPath: string; idpHost: string; internalTo
   } };
 }
 if (import.meta.main) {
-  const app = createApp({ dbPath: process.env.LEADS_DB_PATH ?? "./leads.db", idpHost: process.env.IDP_PUBLIC_HOST ?? "localhost:8083", ...(process.env.LEAD_INTERNAL_TOKEN ? { internalToken: process.env.LEAD_INTERNAL_TOKEN } : {}) });
+  const app = createApp({ dbPath: process.env.LEADS_DB_PATH ?? "./renewal.db", idpHost: process.env.IDP_PUBLIC_HOST ?? "localhost:8083", ...(process.env.LEAD_INTERNAL_TOKEN ? { internalToken: process.env.LEAD_INTERNAL_TOKEN } : {}) });
   const server = Bun.serve({ port: Number(process.env.PORT ?? 8082), idleTimeout: 60, fetch: app.fetch });
   console.log(`[${SERVICE}] listening on :${server.port}`);
 }

@@ -25,7 +25,7 @@ services:
   - key: PORT
     value: 8080
   - key: LEADS_DB_PATH
-    value: /data/leads.db
+    value: /data/renewal.db
   - key: LEAD_INTERNAL_TOKEN
     generateValue: true
   - key: IDP_PUBLIC_HOST
@@ -51,7 +51,7 @@ services:
   - key: PORT
     value: 8080
   - key: GOVERNANCE_DB_PATH
-    value: /data/governance-discount.db
+    value: /data/governance-renewal.db
   - key: ARCADE_HOOK_SECRET
     generateValue: true
   - key: APPROVALS_SERVICE_TOKEN
@@ -173,7 +173,7 @@ services:
   - key: PORT
     value: 8080
   - key: MASTRA_DB_URL
-    value: file:/data/mastra-discount.db
+    value: file:/data/mastra-renewal.db
   - key: MODEL_ID
     value: anthropic/claude-sonnet-4-6
   - key: ANTHROPIC_API_KEY

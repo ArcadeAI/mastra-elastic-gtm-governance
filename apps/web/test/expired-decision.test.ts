@@ -59,7 +59,7 @@ test("APR1.R2 expired approval-page decision is rejected through authenticated w
     // Verification travels through the same gateway and actual Python Lead tool.
     const filtered = await gateway.call("Sales.GetAccount", { account_id: "ACC-2291" }, verification);
     expect(JSON.stringify(filtered)).not.toContain("+1-415-555-0137");
-    const probe = await gateway.call(names.discount, { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Operator proof", operation_key: "verification-1" }, verification) as any;
+    const probe = await gateway.call(names.discount, { account_id: "ACC-2291", list_price: 12000, discount_percent: 30, rationale: "Operator proof", customer_message: "Local verification draft.", operation_key: "verification-1" }, verification) as any;
     expect(probe.code).toBe("CHECK_FAILED");
     const proof = await operator.request("/operator/verification?operation_key=verification-1");
     expect((await operator.request("/operator/verification/confirm", { operation_key: "verification-1", denial_execution_id: proof.denial.execution_id, filter_execution_id: proof.filter.execution_id })).confirmed).toBe(true);

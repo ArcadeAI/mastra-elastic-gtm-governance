@@ -32,7 +32,7 @@ for (const mode of ["connected", "missing-pre", "needs-consent", "ignored-pre-de
       const pre = omitPre ? { code: "OK" } : await hook("/pre", event);
       if (pre.code !== "OK" && mode !== "ignored-pre-decision") result = { isError: true, content: [{ type: "text", text: JSON.stringify(pre) }] };
       else {
-        const response = name === "GetAccount" ? await fetch(new URL(`/accounts/${inputs.account_id}`, lead.url), { headers: { authorization: "Bearer setup-oauth" } }) : await fetch(new URL(`/accounts/${inputs.account_id}/offers`, lead.url), { method: "POST", headers: { authorization: "Bearer setup-oauth", "content-type": "application/json", "Idempotency-Key": inputs.operation_key }, body: JSON.stringify({ list_price: inputs.list_price, discount_percent: inputs.discount_percent, rationale: inputs.rationale }) });
+        const response = name === "GetAccount" ? await fetch(new URL(`/accounts/${inputs.account_id}`, lead.url), { headers: { authorization: "Bearer setup-oauth" } }) : await fetch(new URL(`/accounts/${inputs.account_id}/offers`, lead.url), { method: "POST", headers: { authorization: "Bearer setup-oauth", "content-type": "application/json", "Idempotency-Key": inputs.operation_key }, body: JSON.stringify({ list_price: inputs.list_price, discount_percent: inputs.discount_percent, rationale: inputs.rationale, customer_message: inputs.customer_message }) });
         const output = await response.json();
         const post = await hook("/post", { ...event, success: response.ok, output });
         result = { isError: !response.ok, content: [{ type: "text", text: JSON.stringify(mode === "ignored-post-override" ? output : post.override?.output ?? output) }] };

@@ -12,9 +12,16 @@
         "email": "elena@northwindrobotics.example",
         "personal_phone": "+1-415-555-0137"
       },
-      "provisioning": {
-        "status": "trial",
-        "activation_token": "workshop_activation_FAKE_northwind_setup"
+      "subscription": {
+        "status": "active",
+        "renewal_date": "2026-10-31"
+      },
+      "support": {
+        "case_id": "CS-1042",
+        "status": "open",
+        "summary": "SCIM deprovisioning is delayed. The support issue remains unresolved; no confirmed fix or resolution date is available.",
+        "api_key": "workshop_support_FAKE_northwind_003",
+        "internal_owner_email": "oncall@northwindrobotics.example"
       }
     },
     {
@@ -29,9 +36,16 @@
         "email": "alex@harborlinehealth.example",
         "personal_phone": "+1-202-555-0111"
       },
-      "provisioning": {
-        "status": "trial",
-        "activation_token": "workshop_activation_FAKE_harborline_setup"
+      "subscription": {
+        "status": "active",
+        "renewal_date": "2026-10-31"
+      },
+      "support": {
+        "case_id": "CS-1043",
+        "status": "open",
+        "summary": "The rollout owner is investigating intermittent sign-in failures. The support case remains open.",
+        "api_key": "workshop_support_FAKE_harborline_001",
+        "internal_owner_email": "oncall@harborlinehealth.example"
       }
     },
     {
@@ -46,9 +60,16 @@
         "email": "sam@cascadebiosystems.example",
         "personal_phone": "+1-202-555-0112"
       },
-      "provisioning": {
-        "status": "trial",
-        "activation_token": "workshop_activation_FAKE_cascade_setup"
+      "subscription": {
+        "status": "active",
+        "renewal_date": "2026-10-31"
+      },
+      "support": {
+        "case_id": "CS-1044",
+        "status": "open",
+        "summary": "Procurement requested clarification of access audit retention. The response is pending.",
+        "api_key": "workshop_support_FAKE_cascade_001",
+        "internal_owner_email": "oncall@cascadebiosystems.example"
       }
     },
     {
@@ -63,9 +84,16 @@
         "email": "jordan@meridiandata.example",
         "personal_phone": "+1-202-555-0113"
       },
-      "provisioning": {
-        "status": "trial",
-        "activation_token": "workshop_activation_FAKE_meridian_setup"
+      "subscription": {
+        "status": "active",
+        "renewal_date": "2026-10-31"
+      },
+      "support": {
+        "case_id": "CS-1045",
+        "status": "open",
+        "summary": "The account team is reviewing an automated provisioning configuration question. The case remains open.",
+        "api_key": "workshop_support_FAKE_meridian_001",
+        "internal_owner_email": "oncall@meridiandata.example"
       }
     },
     {
@@ -80,9 +108,16 @@
         "email": "morgan@alderwaydesign.example",
         "personal_phone": "+1-202-555-0114"
       },
-      "provisioning": {
-        "status": "trial",
-        "activation_token": "workshop_activation_FAKE_alderway_setup"
+      "subscription": {
+        "status": "active",
+        "renewal_date": "2026-10-31"
+      },
+      "support": {
+        "case_id": "CS-1046",
+        "status": "open",
+        "summary": "The renewal planning team requested a review of identity configuration documentation. Follow-up remains pending.",
+        "api_key": "workshop_support_FAKE_alderway_001",
+        "internal_owner_email": "oncall@alderwaydesign.example"
       }
     }
   ]

@@ -2,16 +2,18 @@
 
 **Owner:** Mastra presenter. **Budget:** 55 minutes, including signup and setup.
 
-**Guide status:** this worksheet now uses the discount scenario; record current results
-for this revision. Earlier routing-test results do not certify it. Fresh-account Mastra signup and the 55-minute teaching path still need rehearsal.
+**Guide status:** this worksheet uses the at-risk renewal revision; record current results.
+Earlier workshop tests do not certify this revision. Fresh-account Mastra signup and the 55-minute teaching path still need rehearsal.
 Use [Testing](../TESTING.md) to record the result.
 
 ## Your result
 
 Your Mastra project runs the agent that will later research and prepare Northwind's renewal offer.
+It will also draft a customer follow-up grounded in the evidence, without inventing a fix
+date or a cause for declining usage.
 Start with a sanitized supplied account for `ACC-2291` and ask:
 
-> What evidence supports Northwind's requested 30% renewal discount, and what still needs checking?
+> What puts Northwind's renewal at risk, and what should we verify before offering the requested 30% discount?
 
 The agent separates what the supplied request tells you from the evidence still needed. Save this
 question and run: Elastic will supply that evidence, and Arcade will connect it to this

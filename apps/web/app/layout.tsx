@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Governed Discount Agent — Mastra × Elastic × Arcade",
+  title: "Governed Renewal Agent — Mastra × Elastic × Arcade",
   description:
-    "An account executive’s discount agent: Elastic evidence, Arcade approval, and verified contract drafts.",
+    "An account executive’s renewal agent: Elastic evidence, Arcade approval, and verified contract drafts.",
 };
 
 export const viewport: Viewport = { width: "device-width", initialScale: 1 };

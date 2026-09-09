@@ -9,17 +9,18 @@ const accountSchema = z.object({
   account_id: z.string().min(1), company_name: z.string().min(1), company_domain: z.string(),
   product: z.string().min(1), billing_cycle: z.literal("yearly"), list_price: z.number().positive(),
   billing_contact: z.object({ name: z.string(), email: z.string().email(), personal_phone: z.string() }),
-  provisioning: z.object({ status: z.literal("trial"), activation_token: z.string().startsWith("workshop_activation_FAKE_") }),
+  subscription: z.object({ status: z.literal("active"), renewal_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+  support: z.object({ case_id: z.string().min(1), status: z.literal("open"), summary: z.string().min(1), api_key: z.string().startsWith("workshop_support_FAKE_"), internal_owner_email: z.string().email() }),
 });
 export type AccountSeed = z.infer<typeof accountSchema>;
-export interface DiscountBody { discount_percent: number; list_price: number; rationale: string }
+export interface DiscountBody { discount_percent: number; list_price: number; rationale: string; customer_message: string }
 export interface OfferDecision extends DiscountBody {
   action: "discount"; offer_id: string; net_price: number; decided_by: string; decided_at: string;
 }
-export interface ActivationEmail { to: string; subject: string; body: string; activation_token: string }
+export interface FollowUpEmail { to: string; subject: string; body: string }
 export interface Offer {
   account_id: string; offer_id: string; discount_percent: number; list_price: number; net_price: number;
-  status: "draft"; activation_email: ActivationEmail; decisions: OfferDecision[];
+  status: "draft"; follow_up_email: FollowUpEmail; decisions: OfferDecision[];
 }
 export interface AccountRecord extends AccountSeed { offer: Offer | null; decisions: OfferDecision[] }
 export type AccountSummary = Pick<AccountSeed, "account_id" | "company_name" | "company_domain" | "product" | "billing_cycle" | "list_price">;
@@ -29,7 +30,7 @@ export class SalesWriteError extends Error {
   constructor(readonly code: "LIST_PRICE_MISMATCH" | "OPERATION_CONFLICT", message: string) { super(message); }
 }
 export const operationKeySchema = z.string().min(1).max(128).regex(/^[A-Za-z0-9._:-]+$/);
-export const discountBodySchema = z.object({ discount_percent: z.number().finite().min(0).max(100), list_price: z.number().finite().positive(), rationale: z.string().min(1).refine(value => value.trim().length > 0) }).strict();
+export const discountBodySchema = z.object({ discount_percent: z.number().finite().min(0).max(100), list_price: z.number().finite().positive(), rationale: z.string().min(1).refine(value => value.trim().length > 0), customer_message: z.string().min(1).max(4000).refine(value => value.trim().length > 0) }).strict();
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS sales_accounts (account_id TEXT PRIMARY KEY, data TEXT NOT NULL);
@@ -51,7 +52,7 @@ const SCHEMA = `
   );
 `;
 
-/** A new namespace leaves earlier workshop tables intact on existing disks. */
+/** Use a fresh renewal database path; earlier exercise stores are not converted. */
 export function openSalesStore(path: string): Database {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path, { create: true });
@@ -98,7 +99,7 @@ export function getOperation(db: Database, key: string): OperationReceipt | null
 export function createDiscountedOffer(db: Database, input: { operation_key: string; actor: string; account_id: string; body: DiscountBody }): { offer: Offer; replayed: boolean } | null {
   operationKeySchema.parse(input.operation_key);
   discountBodySchema.parse(input.body);
-  const body = { discount_percent: input.body.discount_percent, list_price: input.body.list_price, rationale: input.body.rationale };
+  const body = { discount_percent: input.body.discount_percent, list_price: input.body.list_price, rationale: input.body.rationale, customer_message: input.body.customer_message };
   const encoded = JSON.stringify(body);
   return db.transaction(() => {
     const saved = storedOperation(db, input.operation_key);
@@ -112,18 +113,16 @@ export function createDiscountedOffer(db: Database, input: { operation_key: stri
     const offer_id = `OFF-${crypto.randomUUID()}`;
     const net_price = Math.round((account.list_price * (100 - body.discount_percent) / 100 + Number.EPSILON) * 100) / 100;
     const completed_at = new Date().toISOString();
-    const activation_token = `workshop_activation_FAKE_${crypto.randomUUID()}`;
-    const activation_email: ActivationEmail = {
+    const follow_up_email: FollowUpEmail = {
       to: account.billing_contact.email,
-      subject: `Draft: ${account.company_name} identity and access software activation`,
-      body: `LOCAL WORKSHOP DRAFT — not sent. Your yearly offer is $${net_price.toFixed(2)} (${body.discount_percent}% discount). Synthetic activation token: ${activation_token}. This token cannot activate a real service.`,
-      activation_token,
+      subject: `Draft: ${account.company_name} annual renewal follow-up`,
+      body: `LOCAL WORKSHOP DRAFT — not sent.\n\n${body.customer_message}\n\nAnnual list price: $${account.list_price.toFixed(2)}. Discount: ${body.discount_percent}%. Annual net price: $${net_price.toFixed(2)}.`,
     };
     const decision: OfferDecision = { action: "discount", offer_id, ...body, net_price, decided_by: input.actor, decided_at: completed_at };
-    const offer: Offer = { account_id: account.account_id, offer_id, discount_percent: body.discount_percent, list_price: account.list_price, net_price, status: "draft", activation_email, decisions: [...account.decisions, decision] };
+    const offer: Offer = { account_id: account.account_id, offer_id, discount_percent: body.discount_percent, list_price: account.list_price, net_price, status: "draft", follow_up_email, decisions: [...account.decisions, decision] };
     const response = JSON.stringify(offer);
     db.query("INSERT INTO sales_offers(offer_id,account_id,response) VALUES (?,?,?)").run(offer_id, account.account_id, response);
-    db.query("INSERT INTO sales_email_drafts(offer_id,payload) VALUES (?,?)").run(offer_id, JSON.stringify(activation_email));
+    db.query("INSERT INTO sales_email_drafts(offer_id,payload) VALUES (?,?)").run(offer_id, JSON.stringify(follow_up_email));
     db.query("INSERT INTO sales_decisions(offer_id,account_id,data) VALUES (?,?,?)").run(offer_id, account.account_id, JSON.stringify(decision));
     db.query("INSERT INTO sales_operations(operation_key,actor,action,account_id,body,response,completed_at) VALUES (?,?,'discount',?,?,?,?)")
       .run(input.operation_key, input.actor, account.account_id, encoded, response, completed_at);
@@ -134,6 +133,6 @@ export function resetSalesStore(db: Database) {
   return db.transaction(() => {
     db.exec("DELETE FROM sales_operations; DELETE FROM sales_decisions; DELETE FROM sales_email_drafts; DELETE FROM sales_offers; DELETE FROM sales_accounts;");
     insertSeed(db);
-    return { accounts: countAccounts(db), offers: 0, activation_emails: 0, decisions: 0, operations: 0 };
+    return { accounts: countAccounts(db), offers: 0, follow_up_emails: 0, decisions: 0, operations: 0 };
   }).immediate();
 }

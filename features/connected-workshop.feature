@@ -1,10 +1,13 @@
-Feature: An attendee prepares one governed discount offer across Mastra, Elastic, and Arcade
+Feature: An attendee prepares an at-risk renewal across Mastra, Elastic, and Arcade
 
   Northwind ACC-2291 buys B2B identity and access software at a 12000 USD annual list price.
+  Renewal is October 31; seats fell 220 to 140 and monthly sign-ins 85000 to 42000.
+  SCIM case CS-1042 remains open; its relation to the decline and a fix date are unverified.
   Dana may offer a 15% discount; the requested 30% discount needs Riley's 40% authority.
   One attendee plays distinct seeded OAuth identities and receives the app's notification
   in their own delegated Slack self-DM. Sales is the single custom toolkit; approvals
-  belong to the web app and hooks. The offer and activation email remain local drafts.
+  belong to the web app and hooks. The offer and follow-up email remain local drafts.
+  The agent supplies a customer message that Riley reviews with the exact terms.
   The @live scenario requires separately retained cloud evidence. Local connected tests
   use a scripted model and do not establish live-model behavior or attendee timing.
 
@@ -36,6 +39,11 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
       Given the configured gateway returns two Northwind source events from Elastic search
       When the attendee asks the saved question in the Elastic stage
       Then the answer cites both returned source events identified in the visible response trace
+
+    Scenario: Renewal evidence preserves uncertainty about the usage decline
+      Given Elastic returns the usage decline and open SCIM case without a confirmed cause or fix date
+      When the attendee asks what puts the renewal at risk
+      Then the connected response cites those records and identifies the cause and resolution date as unverified
 
     Scenario: The model never receives the direct Elastic setup credential
       Given the operator has configured an Elastic setup endpoint and key for fixture loading
@@ -89,7 +97,7 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
     Scenario: An approved retry survives duplicate delivery and restart
       Given Riley approved Dana's exact Northwind 30% offer at list price 12000 and the operation has already succeeded
       When the same operation is delivered again after the account service restarts
-      Then the caller receives the original result and Northwind still has exactly one draft offer and activation-email draft
+      Then the caller receives the original result and Northwind still has exactly one draft offer and follow-up-email draft
 
     @rejection
     Scenario Outline: A changed action cannot use the original approval
@@ -101,6 +109,7 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
         | discount_percent |
         | list_price       |
         | rationale        |
+        | customer_message |
         | requester        |
         | account_id       |
         | tool             |
@@ -134,12 +143,12 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
   @connected-workshop.ATT1.R5 @surface.gateway
   Rule: connected-workshop.ATT1.R5 — Sensitive output cannot reach the model
     Scenario: The governed agent receives filtered evidence through its gateway connection
-      Given the governed stage uses its configured gateway and Northwind contains the synthetic activation token, phone and injected instruction
+      Given the governed stage uses its configured gateway and Northwind contains the synthetic pasted API key, phone and injected instruction
       When the attendee asks the saved question through the agent API
       Then the model-facing messages and final brief cite returned source events and contain none of those markers
 
     Scenario Outline: Successful governed results are filtered
-      Given a <source> result in <form> contains the synthetic activation token, phone and injected instruction
+      Given a <source> result in <form> contains the synthetic pasted API key, phone and injected instruction
       When the result passes through the post-hook toward Mastra
       Then the model-facing result retains legitimate evidence and contains none of those markers
       Examples:
@@ -150,10 +159,10 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
         | Elastic search        | a JSON object           |
         | Elastic search        | JSON in MCP text blocks |
 
-    Scenario: Account provisioning and draft email tokens are filtered without hiding prices
-      Given the raw Northwind account and saved offer contain synthetic activation tokens in provisioning and the activation-email field and body
-      When GetAccount and GetOffer results pass through the gateway post-hook
-      Then their model-facing results omit token fields and fake token strings while retaining the 12000 list price, 30% discount and 8400 net price
+    Scenario: The pasted support credential is filtered without hiding the renewal risk
+      Given the raw Northwind account contains a fake pasted key in support.api_key and a synthetic personal phone
+      When GetAccount passes through the gateway post-hook
+      Then the model-facing result omits the key field, key string and phone while retaining the 12000 list price, October 31 renewal and unresolved SCIM issue
 
     @rejection
     Scenario: An unsupported sensitive result fails closed
@@ -199,6 +208,17 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
       When Dana's stored run resumes through the agent API
       Then the trace contains GetOffer for ACC-2291 after the saved action and the final cited response reports the returned 30%, 12000 list price and 8400 net price as a local draft
 
+    Scenario: The saved follow-up preserves the reviewed customer message
+      Given Riley approved an exact customer message acknowledging declining usage and the open support issue
+      When Dana's approved renewal action executes
+      Then follow_up_email preserves that message verbatim with the account-owned recipient, canonical annual terms and a local-draft label
+
+    @rejection
+    Scenario: A blank customer message cannot create a generic replacement draft
+      Given Dana submits valid commercial terms and a blank customer_message
+      When the account API validates the offer request
+      Then it rejects the request without an offer, email draft or operation receipt
+
     @rejection
     Scenario: A saved offer without a read-back cannot count as a completed run
       Given Dana's approved 30% offer has been saved and the model produces a final answer without calling GetOffer
@@ -230,17 +250,65 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
         | list_price       |
         | net_price        |
         | status           |
+        | follow_up_email.to |
+        | follow_up_email.subject |
+        | follow_up_email.body |
 
     Scenario: Offer creation produces only local customer-facing drafts
       Given Dana has an approved exact Northwind 30% action at list price 12000
       When that action executes through the gateway
-      Then the account stores one offer with draft status and an activation-email draft without invoking a customer email, signature or account-provisioning provider
+      Then the account stores one offer with draft status and a follow-up-email draft without invoking a customer email, signature or account-provisioning provider
 
     @rejection
     Scenario: Reading an account without an offer cannot invent saved terms
       Given Northwind exists and has no saved offer
       When the caller invokes GetOffer for ACC-2291
       Then the account API returns an offer-not-found response without draft terms
+
+  @connected-workshop.ATT1.R8 @surface.operator-cli @surface.gateway
+  Rule: connected-workshop.ATT1.R8 — Attendees can author and verify a bounded output rule
+    Scenario: Initialize an editable rule without changing hosted policy
+      Given the attendee has a new local output path for the hook lab
+      When the attendee runs hook-lab init with that output path
+      Then the file contains rule renewal-contact-redaction scoped to Sales.GetAccount with an empty fields list and no hosted policy change
+
+    Scenario: The starter makes the missing redaction observable
+      Given the attendee generated the Sales.GetAccount rule renewal-contact-redaction with an empty fields list
+      When the attendee runs hook-lab test against that file
+      Then the local-fixture check fails because the internal support owner email remains
+
+    Scenario: The attendee's rule removes one internal field while preserving renewal context
+      Given the rule removes support.internal_owner_email from Sales.GetAccount
+      When the attendee runs hook-lab test against that file
+      Then the local-fixture report passes with the email absent and account, price, renewal and unresolved issue preserved
+
+    @rejection
+    Scenario: An incorrect redaction path cannot earn a local pass
+      Given the attendee's rule targets a path absent from the renewal fixture
+      When the attendee runs hook-lab test against that file
+      Then the local-fixture report fails because the internal owner email remains
+
+    Scenario: Applying the tested rule preserves existing controls
+      Given the valid rule removes the internal owner and the operator has a current authenticated policy
+      When the attendee runs hook-lab apply against that file
+      Then the policy includes the rule while retaining the existing access, discount and privacy controls
+
+    @rejection
+    Scenario: A failed local rule cannot be applied
+      Given the rule fails to remove the internal owner from the renewal fixture
+      When the attendee runs hook-lab apply against that file
+      Then the command rejects the rule without changing the existing policy
+
+    Scenario: Gateway verification proves the applied filter as Dana
+      Given Dana has Sales consent and the applied rule removes the support owner from GetAccount
+      When the attendee runs hook-lab verify with the observed GetAccount name
+      Then the gateway-read report confirms the owner email is absent and renewal context remains without a model, business write or Slack call
+
+    @rejection
+    Scenario: Local fixture success cannot substitute for the gateway result
+      Given the local rule test passed but the gateway GetAccount response still contains the internal owner email
+      When the attendee runs hook-lab verify with the observed GetAccount name
+      Then the gateway-read report fails without claiming remote enforcement
 
   @connected-workshop.APR1.R1 @surface.slack
   Rule: connected-workshop.APR1.R1 — Slack represents one server-derived approval request
@@ -249,7 +317,7 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
       And Riley has a 40% discount ceiling and Morgan has a 75% ceiling
       And Dana's delegated Slack authorization identifies the attendee's real Slack account
       When the web host requests review for the saved action and delivers its notification
-      Then the self-DM names Riley as the assigned approver instead of Morgan and contains the original 30% terms and an opaque review link
+      Then the self-DM names Riley as the assigned approver instead of Morgan and presents the exact 30% terms and customer message with an opaque review link
 
     Scenario Outline: Assignment uses the narrowest sufficient discount ceiling
       Given Dana owns a persisted denial for a <discount>% Northwind offer
@@ -371,7 +439,7 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
   @connected-workshop.OPS1.R1 @surface.gateway @surface.operator-cli @surface.workshop-web
   Rule: connected-workshop.OPS1.R1 — Control state has a separate authenticated boundary
     Scenario: An ordinary viewer sees only filtered audit output
-      Given Dana is authenticated and her completed run filtered the synthetic activation token, phone and injected instruction
+      Given Dana is authenticated and her completed run filtered the synthetic pasted API key, phone and injected instruction
       When Dana opens that run's audit record
       Then the record shows the correlated gateway decision and filtered evidence with none of those markers
 
@@ -424,7 +492,7 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
       Given an empty Elastic index and the eight known fixture source IDs
       And governance has verified denial and filtering checks and is active
       When the operator seeds the <variant> fixture
-      Then the index contains those eight events and the synthetic activation token, phone and injected instruction are <presence>
+      Then the index contains those eight events and the synthetic pasted API key, phone and injected instruction are <presence>
       Examples:
         | variant  | presence                       |
         | clean    | absent from every event        |
@@ -508,4 +576,6 @@ Feature: An attendee prepares one governed discount offer across Mastra, Elastic
         | resumed original run        | persisted run and continuation trace        |
         | exactly one draft offer     | operation receipt and account decision history |
         | checked draft terms         | GetOffer response and 30% / 12000 / 8400 trace |
-        | filtered activation tokens  | sanitized model-facing account and email output |
+        | filtered pasted credential  | sanitized model-facing account and support output |
+        | reviewed customer follow-up | exact approved message and saved follow_up_email |
+        | attendee-authored output rule | local-fixture and gateway-read hook-lab reports |

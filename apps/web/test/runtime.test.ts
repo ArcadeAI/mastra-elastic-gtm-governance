@@ -102,7 +102,7 @@ test("ATT1.R6 native waiting snapshot survives a process exit and resumes the or
   const directory = mkdtempSync(join(tmpdir(), "workshop-runtime-"));
   let run: any; let action: any; let notifications = 0; let writes = 0; const actors: string[] = [];
   let approved = false; let reads = 0;
-  const offer = { account_id: "ACC-2291", offer_id: "OFF-restart", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft", activation_email: { to: "elena@northwindrobotics.example", subject: "Draft offer", body: "Local activation-email draft; no email sent." } };
+  const offer = { account_id: "ACC-2291", offer_id: "OFF-restart", discount_percent: 30, list_price: 12000, net_price: 8400, status: "draft", follow_up_email: { to: "elena@northwindrobotics.example", subject: "Draft offer", body: "Local follow-up email draft; no email sent." } };
   const gateway = mcpBoundary({
     "Elastic.Search": { schema: objectSchema, execute: () => ({ hits: [{ id: "evt-1", content: "Enterprise trial" }] }) },
     [names.discount]: { schema: objectSchema, execute: (args, user) => { actors.push(user); expect(args.operation_key).toBe(`run:${run.run_id}`); if (!approved) return { denied: true, denial_id: "denial-1" }; writes++; return offer; } },
@@ -187,16 +187,16 @@ test("duplicate write and read tool names fail before gateway or model execution
   } finally { gateway.stop(true); control.stop(true); await storage.close(); }
 });
 
-test.each(["matching", "skipped", "wrong net price", "read error", "empty recipient", "blank subject", "empty body", "changed recipient", "changed subject", "changed body", "empty creation body", "different token"] as const)("15 percent offer completion requires an actual matching readback: %s", async readback => {
+test.each(["matching", "skipped", "wrong net price", "read error", "empty recipient", "blank subject", "empty body", "changed recipient", "changed subject", "changed body", "empty creation body", "different metadata"] as const)("15 percent offer completion requires an actual matching readback: %s", async readback => {
   const submitted = { ...discountArguments, discount_percent: 15 };
-  const saved = { account_id: submitted.account_id, offer_id: "OFF-local-readback", discount_percent: 15, list_price: 12000, net_price: 10200, status: "draft", activation_email: { to: "elena@northwindrobotics.example", subject: "Local draft", body: "Local activation-email draft. No email sent." } };
-  if (readback === "empty creation body") saved.activation_email.body = "";
-  const emailChange = readback === "empty recipient" ? { to: "" } : readback === "blank subject" ? { subject: "   " } : readback === "empty body" ? { body: "" } : readback === "changed recipient" ? { to: "elsewhere@example.test" } : readback === "changed subject" ? { subject: "Different subject" } : readback === "changed body" ? { body: "Different offer email" } : readback === "different token" ? { activation_token: "synthetic-read-token" } : {};
+  const saved = { account_id: submitted.account_id, offer_id: "OFF-local-readback", discount_percent: 15, list_price: 12000, net_price: 10200, status: "draft", follow_up_email: { to: "elena@northwindrobotics.example", subject: "Local draft", body: "Local follow-up email draft. No email sent." } };
+  if (readback === "empty creation body") saved.follow_up_email.body = "";
+  const emailChange = readback === "empty recipient" ? { to: "" } : readback === "blank subject" ? { subject: "   " } : readback === "empty body" ? { body: "" } : readback === "changed recipient" ? { to: "elsewhere@example.test" } : readback === "changed subject" ? { subject: "Different subject" } : readback === "changed body" ? { body: "Different offer email" } : readback === "different metadata" ? { format_hint: "text" } : {};
   let writes = 0; let reads = 0; let run: any;
   const paths: string[] = [];
   const gateway = mcpBoundary({
-    [names.discount]: { schema: objectSchema, execute: args => { expect(args).toEqual({ ...submitted, operation_key: `run:${run.run_id}` }); writes++; return { ...saved, activation_email: { ...saved.activation_email, activation_token: "synthetic-create-token" } }; } },
-    [names.getOffer]: { schema: objectSchema, execute: args => { expect(writes).toBe(1); expect(args).toEqual({ account_id: submitted.account_id }); reads++; return readback === "read error" ? { error: "Saved offer service unavailable" } : { ...saved, activation_email: { ...saved.activation_email, ...emailChange }, ...(readback === "wrong net price" ? { net_price: 12000 } : {}) }; } },
+    [names.discount]: { schema: objectSchema, execute: args => { expect(args).toEqual({ ...submitted, operation_key: `run:${run.run_id}` }); writes++; return { ...saved, follow_up_email: { ...saved.follow_up_email, format_hint: "plain" } }; } },
+    [names.getOffer]: { schema: objectSchema, execute: args => { expect(writes).toBe(1); expect(args).toEqual({ account_id: submitted.account_id }); reads++; return readback === "read error" ? { error: "Saved offer service unavailable" } : { ...saved, follow_up_email: { ...saved.follow_up_email, ...emailChange }, ...(readback === "wrong net price" ? { net_price: 12000 } : {}) }; } },
   });
   const control = Bun.serve({ port: 0, async fetch(request) {
     const path = new URL(request.url).pathname; paths.push(path); const body = await request.json() as any;
@@ -215,7 +215,7 @@ test.each(["matching", "skipped", "wrong net price", "read error", "empty recipi
     expect(writes).toBe(1); expect(reads).toBe(readback === "skipped" ? 0 : 1);
     expect(paths.some(path => path.includes("approvals"))).toBe(false);
     expect(result.pending).toBeNull(); expect(result.text).toBe(claim);
-    const matching = readback === "matching" || readback === "different token";
+    const matching = readback === "matching" || readback === "different metadata";
     expect(result.status).toBe(matching ? "completed" : "failed");
     expect(run.status).toBe(result.status);
     const error = "error" in result ? result.error : undefined;

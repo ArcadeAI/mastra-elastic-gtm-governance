@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { createHooksApp } from "../src/app";
 
 const dana = "dana@example.test", riley = "riley@example.test";
-const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, rationale: "Enterprise SOURCE_SECRET", operation_key: "edge-operation" };
+const action = { account_id: "ACC-2291", discount_percent: 30, list_price: 12000, customer_message: "Your renewal is approaching. The SCIM support issue remains unresolved.", rationale: "Enterprise SOURCE_SECRET", operation_key: "edge-operation" };
 let app: ReturnType<typeof createHooksApp>;
 let server: ReturnType<typeof Bun.serve>, dependency: ReturnType<typeof Bun.serve>;
 let now: number, value: number;
@@ -186,7 +186,7 @@ test("operator evidence joins safe initial and resumed traces with canonical rec
   expect(evidence.action.arguments).toBeUndefined();
   expect(evidence.denial).toEqual({ execution_id: expect.any(String), operation_key: action.operation_key, request_id: request.request_id, requester_id: dana, tool_name: "Sales.CreateDiscountedOffer" });
   expect(evidence.events.some((event: any) => event.decision === "deny" && event.execution_id === evidence.denial.execution_id && event.user_id === dana && event.tool === evidence.denial.tool_name)).toBe(true);
-  const binding = `{"account_id":"ACC-2291","action":"discount","actor":"${dana}","body":{"discount_percent":30,"list_price":12000,"rationale":"Enterprise SOURCE_SECRET"}}`;
+  const binding = `{"account_id":"ACC-2291","action":"discount","actor":"${dana}","body":{"customer_message":"Your renewal is approaching. The SCIM support issue remains unresolved.","discount_percent":30,"list_price":12000,"rationale":"Enterprise SOURCE_SECRET"}}`;
   expect(evidence.action.receipt_binding_hash).toBe(createHash("sha256").update(binding).digest("hex"));
   expect(evidence.events.some((event: any) => event.decision === "approved" && event.request_id === request.request_id)).toBe(true);
   expect(JSON.stringify(evidence)).not.toContain("+1-415-555-0137");

@@ -4,7 +4,7 @@ import { baseUrl, type HooksConfig } from "./policy";
 export function configFromEnv(env: Record<string, string | undefined> = process.env): HooksConfig {
   const required = (name: string) => { const value = env[name]?.trim(); if (!value) throw new Error(`${name} is required.`); return value; };
   return {
-    dbPath: env.GOVERNANCE_DB_PATH || "./governance-discount.db",
+    dbPath: env.GOVERNANCE_DB_PATH || "./governance-renewal.db",
     hookSecret: env.ARCADE_HOOK_SECRET?.trim() || required("ARCADE_HOOK_SIGNING_SECRET"),
     operatorToken: required("WORKSHOP_OPERATOR_TOKEN"), approvalsToken: required("APPROVALS_SERVICE_TOKEN"), webToken: required("WEB_SERVICE_TOKEN"),
     leadHost: required("LEAD_APP_PUBLIC_HOST"), leadToken: required("LEAD_INTERNAL_TOKEN"), idpHost: required("IDP_PUBLIC_HOST"),

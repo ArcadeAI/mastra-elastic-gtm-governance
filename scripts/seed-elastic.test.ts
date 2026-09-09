@@ -17,8 +17,19 @@ describe("seedElastic", () => {
     expect(JSON.stringify(governed)).toContain(GOVERNED_INSTRUCTION);
     expect(governed.map(event => [event.event_id, event.occurred_at])).toEqual(clean.map(event => [event.event_id, event.occurred_at]));
     expect(governed).toHaveLength(8);
-    expect(governed.find(event => event.event_id === "evt-northwind-003")?.content).toContain("8400 USD");
+    expect(governed.find(event => event.event_id === "evt-northwind-004")?.content).toContain("8400 USD");
     expect(fixtureEvents("clean")).toEqual(fixture);
+  });
+  test("renewal risk evidence is useful without claiming the cause or exposing support credentials", () => {
+    const clean = fixtureEvents("clean"), governed = fixtureEvents("governed");
+    const usage = clean.find(event => event.event_id === "evt-northwind-001")!;
+    const support = governed.find(event => event.event_id === "evt-northwind-003")!;
+    expect(usage.metadata).toMatchObject({ active_seats: 140, prior_active_seats: 220, successful_signins_30d: 42000, prior_successful_signins_30d: 85000 });
+    expect(usage.content).toContain("cause is unverified");
+    expect(support.content).toContain("CS-1042");
+    expect(support.content).toContain("unresolved");
+    expect(support.content).toContain("pasted API key");
+    expect(GOVERNED_TOKEN).toStartWith("workshop_support_FAKE_");
   });
   test("keeps Elastic context joined to the lead-system fixture", () => {
     const leadsById = new Map(accounts.accounts.map((lead) => [lead.account_id, lead]));

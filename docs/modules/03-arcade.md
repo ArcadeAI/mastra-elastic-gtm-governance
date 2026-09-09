@@ -74,7 +74,9 @@ arrives before anyone clicks **Approve exact action**.
 
 1. Select **Act with approval** and **Sign in as dana**. Use the default prompt to research
    `ACC-2291` and prepare the requested 30% renewal discount offer at the stored $12,000
-   annual list price. The resulting offer and activation email stay as local drafts.
+   annual list price. Ask for a customer follow-up that acknowledges the usage decline and
+   open SCIM case, identifies what needs checking, and makes no unconfirmed resolution
+   promise. The agent supplies this as `customer_message`; the offer and email stay drafts.
 2. Inspect the trace: cited Elastic evidence, the $12,000 account list price, and Arcade's
    denial because Dana's discount permission is 15%. Riley can approve up to 40%. No offer
    has been saved yet.
@@ -83,14 +85,16 @@ arrives before anyone clicks **Approve exact action**.
    Slack consent, then return and select **Retry Slack notification**. Confirm the saved
    request shows `Slack: sent` before switching to Riley.
 4. Open the request while signed in as Dana and observe that Dana cannot self-approve.
-   Select **Sign in as riley**, authenticate, and review the exact displayed action.
+   Select **Sign in as riley**, authenticate, and review the exact discount, rationale and
+   customer message. Editing that message would require a new action and approval.
 5. Select **Approve exact action**. The authenticated page records Riley's decision with
    hooks. Dana's saved Mastra run resumes and retries the original action through Arcade.
    **Resume Dana's agent** retries that continuation if needed.
 
 6. The agent calls **GetOffer** to check the saved result: 30% discount, $12,000 list price,
-   $8,400 net price and `draft` status. Inspect the activation-email draft; the synthetic
-   activation token must be removed from model-facing output. No customer email is sent.
+   $8,400 net price and `draft` status. Inspect the saved follow-up: its evidence-grounded
+   text matches the approved message, with the API-owned recipient, canonical terms and
+   draft label. The fake pasted API key and phone must not reach the model. No email is sent.
    Missing or mismatched read-back reports that the draft was saved but verification failed;
    it cannot count as a completed exercise and is not a reason to create another offer.
 
@@ -100,10 +104,11 @@ receiving the link does not grant Riley's authority.
 
 ## Inspect and hand off: 5 minutes
 
-Check the audit and model-facing output. The synthetic activation token, personal phone and
-seeded instruction should be absent, while the legitimate prices remain visible. Switch to Sam and inspect tool discovery; CreateDiscountedOffer should
-be absent. Save the run ID for the [capstone](04-capstone.md), which covers the remaining
-negative cases, policy changes, and evidence collection.
+Check the audit and model-facing output. The fake pasted API key, personal phone and seeded
+instruction should be absent, while prices, renewal date and unresolved issue remain.
+Switch to Sam and inspect tool discovery; CreateDiscountedOffer should be absent. Save the
+run ID for the [capstone hook lab](04-capstone.md), where you add and verify removal of
+`support.internal_owner_email` without changing the agent.
 
 The four segments total **55 minutes**. Fresh-account setup and onsite/remote timing still
 need measurement. Use a declared fallback if someone cannot finish provisioning; do not

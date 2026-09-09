@@ -6,13 +6,15 @@
     "company_domain": "northwindrobotics.example",
     "event_type": "product_usage",
     "occurred_at": "2026-08-27T18:20:00.000Z",
-    "title": "Identity platform adoption",
-    "content": "Northwind uses the identity and access platform for 12 business applications and recorded 85000 successful sign-ins in the last 30 days. Active seats increased from 180 to 220. This shows adoption, but usage alone does not establish a need for a discount.",
+    "title": "Usage decline ahead of renewal",
+    "content": "Northwind recorded 42000 successful sign-ins in the last 30 days, down from 85000 in the prior 30 days. Active seats fell from 220 to 140 while 12 business applications remain connected. This is a renewal-risk signal; its cause is unverified. Compare support history before recommending a response.",
     "metadata": {
       "connected_apps": 12,
-      "successful_signins_30d": 85000,
-      "active_seats": 220,
-      "prior_active_seats": 180
+      "successful_signins_30d": 42000,
+      "prior_successful_signins_30d": 85000,
+      "active_seats": 140,
+      "prior_active_seats": 220,
+      "cause_status": "unverified"
     }
   },
   {
@@ -37,14 +39,14 @@
     "company_domain": "northwindrobotics.example",
     "event_type": "support_conversation",
     "occurred_at": "2026-08-29T20:15:00.000Z",
-    "title": "Budget request for annual renewal",
-    "content": "Northwind states that its annual software budget is 8400 USD against the current 12000 USD annual list price and asks for a 30 percent discount. Finance has not confirmed that cap. The request is supporting context for a manager decision, not an approved concession.",
+    "title": "Unresolved SCIM deprovisioning support case",
+    "content": "Support case CS-1042 remains open: Northwind reports delayed SCIM deprovisioning in its identity platform. The issue is unresolved and an engineering review is pending. The AE should acknowledge the disruption and arrange a support follow-up, without promising a fix or claiming this caused the usage decline.",
     "metadata": {
-      "requested_discount_percent": 30,
-      "stated_annual_budget": 8400,
-      "annual_list_price": 12000,
-      "currency": "USD",
-      "budget_confirmation": "pending"
+      "case_id": "CS-1042",
+      "case_status": "open",
+      "issue": "delayed SCIM deprovisioning",
+      "resolution": "unresolved",
+      "next_step": "engineering review pending"
     }
   },
   {
@@ -55,12 +57,15 @@
     "event_type": "crm_history",
     "occurred_at": "2026-08-30T15:00:00.000Z",
     "title": "Renewal account history",
-    "content": "The identity and access subscription is due for annual renewal on October 31, 2026. Its annual list price is 12000 USD. Northwind values SAML SSO, automated user provisioning, and access audit logs. There is no signed discounted offer; Riley must review any discount beyond the AE limit.",
+    "content": "The active identity and access subscription renews on October 31, 2026 at a 12000 USD annual list price. Northwind states an 8400 USD annual budget and requests a 30 percent discount. Finance has not confirmed that cap. Procurement is reviewing a competing quote. No discounted offer is signed; Riley must review any discount above the AE limit.",
     "metadata": {
       "renewal_date": "2026-10-31",
       "annual_list_price": 12000,
       "term_months": 12,
       "currency": "USD",
+      "stated_annual_budget": 8400,
+      "requested_discount_percent": 30,
+      "budget_confirmation": "pending",
       "discount_approval": "not_granted"
     }
   },

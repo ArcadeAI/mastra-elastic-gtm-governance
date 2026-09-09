@@ -1,6 +1,6 @@
 # Test the workshop
 
-Record a fresh result for the discount scenario. Earlier routing-test counts do not
+Record a fresh result for the at-risk renewal revision. Earlier workshop-test counts do not
 certify this version. Use the local suite to check the implementation, then rehearse the account setup and real
 connections separately. A passing build or four healthy services does not establish a
 working Elastic search, live Slack delivery, or a completed approval loop.
@@ -61,6 +61,7 @@ not transfer to the hosted OAuth callback.
 | Governance probe | Sign in as the separate verification identity, discover its Sales tools, then run `verify-governance` with the observed GetAccount name. | A fresh filtered read and matching authority denial, without a model run, approval request, or Slack send. |
 | Activate | Run `bun run workshop activate`, attendee discovery, governed doctor, then governed seeding. | Normal roles see the intended tools; Sam cannot discover offer creation; the governed fixture loads only after activation. |
 | Full exercise | Use the default governed discount offer as Dana, finish authorization, receive the self-DM, then authenticate as Riley and approve. | Dana's original run continues through Arcade, records one draft offer and verifies it with GetOffer, and returns a cited brief. |
+| Hook lab | Follow capstone: init → fail the empty starter → add support-owner removal → test → apply → gateway verify as Dana. | Local fixture and gateway-read proof are reported separately; owner email is absent while renewal, issue and price remain. |
 
 The governance probe uses a deliberately empty rationale as a second barrier against a
 write if `/pre` is missing. It still requires actual
@@ -76,10 +77,13 @@ settings as separate live observations.
 | Web role login or provider consent | Creates authentication state. Consent alone does not post a message. |
 | `verify-governance` | Calls the gateway for a filtered read and a denied discount-offer probe; creates hook audit evidence. No approval request or Slack call. |
 | `activate` | Changes policy state to enable normal attendee access. |
+| `hook-lab init` / `test` | Writes the local starter file / tests the real local filter. No cloud call, model, offer or message. |
+| `hook-lab apply` | Updates your hooks service's policy while preserving existing controls. No offer or message. |
+| `hook-lab verify` | Executes GetAccount through your gateway as Dana. Read-only; no model or Slack call. |
 | Supplied or Elastic **Run your agent** | Uses the configured model; Elastic mode also executes selected read tools. |
 | Governed **Run your agent** | Can request approval and send a real self-DM immediately after Arcade denies the discount. This happens before **Approve exact action**. |
 | **Retry Slack notification** after consent | Can deliver the saved request to the authorized self-DM. Check its existing delivery state first. |
-| Riley's **Approve exact action** | Records the decision and starts continuation of Dana's original action through Arcade. A successful action saves a draft offer and activation email in the account fixture. |
+| Riley's **Approve exact action** | Records the decision and starts continuation of Dana's original action through Arcade. A successful action saves a draft offer and follow-up email in the account fixture. |
 | `seed` or `reset` | Changes fixture/service state. Reset removes extra documents from the dedicated index and clears exercise history. |
 | `capstone --run-id ...` | Reads an existing run and evidence; starts no agent and sends no message. |
 
@@ -93,18 +97,20 @@ For a check that stops before Slack, finish the governance probe and inspect its
 Do not click the governed Run or notification continuation controls. An ambiguous Slack
 send must not be retried automatically; inspect the saved delivery state before recovery.
 
-The customer-facing artifacts stay local: the saved offer has `status: "draft"`, and its
-activation email is a draft. The agent must call `GetOffer` and verify $12,000 list price,
-30% discount and $8,400 net price. Its model-facing result must omit the synthetic
-activation token from provisioning and the email body/field. No customer email or signature
-request is sent by this exercise.
+The offer has `status: "draft"`, and `follow_up_email` remains a local draft. Its required
+`customer_message` should acknowledge declining usage and open SCIM deprovisioning delays,
+without asserting an unverified cause or fix date. Riley reviews that text with the terms.
+The API owns the recipient and appends canonical prices and the draft label. The model
+must not receive `support.api_key`, its fake key string or the synthetic personal phone.
+No customer email or signature request is sent.
 
 Configure `ARCADE_GET_OFFER_TOOL_NAME` from discovery. Completion requires its successful
-call after the write, matching the saved offer ID, account, discount, list price, net price
-and draft status. A missing, failed or mismatched read reports the saved offer and failed
+call after the write, matching the saved offer ID, account, discount, list price, net price,
+draft status and exact nonblank follow-up recipient/subject/body. A missing, failed or mismatched read reports the saved offer and failed
 verification, without claiming completion or creating another draft. Inspect the actual
 tool call and returned terms. Local connected tests use a scripted model; record a separate
-live-model run before claiming that behavior works in the demo.
+live-model run before claiming that behavior works in the demo. Check the actual customer
+message for evidence and uncertainty; matching saved text alone does not establish its quality.
 
 ## Complete and record the live exercise
 

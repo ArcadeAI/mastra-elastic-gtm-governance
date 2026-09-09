@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createDiscountedOffer, getAccount, getOperation, openSalesStore } from "../src/db";
 
-const action = { operation_key:"persisted-offer",actor:"dana@example.test",account_id:"ACC-2291",body:{discount_percent:30,list_price:12000,rationale:"Annual account renewal."} };
+const action = { operation_key:"persisted-offer",actor:"dana@example.test",account_id:"ACC-2291",body:{discount_percent:30,list_price:12000,rationale:"Annual account renewal.",customer_message:"Your support case remains open. We will share progress as available."} };
 
 test("draft storage failure rolls the entire offer transaction back", () => {
   const db = openSalesStore(":memory:");

@@ -16,6 +16,10 @@ bun scripts/workshop.ts discover --identity verification
 bun scripts/workshop.ts hook-tools
 bun scripts/workshop.ts verify-governance --read-tool EXACT_GET_ACCOUNT_NAME
 bun scripts/workshop.ts activate
+bun scripts/workshop.ts hook-lab init --output .workshop/renewal-rule.json
+bun scripts/workshop.ts hook-lab test --file .workshop/renewal-rule.json
+bun scripts/workshop.ts hook-lab apply --file .workshop/renewal-rule.json
+bun scripts/workshop.ts hook-lab verify --read-tool EXACT_GET_ACCOUNT_NAME
 bun scripts/workshop.ts seed --variant clean
 bun scripts/workshop.ts seed --variant governed
 bun scripts/workshop.ts capstone --run-id EXISTING_RUN_ID
@@ -36,10 +40,13 @@ the response. Discovery never calls a tool or guesses names from descriptions.
 | Governed readiness | Elastic values, exact offer write and read-back tool names, `ARCADE_ELASTIC_HOOK_TOOLS`, service addresses and separate tokens, persistent `MASTRA_DB_URL`, web OAuth/session settings, four persona emails, verification identity |
 | Verification discovery/probe | Arcade key/gateway, `WORKSHOP_VERIFICATION_USER_ID`; probe additionally requires observed CreateDiscountedOffer and GetAccount names, hooks address and operator token |
 | Activate | Hooks address and operator token; the latest complete `verify-governance` attempt must have passed |
+| Hook lab init/test | Local rule path; real filter and renewal fixture, no service credentials |
+| Hook lab apply | Local rule path, hooks address and operator token; current policy is preserved |
+| Hook lab verify | Arcade key/gateway, Dana identity and Sales consent, exact observed GetAccount name |
 | Clean seed | `ELASTICSEARCH_URL`, `ELASTIC_API_KEY`, optional `ELASTIC_GTM_INDEX` (default `gtm-account-context`) |
 | Governed seed | Clean seed values plus `HOOKS_PUBLIC_HOST`, `WORKSHOP_OPERATOR_TOKEN`; policy must already be active with verified denial and filter flags |
 | Reset | Elastic setup values, hooks/web/IdP/account-service addresses, `WORKSHOP_OPERATOR_TOKEN`, `LEAD_INTERNAL_TOKEN` |
-| Capstone | Hooks/account-service addresses, operator/internal account tokens, Dana/Riley emails, exact Elastic MCP and hook identities, exact discount MCP name; live also requires gateway configuration |
+| Capstone | Hooks/account-service addresses, operator/internal account tokens, Dana/Riley emails, exact Elastic MCP and hook identities, exact discount and GetOffer MCP names; live also requires gateway configuration |
 
 Service addresses are `HOOKS_PUBLIC_HOST`, `LEAD_APP_PUBLIC_HOST`, `IDP_PUBLIC_HOST`, and
 `WEB_PUBLIC_ORIGIN`. They accept complete HTTP(S) URLs or bare hosts. An optional
@@ -78,6 +85,21 @@ empty rationale as a second guard against writes if the pre hook is missing.
 The command creates no approval and sends no Slack message. Pending consent URLs appear
 in `authorizationUrls`; open them as the setup identity and rerun the same command.
 
+`hook-lab` is the attendee's later output-filter exercise. Init writes an incomplete
+`renewal-contact-redaction` rule scoped to Sales.GetAccount. Add removal of
+`support.internal_owner_email`, then test against the real local filter and renewal fixture.
+Apply validates the candidate and preserves existing policy through the operator API.
+Verify uses Dana's actual gateway GetAccount call and reports a separate gateway-read proof;
+it preserves the unresolved support issue, renewal and price. No lab command runs a model,
+saves an offer or sends Slack. See the [capstone](../docs/modules/04-capstone.md#write-one-output-hook)
+for the exact rule edit and expected failing/passing checks.
+
+Hook-lab init returns `status: "guide"`; successful test, apply and verify return
+`status: "passed"`. Check `proof_scope`: `local_fixture`, `policy_update` or
+`gateway_read`. Verify also reports `connection_scope: "local" | "remote"`.
+These bounded reports keep `live_proof: false`; they do not certify the full renewal run.
+Apply reports `changed: false` without a policy write when the same rule is already saved.
+
 Reset calls hooks first, passes its `reset_epoch` to the web storage owner, then resets
 the account service, IdP, and Elastic. It stops at the first failed acknowledgement and reports prior
 completed owners. Retrying after repair is supported. Hooks refuses active writers. Web
@@ -97,7 +119,8 @@ earlier discount denial in the run cannot substitute for it.
 It saves `run.json`, `gateway-audit.json`, `approval.json`, and `operation-receipt.json` with
 the same correlation IDs. `manifest.json` lists their SHA256 hashes and all boundary checks.
 The operation artifact contains the receipt fingerprint instead of its original free-text
-body. Fixture activation-token/phone/instruction markers are removed from retained artifacts.
+body. The bound body includes the exact customer_message. Fixture pasted-key/phone/instruction
+markers are removed from retained artifacts.
 
 Use `--output DIRECTORY` to select the artifact directory, or set
 `WORKSHOP_EVIDENCE_DIR`; its default is `.workshop-evidence`, with one subdirectory per run.
@@ -108,9 +131,10 @@ execution or the remote Slack receipt, so **live capstone remains incomplete** u
 boundaries can be verified. Local controlled tests and workshop timing are explicitly
 excluded. The collector does not run an agent, send a message, or create an approval.
 
-Exit code 0 accompanies successful `guide`, `configured`, `inventory`, `observed`, `activated`, `seeded`, `reset`, or
-non-live `passed` results. Missing, failed, partial, unexercised live, and degraded results
-exit 1. Always inspect the status and checks, not the exit code alone.
+Check the process exit code together with the report's status and checks. A local fixture
+pass and a gateway-read pass establish different things; neither can be substituted for
+the other. Missing, failed, partial, unexercised live and degraded results are not complete
+workshop proof.
 
 ## Local proof
 
@@ -124,6 +148,6 @@ test-only environments. Controlled HTTP servers stand in for the external gatewa
 Elasticsearch, and service endpoints; the actual installed MCP client performs discovery.
 No external messages, agent executions, deployments, or cloud fixture writes occur.
 
-Current results must be recorded for the discount-offer revision. Earlier operator and
-routing-test counts are historical; use [Testing](../docs/TESTING.md) and
+Current results must be recorded for this renewal revision. Earlier operator and
+discount-test counts are historical; use [Testing](../docs/TESTING.md) and
 [historical verification](../docs/LOCAL-VERIFICATION.md) without relabeling those results.
