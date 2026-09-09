@@ -156,3 +156,19 @@ jobs:
           echo "::error::${{ matrix.service }} did not answer /health"
           docker logs svc
           exit 1
+
+      # /health does not load the agent/session dependency graph. This route
+      # catches missing ESM or native packages in the isolated Node image.
+      - name: Web session route loads without credentials
+        if: matrix.service == 'web'
+        run: |
+          docker exec svc node -e '
+            const assert = require("node:assert/strict");
+            (async () => {
+              const host = process.env.HOSTNAME || "127.0.0.1";
+              const response = await fetch(`http://${host}:8080/api/session`);
+              assert.equal(response.status, 200);
+              assert.match(response.headers.get("content-type"), /application\/json/);
+              assert.deepEqual(await response.json(), { session: null, configured: false, demoMode: false, roles: {} });
+            })().catch(error => { console.error(error); process.exit(1); });
+          ' || { docker logs svc; exit 1; }

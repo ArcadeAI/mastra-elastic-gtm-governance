@@ -1,7 +1,7 @@
 # Local verification
 
-Checked 2026-09-08. This records local implementation evidence. No live Slack message,
-cloud deployment, real CRM write, or prospect outreach was performed.
+Checked 2026-09-08. This records local implementation and deployment evidence. No live
+Slack message, complete cloud agent run, real CRM write, or prospect outreach was performed.
 
 Final local results: **517 Bun tests passed with 1,853 assertions; 20 Python Lead tests
 and 27 Python Approvals tests passed.** Typechecks, production build, generated contract
@@ -11,9 +11,23 @@ Both final independent Claude/Opus reviews approved with no blocking findings: t
 connected runtime and the safe expired-approval error-message correction. Remaining
 deployment and live-integration checks are listed below.
 
-Render CLI 2.26.0 is installed and authenticated. API-backed Blueprint validation returned
-`valid: true` for all four services in the deployment workspace. Validation creates no
-resources. Container startup and the complete cloud workflow remain separate checks.
+The [published revision's CI](https://github.com/ArcadeAI/mastra-elastic-gtm-governance/actions/runs/34299055152)
+passed all six jobs, including all four Docker image builds and boot health checks. The
+Bun test job installs both locked Python MCP environments before its connected tests.
+
+Render accepted the Blueprint configuration. Four services were then created through its
+services API, with separate 1 GB persistent disks, one Oregon instance each, and automatic
+deployments disabled. These services are managed individually. All four public `/health`
+endpoints returned HTTP 200, and their configured environment references were verified.
+The persistent IdP web client is configured on the web service. Model credentials and
+Arcade/Elastic registration remain separate setup steps.
+
+Live API smoke exposed a packaging gap that `/health` did not exercise: a Bun-built
+standalone tree omitted Mastra's `ws` dependency. An isolated Node 22 reproduction also
+identified an untraced native LibSQL package. The Docker builder now runs Next under
+Node 22, with explicit tracing for LibSQL's installed native files. The web image's CI
+smoke requests `/api/session` and checks its JSON response without any service credentials.
+That checks the complete route's dependency graph before deployment.
 
 ## What ran
 
@@ -41,12 +55,7 @@ the local contract, not the quality of a live model's research.
   fail-closed behavior, and the same gateway's model-facing tool results.
 - Authorized Slack self-DM in the workshop workspace, real account consent, approval link,
   and the full cloud resume under the original requester.
-- Render deployment and Node 22 Alpine native LibSQL packaging. The YAML was checked
-  against Render's schema documentation, parsed locally, and accepted by Render's live
-  validation API in Arcade AI General; no Docker daemon was available
-  for the container build/runtime check. CI contains all four image build and health lanes.
-- Deploy a committed revision from the public workshop repository and record the exact
-  deployed commit with the rehearsal evidence.
+- Record the final deployed revision and live OAuth result with the rehearsal evidence.
 - Fresh-machine and fresh-account rehearsal, model-credential distribution, organizer
   workspace invite, and the planned 55 minutes for each partner.
 

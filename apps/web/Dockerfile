@@ -2,10 +2,11 @@
 # Build context is the repo root — Bun workspaces need the root manifest and
 # lockfile to link `packages/*`.
 #
-# Built with Bun (for workspace linking) and served on Node, because that is
-# what Next.js's standalone server targets.
+# Dependencies use Bun for workspace linking. Next builds and serves on Node,
+# which is the runtime its standalone server targets.
 
-FROM oven/bun:1.3.14-alpine AS builder
+FROM node:22-alpine AS builder
+COPY --from=oven/bun:1.3.14-alpine /usr/local/bin/bun /usr/local/bin/bun
 WORKDIR /app
 
 COPY package.json bun.lock tsconfig.base.json ./
@@ -19,7 +20,9 @@ COPY apps/web ./apps/web
 RUN bun install --frozen-lockfile
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN cd apps/web && bun run build
+# Next's dependency tracer must use the same Node runtime as the server.
+# Running the build under Bun omits ESM dependencies from standalone output.
+RUN cd apps/web && node node_modules/next/dist/bin/next build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
