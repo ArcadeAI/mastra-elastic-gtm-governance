@@ -31,6 +31,15 @@ jobs:
       - name: Install apps/idp
         run: bun install --frozen-lockfile --cwd apps/idp
 
+      - uses: astral-sh/setup-uv@v6
+
+      # The Bun integration tests launch the real Python MCP servers from each
+      # toolkit's .venv. CI jobs do not share the Python job's environments.
+      - name: Install Python MCP test dependencies
+        run: |
+          uv sync --frozen --extra dev --directory tools/lead
+          uv sync --frozen --extra dev --directory tools/approvals
+
       - name: Typecheck
         run: bun run typecheck
 
