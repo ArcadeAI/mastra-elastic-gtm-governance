@@ -11,7 +11,9 @@ observed tool names and response in [Testing](../TESTING.md).
 
 Your own Elastic project contains the account evidence missing from the starter's answer.
 Investigate the same question in Elastic: **“What puts Northwind's renewal at risk, and what should we verify before offering the requested 30% discount?”** Save the source event IDs and native answer. In the Arcade section,
-your Mastra agent will retrieve those same events through the gateway.
+your Mastra agent will retrieve those same events through Arcade when the remote tools are
+federated. The runtime also supports the native read-only MCP endpoint as a fallback when
+the gateway catalog does not expose remote definitions.
 
 ## Build together
 
