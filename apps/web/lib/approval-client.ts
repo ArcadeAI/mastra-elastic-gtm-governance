@@ -13,7 +13,7 @@ const publicApprovalSchema = z.object({
 });
 export type PublicApproval = z.infer<typeof publicApprovalSchema>;
 export type ApprovalClientResult = { approval: PublicApproval; authorizationUrls: string[] };
-export type ApprovalClientConfig = { hooksHost: string; serviceToken: string; arcadeKey: string; arcadeBaseUrl?: string; slackBaseUrl?: string };
+export type ApprovalClientConfig = { hooksHost: string; serviceToken: string; arcadeKey: string; arcadeBaseUrl?: string; slackBaseUrl?: string; slackSignature?: string };
 export interface ApprovalClient {
   request(runId: string, requesterId: string): Promise<ApprovalClientResult>;
   notify(requestId: string, requesterId: string): Promise<ApprovalClientResult>;
@@ -148,12 +148,14 @@ export function createApprovalClient(config: ApprovalClientConfig): ApprovalClie
     if (!claim.data.claim_id) return result(view(await service(`${path}/delivery?requester_id=${encodeURIComponent(requesterId)}`)));
     const receipt: Record<string, unknown> = { requester_id: requesterId, claim_id: claim.data.claim_id };
     const display = view(approval);
-    const message = { channel, text: `Workshop approval ${display.request_id}: ${display.requester_name} requests ${display.approver_name}'s review.`, unfurl_links: false, unfurl_media: false, mrkdwn: false, blocks: [
+    const signature = (scrub(config.slackSignature?.trim() ?? "") as string).slice(0, 1900);
+    const message = { channel, text: `Workshop approval ${display.request_id}: ${display.requester_name} requests ${display.approver_name}'s review.${signature ? `\n\n${signature}` : ""}`, unfurl_links: false, unfurl_media: false, mrkdwn: false, blocks: [
       { type: "header", text: text("Workshop approval request") },
       { type: "section", fields: [text(`Account executive: ${display.requester_name}`), text(`Assigned approver: ${display.approver_name}`), text(`Action: ${display.tool_name}`), text(`Account: ${display.resource_id ?? "None"}`), text(`Requested discount: ${display.required_clearance.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`), text(`Operation: ${display.operation_key}`)] },
       { type: "section", text: text(`Requested action details (display copy):\n${JSON.stringify(display.inputs)}`) },
       { type: "actions", elements: [{ type: "button", text: text("Review request"), url: display.approval_url }] },
       { type: "context", elements: [text("Solo workshop: this self-DM is delivery only. Sign in as the assigned demo approver to decide.")] },
+      ...(signature ? [{ type: "section", text: text(signature) }] : []),
     ] };
     try {
       const posted = await slackCall(auth.token, "chat.postMessage", message);

@@ -72,6 +72,9 @@ Copy `.env.example` to `.env` once. Set `PERSONA_DANA_EMAIL` to your actual Arca
 email before starting IdP. Keep Riley, Sam, Morgan, and the verification identity at their
 separate supplied addresses. Use `WORKSHOP_SOLO_SLACK=true`; set `WORKSHOP_SLACK_TEAM_ID`
 if delivery should be restricted to the workshop workspace.
+Optionally set `WORKSHOP_SLACK_SIGNATURE` on the web service to your own host or agent
+attribution. It appears in the Slack message and its fallback text; leaving it empty
+adds no signature.
 
 Generate a different random value for each of `ARCADE_HOOK_SECRET`, `LEAD_INTERNAL_TOKEN`,
 `APPROVALS_SERVICE_TOKEN`, `WEB_SERVICE_TOKEN`, `WORKSHOP_OPERATOR_TOKEN`,

@@ -14,7 +14,7 @@ function required(name: string) {
   return value;
 }
 const hooks = () => new HooksClient(required("HOOKS_PUBLIC_HOST"), required("WEB_SERVICE_TOKEN"));
-const approvals = () => createApprovalClient({ hooksHost: required("HOOKS_PUBLIC_HOST"), serviceToken: required("APPROVALS_SERVICE_TOKEN"), arcadeKey: required("ARCADE_API_KEY") });
+const approvals = () => createApprovalClient({ hooksHost: required("HOOKS_PUBLIC_HOST"), serviceToken: required("APPROVALS_SERVICE_TOKEN"), arcadeKey: required("ARCADE_API_KEY"), slackSignature: process.env.WORKSHOP_SLACK_SIGNATURE ?? "" });
 let storage: LibSQLStore | undefined;
 function snapshots() { return storage ??= new LibSQLStore({ id: "workshop-agent", url: required("MASTRA_DB_URL") }); }
 function runtime(stage: Stage) {

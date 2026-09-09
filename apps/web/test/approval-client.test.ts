@@ -113,6 +113,33 @@ test("consent completion delivers one self-DM through a concurrent retry", async
   expect(JSON.stringify(result)).not.toContain(slackToken);
 });
 
+test.each(["~ 🕷️ Anansi, Thierry's Agent", "~ Renewal workshop agent"])("self-DM includes configured signature %s in fallback text and its final visible block", async (signature) => {
+  const { config, state } = await fixture();
+  const client = createApprovalClient({ ...config, slackSignature: signature });
+  state.authorized = true;
+  const result = await client.request("local-run", dana);
+  expect(result.approval.notification_status).toBe("sent");
+  expect(state.posts).toHaveLength(1);
+  const message = state.posts[0]!;
+  expect(message.text.endsWith(`\n\n${signature}`)).toBe(true);
+  expect(message.blocks.at(-1)).toEqual({
+    type: "section", text: { type: "plain_text", text: signature },
+  });
+});
+
+test("self-DM has no host attribution when the signature is not configured", async () => {
+  const { client, state } = await fixture();
+  state.authorized = true;
+  const result = await client.request("local-run", dana);
+  expect(result.approval.notification_status).toBe("sent");
+  expect(state.posts).toHaveLength(1);
+  const message = state.posts[0]!;
+  expect(message.text).toBe(`Workshop approval ${result.approval.request_id}: ${result.approval.requester_name} requests ${result.approval.approver_name}'s review.`);
+  expect(message.blocks.at(-1)).toEqual({
+    type: "context", elements: [{ type: "plain_text", text: "Solo workshop: this self-DM is delivery only. Sign in as the assigned demo approver to decide." }],
+  });
+});
+
 test("authorization failure retains the created approval for snapshot persistence", async () => {
   const { client, state } = await fixture();
   state.authFailure = 403;
