@@ -49,6 +49,7 @@ export function createSessions(config: SessionConfig) {
   const cookie = (name: string, value: string, seconds = 3600) => `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${seconds}${origin.startsWith("https:") ? "; Secure" : ""}`;
   async function userinfo(token: string) {
     const response = await fetch(`${idp}/oauth2/userinfo`, { headers: { authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(10_000) });
+    if (response.status === 429) throw new ServiceError("Identity checks are temporarily rate limited. Wait a minute, then retry.", 429);
     if (!response.ok) throw new ServiceError("Your sign-in expired. Sign in again.", 401);
     return z.object({ email: z.string().email() }).parse(await response.json());
   }

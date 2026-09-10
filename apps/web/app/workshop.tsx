@@ -46,10 +46,18 @@ export function Workshop({ approvalId }: { approvalId?: string }) {
   }, []);
   useEffect(() => {
     if (!session || (!runId && !approvalId)) return;
-    void refresh().catch((cause) => setError(cause.message));
-    const timer = setInterval(() => void refresh().catch((cause) => setError(cause.message)), 5000);
-    return () => clearInterval(timer);
-  }, [session, runId, approvalId]);
+    if (run?.status === "completed" || ["denied", "expired"].includes(approval?.status)) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout>;
+    async function poll() {
+      let delay = 5000;
+      try { if (document.visibilityState === "visible") await refresh(); }
+      catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); delay = 60_000; }
+      if (!stopped) timer = setTimeout(poll, delay);
+    }
+    void poll();
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [session, runId, approvalId, run?.status, approval?.status]);
   async function perform(action: () => Promise<void>) { setBusy(true); setError(""); setAuthUrls([]); try { await action(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); } }
   async function submit() { const next = await api("/api/agent", { stage, message }); setResult(next); if (next.approval) setApproval(next.approval); if (next.runId) rememberRun(next.runId); }
   async function notify() { const next = await api(`/api/approvals/${encodeURIComponent(approval.request_id)}/notify`, {}); setApproval(next.approval); await refresh(); }

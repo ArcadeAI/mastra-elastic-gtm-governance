@@ -164,3 +164,19 @@ test("Arcade verification without a session preserves the callback in sign-in li
   expect(body).toContain("preserve-this-flow");
   expect(body).toContain("persona=dana");
 });
+
+test("identity rate limiting stays distinct from an expired session", async () => {
+  const browser = new OAuthBrowser();
+  await browser.login(base, "dana", emails.dana, "dana-demo-2026");
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = ((input: any, init: any) => {
+    const address = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (new URL(address).pathname === "/oauth2/userinfo") return Promise.resolve(new Response(null, { status: 429 }));
+    return originalFetch(input, init);
+  }) as typeof fetch;
+  try {
+    const response = await browser.fetch(`${base}/api/session`);
+    expect(response.status).toBe(429);
+    expect((await response.json()).error).toContain("rate limited");
+  } finally { globalThis.fetch = originalFetch; }
+});
