@@ -11,6 +11,7 @@ type Session = { persona: string; email: string; csrf: string };
 
 export function Workshop({ approvalId }: { approvalId?: string }) {
   const [stage, setStage] = useState<Stage>(approvalId ? "governed" : "supplied");
+  const [sessionReady, setSessionReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [roles, setRoles] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string>(stages[0].prompt);
@@ -37,11 +38,11 @@ export function Workshop({ approvalId }: { approvalId?: string }) {
   }
   useEffect(() => {
     const query = new URLSearchParams(location.search);
-    const pendingId = query.get("run") ?? localStorage.getItem("workshop-pending-run");
+    const pendingId = approvalId ? null : query.get("run") ?? localStorage.getItem("workshop-pending-run");
     setRunId(pendingId);
     const selected = stages.find((item) => item.id === query.get("stage")) ?? (pendingId || approvalId ? stages[2] : stages[0]);
     setStage(selected.id); setMessage(selected.prompt);
-    fetch("/api/session").then((response) => response.json()).then((data) => { setSession(data.session); setRoles(data.roles ?? {}); }).catch((cause) => setError(String(cause)));
+    fetch("/api/session").then((response) => response.json()).then((data) => { setSession(data.session); setRoles(data.roles ?? {}); }).catch((cause) => setError(String(cause))).finally(() => setSessionReady(true));
   }, []);
   useEffect(() => {
     if (!session || (!runId && !approvalId)) return;
@@ -60,6 +61,49 @@ export function Workshop({ approvalId }: { approvalId?: string }) {
     await refresh();
   }
   function login(persona: string) { const query = new URLSearchParams(location.search); query.set("stage", "governed"); if (runId) query.set("run", runId); const returnTo = `${location.pathname}?${query}`; location.href = `/auth/login?persona=${persona}&returnTo=${encodeURIComponent(returnTo)}`; }
+  if (approvalId) {
+    const reviewerRole = approval ? Object.keys(roles).find(role => roles[role] === approval.approver_id) : "riley";
+    const reviewerName = approval?.approver_name ?? "Riley";
+    const canDecide = session?.email === approval?.approver_id;
+    const inputs = approval?.inputs;
+    const price = inputs?.list_price;
+    const discount = inputs?.discount_percent;
+    const money = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+    const returnLink = runId ? `/?stage=governed&run=${encodeURIComponent(runId)}` : "/?stage=governed";
+    return <main className="workshop-shell review-shell">
+      <header className="workshop-header"><p className="eyebrow">MASTRA × ELASTIC × ARCADE</p><h1>Review renewal request</h1><p>Review the exact discount and customer follow-up before the agent saves them.</p></header>
+      {!sessionReady ? <p role="status">Checking sign-in…</p> : !session ? <section className="workshop-card">
+        <h2>Sign in as Riley to review</h2><p>This workshop uses Riley as the manager. Sign in to see the request and make a decision. You’ll return to this page.</p>
+        {roles.riley && <button onClick={() => login("riley")}>Sign in as Riley</button>}
+        {!roles.riley && <p>The reviewer login is unavailable. Ask the workshop host to check identity setup.</p>}
+      </section> : <>
+        <p className="review-identity">Signed in as {session.persona} · {session.email}</p>
+        {!approval && !error && <p role="status">Loading this request…</p>}
+        {approval && <>
+          <section className="workshop-card review-section"><div className="review-heading"><h2>{approval.resource_id}</h2><span className="review-status">{approval.status}</span></div>
+            <p>{approval.requester_name} requested approval from {reviewerName}.</p>
+            <dl className="review-terms"><div><dt>Discount</dt><dd>{discount}%</dd></div><div><dt>Annual list price</dt><dd>{typeof price === "number" ? money(price) : "Unavailable"}</dd></div><div><dt>Annual offer</dt><dd>{typeof price === "number" && typeof discount === "number" ? money(Math.round(price * (1 - discount / 100) * 100) / 100) : "Unavailable"}</dd></div></dl>
+            <p className="review-draft-note">The offer and customer email stay drafts. Approval does not send an email.</p>
+          </section>
+          <section className="workshop-card review-section"><h2>Why this discount was requested</h2><pre className="review-copy">{inputs.rationale}</pre></section>
+          <section className="workshop-card review-section"><h2>Customer follow-up draft</h2><pre className="review-copy">{inputs.customer_message}</pre><p>The account system adds the recipient and exact annual terms when saving.</p></section>
+          <section className="workshop-card review-section" aria-label="Decision">
+            {approval.status === "pending" ? <>
+              <h2>{canDecide ? "Your decision" : `Sign in as ${reviewerName} to decide`}</h2>
+              <p>Approval applies to these exact terms and this exact message. Any changes require a new request.</p>
+              {!canDecide && reviewerRole && <button onClick={() => login(reviewerRole)}>Sign in as {reviewerName}</button>}
+              {canDecide && <><div className="button-row"><button disabled={busy || approval.notification_status !== "sent"} onClick={() => perform(() => decide("approve"))}>{busy ? "Working…" : "Approve exact action"}</button><button className="secondary" disabled={busy || approval.notification_status !== "sent"} onClick={() => perform(() => decide("deny"))}>Deny request</button></div>{approval.notification_status !== "sent" && <p>Slack delivery is not confirmed. The requester must resolve delivery before this request can be approved.</p>}</>}
+            </> : <><h2>Request {approval.status}</h2><p>{approval.status === "approved" ? run?.status === "completed" ? "The agent saved the approved draft and verified it. This request is complete." : "Approval is recorded. The original agent action continues with these exact terms." : "This request will not authorize the agent to save the draft."}</p>
+              {approval.status === "approved" && run?.status === "waiting" && <button disabled={busy} onClick={() => perform(async () => { setResult(await api(`/api/runs/${runId}/resume`, {})); await refresh(); })}>Continue approved action</button>}
+              {run?.error && <p className="error-message" role="alert">{run.error}</p>}
+            </>}
+          </section>
+        </>}
+      </>}
+      {error && <div className="error-message" role="alert"><p>{error}</p>{session && <button className="secondary" disabled={busy} onClick={() => perform(refresh)}>Retry loading request</button>}</div>}
+      <p><a href={returnLink}>Return to your workshop</a></p>
+    </main>;
+  }
   return <main className="workshop-shell">
     <header className="workshop-header"><p className="eyebrow">MASTRA × ELASTIC × ARCADE</p><h1>Your renewal agent, connected.</h1><p>Review the account. Propose renewal terms. Get the right approval.</p></header>
     <nav className="stage-nav" aria-label="Workshop stages">{stages.map((item) => <button key={item.id} className={stage === item.id ? "selected" : ""} onClick={() => { setStage(item.id); setMessage(item.prompt); setTools([]); }}><small>{item.hint}</small>{item.label}</button>)}</nav>
