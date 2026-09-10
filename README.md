@@ -20,6 +20,8 @@ signature envelope or real customer account.
 Built on [Arcade's contextual governance workshop](https://github.com/ArcadeAI/mastra-contextual-governance),
 with native Elastic evidence and one attendee-owned gateway.
 
+**Partner review:** [brief and agenda](docs/PARTNER-BRIEF.md), [current readiness](docs/PARTNER-READINESS.md), and [rehearsal worksheet](docs/REHEARSAL.md).
+
 ## Follow the workshop
 
 Each attendee keeps their own agent and gateway throughout. Each partner has **55 minutes,

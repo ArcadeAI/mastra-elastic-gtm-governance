@@ -48,7 +48,10 @@ attendee's real Arcade account; Riley, Sam and Morgan remain distinct OAuth iden
 The approval link grants no authority. Riley's decision sends the signed-in IdP token to
 hooks for independent validation; the resumed action still runs through Arcade as Dana.
 The custom Arcade verifier is `WEB_PUBLIC_ORIGIN/auth/arcade/verify`. Stock Slack keeps
-Arcade's normal project-member verification.
+Arcade's normal project-member verification. The verifier checks the returned authorization
+ID through `/v1/auth/status`; identity confirmation alone never displays completion.
+`/auth/arcade/status` checks status without repeating confirmation, and rejects a
+status response belonging to another signed-in identity.
 
 The setup identity signs in at `/auth/login?persona=verification` with
 `WORKSHOP_VERIFICATION_USER_ID` and `verification-demo-2026`. It is absent from the normal

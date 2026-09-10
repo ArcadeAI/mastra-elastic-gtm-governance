@@ -29,13 +29,13 @@ sequence; [Testing](../TESTING.md) records the checkpoints and live rehearsal li
 4. Select **Connect evidence** and **Run your agent** with the saved Northwind question.
    Compare at least two source IDs with your Module 2 notes and inspect the tool trace.
 
-**Checkpoint:** the same agent now cites real Elastic results. When the gateway lists the
-remote server's tools, it uses them through Arcade. If your gateway exposes only Arcade's
-static tools, set `ELASTIC_MCP_URL` to the native `/api/agent_builder/mcp` endpoint and
-`ELASTIC_MCP_API_KEY` server-side; Mastra keeps that read-only Elastic connection in the
-same MCP client while Sales remains on Arcade. Keep
-this fixture clean and the catalog limited to Elastic until the governed setup is ready.
-The Elastic presenter does not configure Arcade, and you do not deploy an Elastic toolkit.
+**Checkpoint:** the same agent cites real Elastic results through Arcade. If tools appear
+in Arcade's server catalog but are absent from the gateway, inspect the access hook's
+observed tools and `ARCADE_ELASTIC_HOOK_TOOLS` configuration. Unknown tools are hidden by
+our policy. Configure only the observed read tools and redeploy hooks before retrying.
+Never bypass the gateway to make this checkpoint pass. Keep the fixture clean until
+the governed setup is verified. The Elastic presenter does not configure Arcade, and
+you do not deploy an Elastic toolkit.
 
 ## Add one custom toolkit and its controls: 20 minutes
 

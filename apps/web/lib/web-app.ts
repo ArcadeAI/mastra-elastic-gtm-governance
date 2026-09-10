@@ -1,3 +1,4 @@
+import { verifyArcade } from "./arcade-verification";
 import { z } from "zod";
 import { createRuntime, type Stage } from "./agent-runtime";
 import { createSessions, type SessionConfig } from "./session";
@@ -12,6 +13,7 @@ export interface WebAppOptions {
   arcadeKey: () => string;
   approvals?: () => ApprovalClient;
   confirmUrl?: string;
+  authStatusUrl?: string;
   operatorToken?: () => string;
   resetSnapshots?: (resetEpoch: number) => Promise<{ deleted_snapshots: number }>;
 }
@@ -53,12 +55,8 @@ export function createWebApp(options: WebAppOptions) {
       if (path === "/auth/login" && request.method === "GET") return sessions().login(request);
       if (path === "/auth/callback" && request.method === "GET") return await sessions().callback(request);
       if (path === "/auth/logout" && request.method === "POST") { await requireSession(true); return sessions().logout(); }
-      if (path === "/auth/arcade/verify" && request.method === "GET") {
-        const session = await requireSession(); const flowId = z.string().min(1).max(500).parse(url.searchParams.get("flow_id"));
-        if (url.searchParams.has("user_id") && url.searchParams.get("user_id") !== session.email) throw new ServiceError("Sign in as the identity requesting Arcade authorization.", 403);
-        const response = await fetch(options.confirmUrl ?? "https://cloud.arcade.dev/api/v1/oauth/confirm_user", { method: "POST", headers: { authorization: `Bearer ${options.arcadeKey()}`, "content-type": "application/json" }, body: JSON.stringify({ flow_id: flowId, user_id: session.email }), signal: AbortSignal.timeout(15_000) });
-        if (!response.ok) throw new ServiceError("Arcade could not verify this signed-in identity. Retry authorization in the matching role.", 403);
-        return Response.json({ verified: true, message: "Identity verified. Return to the workshop and retry the pending action." });
+      if (["/auth/arcade/verify", "/auth/arcade/status"].includes(path) && request.method === "GET") {
+        return await verifyArcade(request, options.session(), options.arcadeKey(), options);
       }
       if (path === "/api/session" && request.method === "GET") {
         // Earlier stages can render even before identity configuration exists.

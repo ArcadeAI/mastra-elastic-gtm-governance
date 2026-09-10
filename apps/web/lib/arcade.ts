@@ -19,7 +19,7 @@ export function createArcadeClient(userId: string): MCPClient {
     throw new Error("The workshop user must resolve to an email address.");
   }
 
-  const servers: Record<string, any> = {
+  const servers = {
     arcade: {
       url: new URL(`https://${ARCADE_HOST}/mcp/${gateway}`),
       allowedHosts: [ARCADE_HOST],
@@ -32,22 +32,6 @@ export function createArcadeClient(userId: string): MCPClient {
       },
     },
   };
-  // The current Arcade remote-MCP gateway exposes the remote Elastic catalog in
-  // the project picker but does not yet federate those definitions over MCP.
-  // Keep the attendee flow one client and one agent while using the same
-  // read-only Elastic MCP server as a second server until federation is fixed.
-  const elasticUrl = process.env.ELASTIC_MCP_URL?.trim();
-  const elasticKey = process.env.ELASTIC_MCP_API_KEY?.trim();
-  if (elasticUrl && elasticKey) {
-    const parsed = new URL(elasticUrl);
-    if (parsed.protocol !== "https:") throw new Error("ELASTIC_MCP_URL must use HTTPS.");
-    servers.elastic = {
-      url: parsed,
-      allowedHosts: [parsed.host],
-      forwardInstructions: false,
-      requestInit: { headers: { Authorization: `ApiKey ${elasticKey}` } },
-    };
-  }
   return new MCPClient({
     id: crypto.randomUUID(),
     servers,

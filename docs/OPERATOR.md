@@ -152,6 +152,19 @@ Configure its authenticated custom verifier as
 paste the environment-variable name into Arcade. Stock Slack retains Arcade's normal
 project-member verification.
 
+When registering through the API, explicitly set `auth_method: ""` for both
+`oauth2.token_request` and `oauth2.refresh_request`, with `client_id` and `client_secret`
+in their `params`. Read the configuration back: it must not say `client_secret_basic`
+while also including body credentials. The live provider defaulted to Basic when this
+setting was omitted, causing successful login and identity confirmation followed by
+failed token exchange. PKCE remains enabled; Arcade supplies code and verifier.
+
+Open the authorization URL returned by Arcade once, and let Arcade redirect to the
+workshop verifier. Never construct `flow_id` from an authorization ID or an old URL.
+The verifier preserves the callback through sign-in and checks the resulting authorization
+status. Only **Authorization complete** means the connection succeeded; a pending page
+lets you check again without consuming the verification flow twice.
+
 For the governed exercise, stop the local `dev:web` process and open the deployed web URL
 recorded in `WEB_PUBLIC_ORIGIN`. Keep login, callback, Arcade verification and the approval
 page on this same origin. Starting sign-in on localhost with a hosted callback loses the

@@ -15,15 +15,21 @@ let base: string; let idp: string; let credentials: any; let verifiedIdentity = 
 const emails = { dana: "dana@example.test", riley: "riley@example.test", sam: "sam@example.test", morgan: "morgan@example.test" };
 const verificationEmail = "verification@example.test";
 let verificationEnabled = true, demoMode = true;
+let authStatus = "completed", authUser = "", confirmFailure = false;
 
 beforeAll(async () => {
   const reservation = Bun.serve({ port: 0, fetch: () => new Response() }); const idpPort = reservation.port; reservation.stop(true);
   idp = `http://127.0.0.1:${idpPort}`;
   control = Bun.serve({ port: 0, fetch(request) { const viewer = new URL(request.url).searchParams.get("viewer_user_id"); return Response.json({ run: { run_id: "pending-dana", requester_user_id: emails.dana, status: "waiting", viewer } }); } });
-  verifier = Bun.serve({ port: 0, async fetch(request) { verifiedIdentity = ((await request.json()) as any).user_id; return Response.json({ auth_id: "auth-test" }); } });
+  verifier = Bun.serve({ port: 0, async fetch(request) {
+    if (request.method === "GET") return Response.json({ id: "auth-test", user_id: authUser || verifiedIdentity, status: authStatus });
+    verifiedIdentity = ((await request.json()) as any).user_id;
+    if (confirmFailure) return Response.json({ error: "user_mismatch" }, { status: 400 });
+    return Response.json({ auth_id: "auth-test" });
+  } });
   const app = createWebApp({ runtime: () => createRuntime({ model: scriptedModel(["Supplied evidence only"]) }),
     session: () => ({ origin: base, idp, clientId: credentials.client_id, clientSecret: credentials.client_secret, secret: "test-session-secret-with-more-than-32-chars", emails, demoMode, ...(verificationEnabled ? { verificationEmail } : {}) }),
-    hooks: () => new HooksClient(`http://127.0.0.1:${control.port}`, "web-token"), arcadeKey: () => "fake-arcade-key", confirmUrl: `http://127.0.0.1:${verifier.port}` });
+    hooks: () => new HooksClient(`http://127.0.0.1:${control.port}`, "web-token"), arcadeKey: () => "fake-arcade-key", confirmUrl: `http://127.0.0.1:${verifier.port}`, authStatusUrl: `http://127.0.0.1:${verifier.port}` });
   web = Bun.serve({ port: 0, fetch: app.fetch }); base = `http://127.0.0.1:${web.port}`;
   const env = { ...process.env, PORT: String(idpPort), IDP_DB_PATH: join(directory, "idp.db"), IDP_PUBLIC_URL: idp, WORKSHOP_WEB_REDIRECT_URI: `${base}/auth/callback`, BETTER_AUTH_SECRET: "test-idp-secret-with-more-than-32-chars", WORKSHOP_OPERATOR_TOKEN: "local-reset-token", WORKSHOP_VERIFICATION_USER_ID: "verification@example.test", ...Object.fromEntries(Object.entries(emails).map(([name, email]) => [`PERSONA_${name.toUpperCase()}_EMAIL`, email])) };
   child = Bun.spawn([process.execPath, "src/index.ts"], { cwd: idpRoot, env, stdout: "pipe", stderr: "pipe" });
@@ -121,4 +127,40 @@ test.each(["configuration", "demo mode"])("disabling setup %s invalidates its se
     expect(state.session).toBeNull();
     expect(state.roles.verification).toBeUndefined();
   } finally { verificationEnabled = true; demoMode = true; }
+});
+
+
+test("Arcade identity confirmation is not authorization completion", async () => {
+  const browser = new OAuthBrowser();
+  await browser.login(base, "dana", emails.dana, "dana-demo-2026");
+  try {
+    authStatus = "pending";
+    const response = await browser.fetch(`${base}/auth/arcade/verify?flow_id=actual-callback-flow`);
+    expect(response.status).toBe(202);
+    expect(await response.text()).toContain("Authorization is still pending");
+    authStatus = "completed";
+    const completed = await browser.fetch(`${base}/auth/arcade/status?auth_id=auth-test`);
+    expect(completed.status).toBe(200);
+    expect(await completed.text()).toContain("Authorization complete");
+    authUser = emails.riley;
+    expect((await browser.fetch(`${base}/auth/arcade/status?auth_id=auth-test`)).status).toBe(403);
+    authUser = ""; authStatus = "failed";
+    const failed = await browser.fetch(`${base}/auth/arcade/status?auth_id=auth-test`);
+    expect(failed.status).toBe(409);
+    expect(await failed.text()).not.toContain("Authorization complete");
+    confirmFailure = true;
+    const mismatch = await browser.fetch(`${base}/auth/arcade/verify?flow_id=wrong-user`);
+    expect(mismatch.status).toBe(403);
+    expect(await mismatch.text()).toContain("different identity");
+  } finally { authStatus = "completed"; authUser = ""; confirmFailure = false; }
+});
+
+test("Arcade verification without a session preserves the callback in sign-in links", async () => {
+  const response = await fetch(`${base}/auth/arcade/verify?flow_id=preserve-this-flow`);
+  expect(response.status).toBe(401);
+  expect(response.headers.get("content-type")).toContain("text/html");
+  const body = await response.text();
+  expect(body).toContain("returnTo=");
+  expect(body).toContain("preserve-this-flow");
+  expect(body).toContain("persona=dana");
 });

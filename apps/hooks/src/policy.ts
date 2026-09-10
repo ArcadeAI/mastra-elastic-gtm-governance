@@ -95,7 +95,14 @@ export function filterOutput(value: unknown, rules: OutputRule[], subject: Subje
     if (Array.isArray(input)) return input.map(item => visit(item, path, depth + 1));
     if (input && typeof input === "object") {
       const obj = input as Record<string, unknown>;
-      if (["image", "audio", "resource", "resource_link"].includes(String(obj.type))) throw new Error("Unsupported output media.");
+      // Elastic labels retrieved JSON documents "resource" inside a text result.
+      // This is distinct from an MCP embedded resource (with a `resource` field).
+      // Accept only this inspectable envelope; traverse its content normally.
+      const document = obj.type === "resource" &&
+        Object.keys(obj).every(key => ["type", "data", "tool_result_id"].includes(key)) &&
+        z.object({ reference: z.object({ id: z.string(), index: z.string() }).strict(),
+          partial: z.boolean(), content: z.record(z.unknown()) }).strict().safeParse(obj.data).success;
+      if (["image", "audio", "resource", "resource_link"].includes(String(obj.type)) && !document) throw new Error("Unsupported output media.");
       const output: Record<string, unknown> = {};
       for (const [key, item] of Object.entries(obj)) {
         const current = [...path, key];
