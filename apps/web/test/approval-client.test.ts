@@ -108,7 +108,7 @@ test("consent completion delivers one self-DM through a concurrent retry", async
   expect(state.posts).toHaveLength(1);
   expect(state.posts[0]!.channel).toBe("DSELF");
   expect(state.posts[0]!.blocks[1].fields.map((field: any) => field.text).join(" ")).toContain("Riley Chen");
-  expect(JSON.stringify(state.posts[0])).toContain("Requested discount: 30%");
+  expect(JSON.stringify(state.posts[0])).toContain("Discount\\n30%");
   expect(JSON.stringify(state.posts[0])).toContain(`/approvals/${pending.approval.request_id}`);
   expect(JSON.stringify(result)).not.toContain(slackToken);
 });
@@ -134,9 +134,10 @@ test("self-DM has no host attribution when the signature is not configured", asy
   expect(result.approval.notification_status).toBe("sent");
   expect(state.posts).toHaveLength(1);
   const message = state.posts[0]!;
-  expect(message.text).toBe(`Workshop approval ${result.approval.request_id}: ${result.approval.requester_name} requests ${result.approval.approver_name}'s review.`);
+  expect(message.text).toContain("30% discount");
+  expect(message.text).toContain("$8,400");
   expect(message.blocks.at(-1)).toEqual({
-    type: "context", elements: [{ type: "plain_text", text: "Solo workshop: this self-DM is delivery only. Sign in as the assigned demo approver to decide." }],
+    type: "context", elements: [{ type: "plain_text", text: "Opens the workshop review page. Sign in as Riley to review the exact terms and customer draft." }],
   });
 });
 
@@ -287,3 +288,17 @@ test("authorization completed by the status endpoint can deliver immediately", a
   expect(result.authorizationUrls).toEqual([]);
   expect(state.posts).toHaveLength(1);
 });
+
+ test("approval DM summarizes terms without dumping action JSON or the customer draft", async () => {
+  const {client,state} = await fixture("A long reason. ".repeat(300)); state.authorized = true;
+  const result = await client.request("local-run", dana);
+  const message = state.posts[0]!;
+  const rendered = JSON.stringify(message.blocks);
+  expect(rendered).toContain("$8,400");
+  expect(rendered).toContain("$12,000");
+  expect(rendered).not.toContain("customer_message");
+  expect(rendered).not.toContain("operation_key");
+  expect(rendered).not.toContain("Requested action details");
+  expect(rendered.length).toBeLessThan(2000);
+  expect(message.blocks.find((b: any) => b.type === "actions").elements[0].url).toBe(result.approval.approval_url);
+ });

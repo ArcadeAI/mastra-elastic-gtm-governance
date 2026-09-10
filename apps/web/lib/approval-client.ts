@@ -43,6 +43,27 @@ function validLink(value: string) {
 }
 function text(value: string) { return { type: "plain_text", text: value.slice(0, 1900) }; }
 
+/** Compact delivery summary; the authenticated review page holds the complete action. */
+export function approvalMessage(display: PublicApproval, channel: string, signature = "") {
+  const discount = display.required_clearance.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const price = display.inputs.list_price;
+  const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
+  const terms = typeof price === "number" && Number.isFinite(price)
+    ? `${money(Math.round(price * (1 - display.required_clearance / 100) * 100) / 100)}/year (list ${money(price)})` : "See exact terms on review page";
+  const reason = typeof display.inputs.rationale === "string" ? display.inputs.rationale.replace(/\s+/g, " ").trim() : "Review the requested discount and customer follow-up.";
+  const summary = reason.length > 220 ? `${reason.slice(0, 217).trimEnd()}…` : reason;
+  const reviewer = display.approver_name.split(" ")[0];
+  const status = display.status === "pending" ? "Review needed" : display.status[0]!.toUpperCase() + display.status.slice(1);
+  return { channel, text: `${status}: ${display.resource_id ?? "Renewal"}, ${discount}% discount, ${terms}. ${display.requester_name} → ${display.approver_name}.${signature ? `\n\n${signature}` : ""}`, unfurl_links: false, unfurl_media: false, mrkdwn: false, blocks: [
+    { type: "header", text: text(`Renewal discount · ${status}`) },
+    { type: "section", fields: [text(`Account\n${display.resource_id ?? "See review page"}`), text(`Reviewer\n${display.approver_name}`), text(`Discount\n${discount}%`), text(`Annual price\n${terms}`)] },
+    { type: "section", text: text(`${display.status === "pending" ? `${display.requester_name} requests review.` : `Request ${display.status}. Open the review page for the recorded decision.`}\n${summary}`) },
+    { type: "actions", elements: [{ type: "button", text: text("Review request"), style: "primary", url: display.approval_url }] },
+    { type: "context", elements: [text(`Opens the workshop review page. Sign in as ${reviewer} to review the exact terms and customer draft.`)] },
+    ...(signature ? [{ type: "section", text: text(signature) }] : []),
+  ] };
+}
+
 /** Host-owned orchestration. Only this server module sees delegated OAuth tokens. */
 export function createApprovalClient(config: ApprovalClientConfig): ApprovalClient {
   const hooks = baseUrl(config.hooksHost, "HOOKS_PUBLIC_HOST"), arcade = baseUrl(config.arcadeBaseUrl ?? "https://api.arcade.dev", "Arcade URL"), slack = baseUrl(config.slackBaseUrl ?? "https://slack.com/api", "Slack URL", true);
@@ -149,14 +170,7 @@ export function createApprovalClient(config: ApprovalClientConfig): ApprovalClie
     const receipt: Record<string, unknown> = { requester_id: requesterId, claim_id: claim.data.claim_id };
     const display = view(approval);
     const signature = (scrub(config.slackSignature?.trim() ?? "") as string).slice(0, 1900);
-    const message = { channel, text: `Workshop approval ${display.request_id}: ${display.requester_name} requests ${display.approver_name}'s review.${signature ? `\n\n${signature}` : ""}`, unfurl_links: false, unfurl_media: false, mrkdwn: false, blocks: [
-      { type: "header", text: text("Workshop approval request") },
-      { type: "section", fields: [text(`Account executive: ${display.requester_name}`), text(`Assigned approver: ${display.approver_name}`), text(`Action: ${display.tool_name}`), text(`Account: ${display.resource_id ?? "None"}`), text(`Requested discount: ${display.required_clearance.toLocaleString("en-US", { maximumFractionDigits: 2 })}%`), text(`Operation: ${display.operation_key}`)] },
-      { type: "section", text: text(`Requested action details (display copy):\n${JSON.stringify(display.inputs)}`) },
-      { type: "actions", elements: [{ type: "button", text: text("Review request"), url: display.approval_url }] },
-      { type: "context", elements: [text("Solo workshop: this self-DM is delivery only. Sign in as the assigned demo approver to decide.")] },
-      ...(signature ? [{ type: "section", text: text(signature) }] : []),
-    ] };
+    const message = approvalMessage(display, channel, signature);
     try {
       const posted = await slackCall(auth.token, "chat.postMessage", message);
       if (posted.channel !== channel || typeof posted.ts !== "string" || !/^\d+\.\d+$/.test(posted.ts)) throw new SlackFailure("invalid_receipt", "uncertain");
