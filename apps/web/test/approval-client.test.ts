@@ -273,7 +273,7 @@ test("known server credentials cannot be reflected into the Slack display or res
   const { client, state } = await fixture(`Qualified account ${apiKey} ${serviceToken} ${slackToken}`); state.authorized = true;
   const result = await client.request("local-run", dana);
   expect(result.approval.notification_status).toBe("sent");
-  expect(JSON.stringify(state.posts)).toContain("Qualified account");
+  expect(JSON.stringify(state.posts)).not.toContain("Qualified account");
   for (const secret of [apiKey, serviceToken, slackToken]) {
     expect(JSON.stringify(result)).not.toContain(secret);
     expect(JSON.stringify(state.posts)).not.toContain(secret);
@@ -299,6 +299,8 @@ test("authorization completed by the status endpoint can deliver immediately", a
   expect(rendered).not.toContain("customer_message");
   expect(rendered).not.toContain("operation_key");
   expect(rendered).not.toContain("Requested action details");
+  expect(rendered).not.toContain("A long reason");
+  expect(rendered).not.toContain("…");
   expect(rendered.length).toBeLessThan(2000);
   expect(message.blocks.find((b: any) => b.type === "actions").elements[0].url).toBe(result.approval.approval_url);
  });

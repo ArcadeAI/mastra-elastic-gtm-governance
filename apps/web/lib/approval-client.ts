@@ -50,14 +50,12 @@ export function approvalMessage(display: PublicApproval, channel: string, signat
   const money = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(amount);
   const terms = typeof price === "number" && Number.isFinite(price)
     ? `${money(Math.round(price * (1 - display.required_clearance / 100) * 100) / 100)}/year (list ${money(price)})` : "See exact terms on review page";
-  const reason = typeof display.inputs.rationale === "string" ? display.inputs.rationale.replace(/\s+/g, " ").trim() : "Review the requested discount and customer follow-up.";
-  const summary = reason.length > 220 ? `${reason.slice(0, 217).trimEnd()}…` : reason;
   const reviewer = display.approver_name.split(" ")[0];
   const status = display.status === "pending" ? "Review needed" : display.status[0]!.toUpperCase() + display.status.slice(1);
   return { channel, text: `${status}: ${display.resource_id ?? "Renewal"}, ${discount}% discount, ${terms}. ${display.requester_name} → ${display.approver_name}.${signature ? `\n\n${signature}` : ""}`, unfurl_links: false, unfurl_media: false, mrkdwn: false, blocks: [
     { type: "header", text: text(`Renewal discount · ${status}`) },
     { type: "section", fields: [text(`Account\n${display.resource_id ?? "See review page"}`), text(`Reviewer\n${display.approver_name}`), text(`Discount\n${discount}%`), text(`Annual price\n${terms}`)] },
-    { type: "section", text: text(`${display.status === "pending" ? `${display.requester_name} requests review.` : `Request ${display.status}. Open the review page for the recorded decision.`}\n${summary}`) },
+    { type: "section", text: text(display.status === "pending" ? `${display.requester_name} needs ${display.approver_name}’s approval before saving this discount and customer draft.` : `Request ${display.status}. Open the review page for the exact terms, customer draft and recorded decision.`) },
     { type: "actions", elements: [{ type: "button", text: text("Review request"), style: "primary", url: display.approval_url }] },
     { type: "context", elements: [text(`Opens the workshop review page. Sign in as ${reviewer} to review the exact terms and customer draft.`)] },
     ...(signature ? [{ type: "section", text: text(signature) }] : []),
