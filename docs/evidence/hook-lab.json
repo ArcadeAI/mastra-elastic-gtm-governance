@@ -1,0 +1,69 @@
+{
+  "local_red": {
+    "command": "hook-lab",
+    "status": "failed",
+    "live_proof": false,
+    "error": "The lab rule must contain exactly one field: support.internal_owner_email with strategy remove."
+  },
+  "local_green": {
+    "command": "hook-lab",
+    "action": "test",
+    "status": "passed",
+    "live_proof": false,
+    "proof_scope": "local_fixture",
+    "checks": [
+      {
+        "boundary": "local_fixture",
+        "status": "verified",
+        "detail": "The production output filter removed the internal support contact and retained the account, renewal, unresolved issue and commercial fields. No gateway was called."
+      }
+    ]
+  },
+  "applied": {
+    "command": "hook-lab",
+    "action": "apply",
+    "status": "passed",
+    "live_proof": false,
+    "proof_scope": "policy_update",
+    "checks": [
+      {
+        "boundary": "local_fixture",
+        "status": "verified",
+        "detail": "The production output filter removed the internal support contact and retained the account, renewal, unresolved issue and commercial fields. No gateway was called."
+      },
+      {
+        "boundary": "configuration",
+        "status": "configured",
+        "detail": "Required values exist; external connections still need verification."
+      },
+      {
+        "boundary": "operator_policy",
+        "status": "verified",
+        "detail": "Saved the lab rule using the current policy version; preserved subjects, authority rules and every other output rule."
+      }
+    ],
+    "rule_id": "renewal-contact-redaction",
+    "changed": true
+  },
+  "gateway": {
+    "command": "hook-lab",
+    "action": "verify",
+    "status": "passed",
+    "live_proof": false,
+    "proof_scope": "gateway_read",
+    "checks": [
+      {
+        "boundary": "configuration",
+        "status": "configured",
+        "detail": "Required values exist; external connections still need verification."
+      },
+      {
+        "boundary": "gateway_read",
+        "status": "verified",
+        "detail": "An actual gateway account read as Dana retained renewal, unresolved support issue and price while removing internal contact and credentials. This verifies the read only, not approval or Slack delivery."
+      }
+    ],
+    "connection_scope": "remote",
+    "authorizationUrls": []
+  }
+}

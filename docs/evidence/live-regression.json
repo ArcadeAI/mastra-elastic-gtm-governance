@@ -1,0 +1,21 @@
+{
+  "run_id": "596c81c7-c476-480c-8fb2-e164bafa7550",
+  "replay_status": "completed",
+  "same_receipt": true,
+  "same_run_and_audit": true,
+  "new_tool_calls": 0,
+  "new_notifications": 0,
+  "self_approval_http": 403,
+  "authenticated_approver": "riley@example.test",
+  "model": {
+    "source": "configured-provider",
+    "model_id": "claude-sonnet-4-6",
+    "response_id": "msg_011Cetq55A5Y8WUib51dvPXw"
+  },
+  "slack_delivery": {
+    "channel": "D0AUBHVFGQ2",
+    "ts": "1789000633.681959",
+    "status": "sent"
+  },
+  "scope": "Live HTTP run, authenticated roles, remote gateway and owner receipt. Slack acknowledgement is stored from its send response; Slack history was not independently queried."
+}

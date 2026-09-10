@@ -1,0 +1,101 @@
+{
+  "command": "capstone",
+  "run_id": "596c81c7-c476-480c-8fb2-e164bafa7550",
+  "status": "passed",
+  "live_proof": false,
+  "live_requested": false,
+  "observed_at": "2026-09-10T00:42:27.194Z",
+  "checks": [
+    {
+      "boundary": "configuration",
+      "status": "configured",
+      "detail": "Required values exist; external connections still need verification."
+    },
+    {
+      "boundary": "run_binding",
+      "status": "verified",
+      "detail": "Run, requester, approval, operation and suspension IDs must identify this governed exercise."
+    },
+    {
+      "boundary": "resumed_run",
+      "status": "verified",
+      "detail": "Only a completed result recorded through a valid resume lease proves continuation."
+    },
+    {
+      "boundary": "approval_binding",
+      "status": "verified",
+      "detail": "The approved request must bind Dana, assigned Riley, this operation and one grant."
+    },
+    {
+      "boundary": "operation_receipt",
+      "status": "verified",
+      "detail": "The Sales owner's durable receipt must match the original action fingerprint and approval, including its complete body. Its globally unique key represents one committed operation."
+    },
+    {
+      "boundary": "gateway_denial",
+      "status": "verified",
+      "detail": "The denied action must bind this requester, request, tool and operation to its exact gateway execution ID, preceding the approved operation's allow."
+    },
+    {
+      "boundary": "authenticated_approval",
+      "status": "verified",
+      "detail": "The recorded decision must include independently verified identity and this request, grant and operation, before the allowed write."
+    },
+    {
+      "boundary": "slack_acknowledgement",
+      "status": "verified",
+      "detail": "A saved Slack channel/timestamp and matching notification acknowledgement must precede the authenticated decision."
+    },
+    {
+      "boundary": "tool_trace",
+      "status": "verified",
+      "detail": "The stored Mastra trace must name configured observed Elastic and discount tools, with the same operation key and a hooks-attested fingerprint of the original arguments before display filtering."
+    },
+    {
+      "boundary": "saved_offer_check",
+      "status": "verified",
+      "detail": "A successful configured GetOffer after the allowed write must read back the same account, discount, list and net prices, draft status and follow-up email draft, and appear in the stored Mastra trace."
+    },
+    {
+      "boundary": "source_citations",
+      "status": "verified",
+      "detail": "Every cited event ID must occur in this run's successful Elastic post-hook output, including JSON carried in MCP text."
+    },
+    {
+      "boundary": "filtered_evidence",
+      "status": "verified",
+      "detail": "A modified Elastic result must retain source evidence while support API-key, phone and instruction markers are absent from the stored model trace and safe audit."
+    },
+    {
+      "boundary": "owner_evidence",
+      "status": "verified",
+      "detail": "Read the existing run, safe audit, approval and Sales operation receipt. No write or tool execution was requested."
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "run.json",
+      "sha256": "0793a3bd089e6b4121ef04a1209092576c4776c984423b71e746f1d2069a6aec"
+    },
+    {
+      "file": "gateway-audit.json",
+      "sha256": "0de54ea618910b581bbe13cb96bc4a809419c6d4060b36c380457932d188d2f7"
+    },
+    {
+      "file": "approval.json",
+      "sha256": "dae6cbbedb7a80ddefad10eef4509afe37d1285314a34a060dffb9f40a97848d"
+    },
+    {
+      "file": "operation-receipt.json",
+      "sha256": "9eba696cbc397921c39f9a2c1cc80d3b24a441c48645e7840bf0e9fb8a0763ae"
+    }
+  ],
+  "excluded": [
+    "Local controlled tests are not live proof.",
+    "This command does not run an agent, send a message, grant permission, or measure workshop timing."
+  ],
+  "request_id": "f75acd24-dd4d-4d3a-ae60-d8b1d0f89a14",
+  "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+  "proof_scope": "recorded_service_evidence",
+  "output": "docs/evidence/live-renewal"
+}

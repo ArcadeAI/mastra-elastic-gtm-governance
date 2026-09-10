@@ -1,0 +1,13 @@
+{
+  "run_id": "596c81c7-c476-480c-8fb2-e164bafa7550",
+  "request_id": "f75acd24-dd4d-4d3a-ae60-d8b1d0f89a14",
+  "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+  "data": {
+    "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+    "actor": "thierry@arcade.dev",
+    "action": "discount",
+    "account_id": "ACC-2291",
+    "completed_at": "2026-09-10T00:41:33.670Z",
+    "receipt_binding_hash": "3e2783c459e82581e7ca29569529c55d56032506a494b09d13982d176bfd8f66"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "run_id": "596c81c7-c476-480c-8fb2-e164bafa7550",
+  "request_id": "f75acd24-dd4d-4d3a-ae60-d8b1d0f89a14",
+  "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+  "data": {
+    "request_id": "f75acd24-dd4d-4d3a-ae60-d8b1d0f89a14",
+    "requester_id": "thierry@arcade.dev",
+    "approver_id": "riley@example.test",
+    "requester_name": "Dana Okafor",
+    "approver_name": "Riley Chen",
+    "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+    "tool_name": "Sales.CreateDiscountedOffer",
+    "inputs": {
+      "account_id": "ACC-2291",
+      "customer_message": "Hi Elena,\n\nThank you for being a Northwind Robotics customer. With your subscription renewing on October 31, 2026, I wanted to reach out directly.\n\nI'm aware that your team has seen a significant change in usage over the past month, and I know that support case CS-1042 — covering the SCIM deprovisioning delay — remains open with an engineering review in progress. I want to acknowledge that disruption and make sure we get the right people engaged. I'd like to schedule a call with our support team so we can give you a clear status update and next steps; I won't make promises about timing or resolution that I can't stand behind, but I do want to make sure this gets the attention it deserves.\n\nOn the commercial side, I'd like to propose a renewal at a discounted annual rate that reflects both your stated budget and our commitment to the partnership. The exact approved terms will be included with this message by our system.\n\nA few things I'd like to discuss on a call:\n- Current usage patterns and whether there are features or integrations we can better activate for your team\n- The open SCIM case and a direct line to the engineering team\n- How our provisioning and audit retention capabilities compare to any alternatives you're evaluating\n\nPlease let me know a time that works, and I'll make sure the right people are on the call.\n\nBest regards",
+      "discount_percent": 30,
+      "list_price": 12000,
+      "operation_key": "run:596c81c7-c476-480c-8fb2-e164bafa7550",
+      "rationale": "Northwind Robotics (ACC-2291) is at high renewal risk ahead of the October 31, 2026 renewal date (list price $12,000/yr).\n\nEvidence from gtm-account-context (Aug–Oct 2026):\n\n1. evt-northwind-001 – Usage decline: Successful sign-ins dropped from 85,000 to 42,000 in 30 days; active seats fell from 220 to 140. Cause is unverified; may or may not be related to the open SCIM case.\n\n2. evt-northwind-002 – Competitive pressure: Procurement is comparing a competitor quote of $9,000/yr. Scope equivalence (automated provisioning, audit retention) is unverified by the AE.\n\n3. evt-northwind-003 – Open support case CS-1042: SCIM deprovisioning is delayed; engineering review is pending; no resolution date confirmed.\n\n4. evt-northwind-004 – Budget constraint: Customer states an $8,400/yr budget cap and requests 30% off. Finance has not confirmed that cap. No discounted offer is currently signed.\n\nA 30% discount yields $8,400/yr net, matching the stated budget and undercutting the competitor quote. This discount exceeds the AE self-service limit of 15% and requires manager (Riley) approval."
+    },
+    "resource_id": "ACC-2291",
+    "required_clearance": 30,
+    "status": "approved",
+    "notification_status": "sent",
+    "approval_url": "https://cg-web-d6ii.onrender.com/approvals/f75acd24-dd4d-4d3a-ae60-d8b1d0f89a14",
+    "grant_id": "a9128a69-7533-448f-ac90-cff31632d746",
+    "expires_at": "2026-09-10T00:52:12.863Z",
+    "decided_at": "2026-09-10T00:40:51.808Z",
+    "channel": "D0AUBHVFGQ2",
+    "ts": "1789000633.681959",
+    "notification_error": null
+  }
+}

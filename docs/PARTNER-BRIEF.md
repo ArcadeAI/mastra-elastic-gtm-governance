@@ -56,7 +56,7 @@ through all three sections. Timing is a target until the independent rehearsal p
 
 ## Materials and current status
 
-[Public repository](https://github.com/ArcadeAI/mastra-elastic-gtm-governance) ·
+[Public repository](https://github.com/ArcadeAI/mastra-elastic-gtm-governance/tree/workshop/lead-agent) ·
 [Detailed agenda](WORKSHOP-PLAN.md) · [Attendee guide](ARRIVAL.md) ·
 [Current evidence and open gates](PARTNER-READINESS.md) · [Rehearsal worksheet](REHEARSAL.md).
 

@@ -21,19 +21,43 @@ the revisions they name. Partner review and hands-on delivery have separate gate
 The runtime uses Arcade for all Elastic retrieval. The direct runtime fallback is removed.
 The verifier now checks authorization status before showing completion and preserves its
 callback through sign-in. Elastic document JSON is inspected separately from unsupported
-MCP embedded media. Deployment and live regression results will be recorded below.
+MCP embedded media. The fixes are deployed: web revision `5e08371`, hooks revision `e37bf5b`.
+Both completed authorization status pages returned HTTP 200 for their matching identities.
 
 | Gate | Status |
 |---|---|
 | Real Elastic search through Arcade | Passed: four Northwind events returned |
 | Sales authorization and preflight | Passed for Dana and the setup identity |
-| Live Elastic marker redaction | Pending deployment of the document-envelope fix |
-| Same Mastra agent completes live approval and read-back | Pending |
-| Self-DM receipt, rejected self-approval and replay | Pending |
-| Attendee hook-lab proof | Pending live run |
-| Clean-checkout automated rehearsal | Pending |
+| Live Elastic marker redaction | Passed: native document read removed all three markers and retained CS-1042 |
+| Same Mastra agent completes live approval and read-back | Passed: all four sources, original action, one $8,400 draft and GetOffer |
+| Self-DM receipt, rejected self-approval and replay | Passed: one self-DM acknowledgement, Dana HTTP 403, Riley approval, unchanged receipt/audit on replay |
+| Attendee hook-lab proof | Passed: starter fails, edited rule passes, applied and verified through remote gateway |
+| Clean-checkout automated rehearsal | Passed: frozen installs and 15 auth/output tests; independent human timing remains pending |
 | Timed independent attendee and remote rehearsal | Pending; worksheet prepared |
 | Speakers/TAs, model access, costs, Slack invite and remote support | Partner confirmation pending |
+
+## Evidence and limits
+
+The local suite passed **205 tests**, typechecking and the web production build. A clean
+temporary checkout passed frozen root/IdP installs and 15 auth/output tests. The final
+connection-ID correction passed all 11 auth tests, and GitHub CI passed both code revisions.
+
+- [Native Elastic document filtering](evidence/elastic-gateway.json)
+- [Completed renewal and bound receipt](evidence/live-renewal/manifest.json)
+- [Authenticated decisions, model identity and replay](evidence/live-regression.json)
+- [Attendee-authored output hook](evidence/hook-lab.json)
+
+Run `596c81c7-c476-480c-8fb2-e164bafa7550` used the configured Claude Sonnet 4.6 provider,
+real native Elastic tools through Arcade, and seeded Dana/Riley identities. Slack returned
+a self-DM delivery acknowledgement. We did not separately query Slack history; the CLI
+therefore retains `live_proof: false` for its narrower recorded-service evidence scope.
+No customer email or public-channel message was sent. The completed draft and lab rule
+remain available for inspection; this test did not reset them.
+
+Presenter note: the generated final narrative described the discount as flagged for review
+even though authenticated approval and the completed write were recorded. Use the approval
+panel and receipt as the authority for approval state, not the model's prose. The structured
+checks confirm the exact approved message and commercial terms.
 
 ## Partner packet
 

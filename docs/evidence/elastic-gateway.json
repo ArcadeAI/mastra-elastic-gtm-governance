@@ -1,0 +1,10 @@
+{
+  "gateway_read": true,
+  "tool": "Elastic_platform_core_get_document_by_id",
+  "source_id": "evt-northwind-003",
+  "support_case_preserved": true,
+  "synthetic_markers_absent": true,
+  "post_hook_filter": {
+    "execution_id": "tc_3J786KBLmi4I3hi3h516TvqPNYJ"
+  }
+}

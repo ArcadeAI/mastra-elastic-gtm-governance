@@ -7,7 +7,7 @@ The approval lands in their own Slack DM, and the customer follow-up stays a dra
 
 Each partner gets 55 minutes, including signup, and we finish with a hands-on hook exercise.
 Here's the [proposal and agenda](PARTNER-BRIEF.md) and the
-[repo](https://github.com/ArcadeAI/mastra-elastic-gtm-governance).
+[repo](https://github.com/ArcadeAI/mastra-elastic-gtm-governance/tree/workshop/lead-agent).
 
 Can you review your section and its handoff, confirm a speaker and TA, and flag anything
 in account setup or costs that attendees will trip over? We also need a new attendee for

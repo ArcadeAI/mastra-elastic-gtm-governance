@@ -2,7 +2,8 @@
 
 Event: Thursday 2026-10-08, 4:30–8:30 PM, Elastic SF (88 Kearny, Fl 19) + livestream.
 Partners: Arcade hosts and owns Module 3; Mastra owns Module 1; Elastic owns Module 2.
-Target: 1,000 registered; 60–100 in room. The repository is public.
+Target: 1,000 registered; 60–100 in room. The repository is public. Review the `workshop/lead-agent` branch.
+See [current readiness and live evidence](PARTNER-READINESS.md) for tested behavior and open gates.
 
 Following Andrew's feedback, the business action is an AE's discount offer. Permission
 applies directly to the requested discount percentage. That makes the approval boundary
