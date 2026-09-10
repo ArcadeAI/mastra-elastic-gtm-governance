@@ -22,7 +22,7 @@ beforeAll(async () => {
   idp = `http://127.0.0.1:${idpPort}`;
   control = Bun.serve({ port: 0, fetch(request) { const viewer = new URL(request.url).searchParams.get("viewer_user_id"); return Response.json({ run: { run_id: "pending-dana", requester_user_id: emails.dana, status: "waiting", viewer } }); } });
   verifier = Bun.serve({ port: 0, async fetch(request) {
-    if (request.method === "GET") return Response.json({ id: "auth-test", user_id: authUser || verifiedIdentity, status: authStatus });
+    if (request.method === "GET") return Response.json({ id: authStatus === "completed" ? "ac-completed-connection" : "auth-test", user_id: authUser || verifiedIdentity, status: authStatus });
     verifiedIdentity = ((await request.json()) as any).user_id;
     if (confirmFailure) return Response.json({ error: "user_mismatch" }, { status: 400 });
     return Response.json({ auth_id: "auth-test" });

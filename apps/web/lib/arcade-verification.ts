@@ -36,7 +36,9 @@ export async function verifyArcade(request: Request, config: SessionConfig, key:
   const response = await fetch(statusUrl, { headers, redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15_000) });
   if (!response.ok) throw new ServiceError("Authorization status could not be checked. Return to the workshop and retry the connection check.", 502);
   const result = z.object({ id: z.string(), user_id: z.string(), status: z.string() }).parse(await response.json());
-  if (result.id !== authId || result.user_id !== session.email) throw new ServiceError("This authorization belongs to a different identity.", 403);
+  // A completed request may resolve to its connection ID (ar_ -> ac_).
+  // The authenticated status endpoint resolves the supplied ID; bind its user to the session.
+  if (result.user_id !== session.email) throw new ServiceError("This authorization belongs to a different identity.", 403);
   if (result.status === "completed") return page("Authorization complete", '<p>Return to the workshop and retry the pending action.</p><a href="/">Return to workshop</a>', 200);
   if (["pending", "not_started"].includes(result.status)) return page("Authorization is still pending", `<p>Your identity was confirmed, but Arcade has not completed the connection.</p><a href="/auth/arcade/status?${escape(new URLSearchParams({ auth_id: authId }).toString())}">Check connection again</a>`, 202);
   return page("Authorization did not complete", '<p>Return to the workshop and start a fresh authorization in the same role.</p><a href="/">Return to workshop</a>', 409);
