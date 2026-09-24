@@ -69,6 +69,10 @@ Desktop on this machine.**
   Beyond these: `tools/loan` and `tools/approvals` under `uv`, plus
   `bun run typecheck` and `bun run build`. The three live-model tests skip
   without `ANTHROPIC_API_KEY`; report them as unverified, never as passes.
+  **A non-zero `error` count is a failure, even beside `0 fail`.** A test file
+  that throws inside `describe` registers nothing, and Bun prints "1 error"
+  next to "0 fail": `governance-core`'s boundary test silently stopped running
+  that way once `apps/` was gone (#6).
 
 - **Test harnesses: allowlist the child's environment, and kill every child.**
   Run the app group both with `set -a; . ./.env.local; set +a` exported and under
