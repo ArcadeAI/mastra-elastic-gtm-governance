@@ -4,7 +4,7 @@
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import { Database } from "bun:sqlite";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
@@ -370,4 +370,65 @@ describe("ensureOAuthClient", () => {
       .get();
     expect(JSON.parse(stored!.redirectUris)).toEqual(["http://a/cb", "http://b/cb"]);
   });
+});
+
+/**
+ * #54's CI: setup-arcade's `oauth-client` opened idp.db just as the test's
+ * sign-in closed it, and got SQLITE_BUSY at `PRAGMA journal_mode = WAL`. The
+ * last connection to close checkpoints the WAL, and an open with no busy
+ * timeout fails at once inside that window. So another process opens the file
+ * in a loop while this one closes it over a WAL big enough to take a while.
+ */
+describe("an open while the last connection closes", () => {
+  test("waits for the checkpoint instead of failing with SQLITE_BUSY", async () => {
+    const path = tempDb();
+    const dir = dirname(path);
+    const opener = `
+      import { existsSync, writeFileSync } from "node:fs";
+      import { openPeople } from ${JSON.stringify(join(REPO, "lib/identity/provider/db.ts"))};
+      const [path, ready, closed] = process.argv.slice(1);
+      let busy = 0, opened = 0, after = 0;
+      writeFileSync(ready, "");
+      let stopAt = Infinity;
+      while (Date.now() < stopAt) {
+        if (stopAt === Infinity && existsSync(closed)) stopAt = Date.now() + 150;
+        try {
+          (await openPeople(path)).close();
+          opened++;
+          if (stopAt !== Infinity) after++;
+        } catch (error) {
+          if ((error as { code?: string }).code !== "SQLITE_BUSY") throw error;
+          busy++;
+        }
+      }
+      process.stdout.write(JSON.stringify({ busy, opened, after }));
+    `;
+
+    for (let round = 0; round < 20; round++) {
+      const ready = join(dir, `ready-${round}`);
+      const closed = join(dir, `closed-${round}`);
+      const holder = await openPeople(path);
+      holder.exec("PRAGMA wal_autocheckpoint = 0");
+      holder.exec("CREATE TABLE IF NOT EXISTS pad (x BLOB)");
+      const insert = holder.prepare("INSERT INTO pad VALUES (randomblob(4096))");
+      holder.transaction(() => {
+        for (let i = 0; i < 5000; i++) insert.run();
+      })();
+      holder.exec("DELETE FROM pad");
+      insert.finalize();
+
+      const child = Bun.spawn([process.execPath, "--eval", opener, path, ready, closed], { cwd: REPO, env: {}, stdout: "pipe", stderr: "pipe" });
+      while (!existsSync(ready)) await Bun.sleep(5);
+      await Bun.sleep(20);
+      holder.close();
+      writeFileSync(closed, "");
+      const [out, err, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+      expect(code, err).toBe(0);
+      const counts = JSON.parse(out) as { busy: number; opened: number; after: number };
+      // It opened on both sides of the close, so the window was covered.
+      expect(counts.opened).toBeGreaterThan(counts.after);
+      expect(counts.after).toBeGreaterThan(0);
+      expect({ round, busy: counts.busy }).toEqual({ round, busy: 0 });
+    }
+  }, 60_000);
 });
