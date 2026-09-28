@@ -1,15 +1,17 @@
 /**
  * What `bun run setup-arcade` prints for the registrations it cannot make by
- * API (#9, #28, #30, #48).
+ * API (#9, #28, #30, #48), which since #52 is the fallback of the one-click
+ * path through the Coordinator API.
  *
- * - **The User Source** (hop 1), always. Arcade's API has no User Source route
- *   a project key can reach. The fields are the ones docs.arcade.dev lists under "Operate →
+ * - **The User Source** (hop 1), when the run fell back before it was
+ *   registered. The fields are the ones docs.arcade.dev lists under "Operate →
  *   Identity → User Sources": Name, Description, Issuer URL, Client ID, Client
  *   Secret, and under Advanced, Scopes and Subject Claim.
- * - **The gateway**, always since #48. It authenticates through the User
- *   Source, whose id the API never shows this script, so the developer creates
- *   it in the dashboard, right after the User Source and while the hooks are
- *   still disabled: active hooks filter the tool list the gateway form shows.
+ * - **The gateway**, whenever the run fell back, or the User Source was
+ *   registered and the gateway create failed. It authenticates through the
+ *   User Source, so the developer creates it in the dashboard, right after the
+ *   User Source and while the hooks are still disabled: active hooks filter the
+ *   tool list the gateway form shows.
  *   Its fields are from docs.arcade.dev "MCP Gateways → Create via dashboard",
  *   under a slug this script picks and writes as `ARCADE_GATEWAY_ID`.
  * - **The contextual access hooks**, only when the run found no Arcade org and
@@ -83,9 +85,12 @@ export interface GatewayForm {
   slug: string;
   loanToolkit: string;
   approvalsToolkit: string;
+  /** The User Source already registered (#52), when the run got that far and the gateway failed. */
+  userSourceId?: string;
 }
 
-export function gatewayForm({ slug, loanToolkit, approvalsToolkit }: GatewayForm): string {
+export function gatewayForm({ slug, loanToolkit, approvalsToolkit, userSourceId }: GatewayForm): string {
+  const through = userSourceId === undefined ? "(the User Source above)" : `(${userSourceId}, already registered)`;
   return [
     "┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway",
     "│  Name              Loan Approval Limits",
@@ -96,7 +101,7 @@ export function gatewayForm({ slug, loanToolkit, approvalsToolkit }: GatewayForm
     `│                    ${loanToolkit}: SearchLoans, GetLoan, ApproveLoan, DenyLoan`,
     `│                    ${approvalsToolkit}: RequestApproval, Decide`,
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
-    "│                    → Loan Approval Limits (the User Source above). Never Arcade Headers.",
+    `│                    → Loan Approval Limits ${through}. Never Arcade Headers.`,
     "│",
     `│  The form lists the ${loanToolkit} and ${approvalsToolkit} tools only while the hooks are disabled,`,
     "│  which is how this run left them.",
@@ -118,6 +123,10 @@ export interface NextSteps {
   gateway: "enabled" | "needs-gateway" | "form";
   /** False under `--skip-deploy`: the toolkits still have to be deployed before the gateway form lists them. */
   deployed: boolean;
+  /** True when the User Source is registered already (#52), so its form is not a step left. */
+  userSourceReady?: boolean;
+  /** True when the app answered through the tunnel after this run wrote .env (#52): starting it is not a step left. */
+  appRunning?: boolean;
 }
 
 /** The second run, which turns the hooks on once the gateway exists: the same command as the first. */
@@ -135,17 +144,18 @@ export function hooksOnCommand(host: string): string {
  * lists the toolkits' tools only once they are deployed and while the hooks
  * are disabled; so the hooks are turned on last, by the second run.
  */
-export function nextSteps({ host, origin, port, gateway, deployed }: NextSteps): string {
+export function nextSteps({ host, origin, port, gateway, deployed, userSourceReady = false, appRunning = false }: NextSteps): string {
   const steps = [
-    "Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.",
-    `Start the tunnel: ngrok http --url=${host} ${port}`,
+    ...(appRunning
+      ? []
+      : ["Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.", `Start the tunnel: ngrok http --url=${host} ${port}`]),
     ...(deployed || gateway === "enabled"
       ? []
       : ["Deploy both toolkits (their secrets are set above): arcade deploy, in tools/loan and in tools/approvals."]),
     ...(gateway === "enabled"
       ? []
       : [
-          "With the app reachable through the tunnel, fill in the User Source form above.",
+          ...(userSourceReady ? [] : ["With the app reachable through the tunnel, fill in the User Source form above."]),
           "Fill in the gateway form above. It authenticates through the User Source, and lists the toolkits' tools once they are deployed.",
         ]),
     ...(gateway === "needs-gateway" ? [`Turn the hooks on: run ${hooksOnCommand(host)} again.`] : []),

@@ -1,5 +1,5 @@
 /**
- * `bun run setup-arcade <ngrok-host> [--dry-run] [--skip-deploy] [--redeploy] [--gateway <slug>]` (#9, #30, #48)
+ * `bun run setup-arcade <ngrok-host> [--dry-run] [--skip-deploy] [--redeploy] [--gateway <slug>]` (#9, #30, #48, #52)
  *
  * Everything the Arcade side of this template needs, from one command, after
  * the developer has filled in the few required values in `.env`
@@ -32,23 +32,48 @@
  *    (#30). A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
  *    the CLI's own check, answers 404 when it is missing. `--redeploy`
  *    deploys it anyway, and `--skip-deploy` leaves both to the developer.
- * 8. **Looks for the gateway** (#48), `GET …/gateways`, under the slug the
- *    gateway form names. It never creates one: the gateway authenticates
- *    through the User Source, and a project key cannot read a User Source's id.
- *    - **Not there** (the first run): the hooks stay disabled, and the run
- *      ends on the User Source form, then the gateway form, then the command
- *      for the second run, and a warning that the gateway runs ungoverned
- *      until that second run.
- *    - **There** (the second run): the hooks are `PATCH`ed to `active` and read
- *      back, and a read-back that does not say `active` fails the run. Hooks
- *      already active are left, and the run says they are on. A gateway whose
- *      `auth_type` is not the User Source stops the run with the hooks as they
- *      were; a tool list that is not the six is printed as warnings, and the
- *      hooks are turned on anyway (the human's call on #48).
+ * 8. **Registers the User Source and the gateway by API, then turns the hooks
+ *    on** (#52), the one-click path, through the Coordinator API
+ *    (`setup-arcade/coordinator.ts`, `ARCADE_COORDINATOR_URL`, default
+ *    `https://cloud.arcade.dev/api`, never experience.arcade.dev):
+ *    - The project's User Sources are listed. One whose issuer is the app's
+ *      origin, or whose client is the app's `arcade-user-source`, is held to
+ *      the issuer, the client id, the `email` subject claim and the scopes: it
+ *      matches and is used, or it differs and the run stops (exit 1), naming
+ *      each difference, with no gateway and the hooks as they were.
+ *    - With none, the run waits, on a terminal only, for the developer to
+ *      start `bun run dev` and the tunnel. On Enter it reads the issuer from
+ *      the app's `/.well-known/openid-configuration` through it, byte for
+ *      byte, and has Arcade check that issuer (`POST …/user_sources/test_issuer`,
+ *      which saves nothing). A failure of either, a 422 from Arcade with its
+ *      reason, asks again. Then it creates the User Source, the
+ *      `arcade-user-source` secret rotated unless this run minted it.
+ *    - The User Source, found or created, is read back by id: active, and
+ *      this app's, or the run stops as for one that differs.
+ *    - The gateway is created through it (`POST …/gateways`, the six tools,
+ *      `auth_type` `user_source`) and read back; one already under the slug is
+ *      held to that User Source, never edited. Then the hooks are `PATCH`ed to
+ *      `active` and read back, last. A User Source registered with the gateway
+ *      not is said plainly, with the gateway form and the rerun that finishes.
+ *    - **The fallback** (#48): a Coordinator call that fails, or answers a
+ *      shape this script does not expect (a 401 or a 404 is said to be the
+ *      key or the project), an issuer check this Coordinator does not have,
+ *      `n` or Ctrl-C at the wait, or stdin that is not a terminal prints one
+ *      line naming which, then the #48 flow,
+ *      unchanged: `GET …/gateways`, never written, under the slug the gateway
+ *      form names. Not there (the first run): the hooks stay disabled, and the
+ *      run ends on the User Source form, then the gateway form, then the
+ *      command for the second run, and a warning that the gateway runs
+ *      ungoverned until that second run. There (the second run): the hooks
+ *      are turned on and read back, and a read-back that does not say
+ *      `active` fails the run. A gateway whose `auth_type` is not the User
+ *      Source stops the run with the hooks as they were; a tool list that is
+ *      not the six is printed as warnings, and the hooks are turned on anyway
+ *      (the human's call on #48).
  *
- * The same command is the first run and the second: the gateway's presence is
- * what tells them apart, so rerunning the first one after a failure never
- * turns the hooks on ahead of the gateway form.
+ * The same command is every run: what Arcade already holds tells them apart,
+ * and a rerun of a finished project is a no-op that says so. Rerunning after a
+ * failure never turns the hooks on ahead of the gateway.
  *
  * With no org and project to be found, the hooks and the gateway are printed as
  * the dashboard forms they were before #30, and the run says why.
@@ -78,7 +103,10 @@ import {
   ArcadeAdmin,
   ArcadeError,
   arcadeMessage,
+  gatewayBody,
   gatewayCheck,
+  gatewayDifferences,
+  type GatewaySpec,
   healthCheckUrl,
   HOOKS_NAME,
   type HooksStatus,
@@ -99,11 +127,25 @@ import {
   verifierBody,
 } from "./setup-arcade/arcade.ts";
 import { type ArcadeContext, resolveContext } from "./setup-arcade/context.ts";
+import {
+  candidates,
+  Coordinator,
+  coordinatorUrl,
+  failureLine,
+  readinessDifferences,
+  USER_SOURCE_CALLBACK,
+  USER_SOURCE_NAME,
+  USER_SOURCE_SCOPES,
+  reported,
+  type UserSource,
+  userSourceBody,
+  userSourceDifferences,
+  type UserSourceSpec,
+} from "./setup-arcade/coordinator.ts";
 import { fillBlanks, MANAGED_KEYS, parseEnv, readEnvFile, replaceValue, shellConflicts, writeEnvFile } from "./setup-arcade/env-file.ts";
 import { gatewayForm, hooksForm, hooksOnCommand, type NextSteps, nextSteps, userSourceForm } from "./setup-arcade/forms.ts";
 import { serverName } from "./setup-arcade/toolkit.ts";
 
-const USER_SOURCE_CALLBACK = "https://cloud.arcade.dev/oauth2/intermediate_callback";
 const CLIENT_KEYS = ["arcade", "arcade-user-source", "web"] as const;
 const DEFAULT_GATEWAY = "loan-approval-limits";
 /** The toolkits `arcade deploy` ships, in order: the gateway lists their tools. */
@@ -236,11 +278,25 @@ if (gatewaySlug !== null && onFileGateway !== "" && onFileGateway !== gatewaySlu
 }
 
 // Before #48 a second run created the gateway from a User Source id kept in
-// .env. The gateway is a dashboard form now, and an old .env's id is ignored.
+// .env. Since #52 the run finds the User Source itself, through the
+// Coordinator API, and an old .env's id is ignored.
 const RETIRED = "ARCADE_USER_SOURCE_ID";
 if (effective(RETIRED) !== "") {
-  out(`  note          ${RETIRED} is set, and ignored: the gateway is created in the dashboard now, so you can delete it`);
+  out(`  note          ${RETIRED} is set, and ignored: this command finds the User Source itself, so you can delete it`);
 }
+
+// The Coordinator API, for the User Source (#52). Refused before anything is
+// sent if it names the dashboard's own proxy; the run then falls back to the
+// dashboard forms (#48).
+const coordinatorBase = coordinatorUrl(effective("ARCADE_COORDINATOR_URL"));
+/**
+ * Whether the run may pause for the developer before it creates the User
+ * Source (#52): only with a terminal on stdin. Otherwise the run falls back to
+ * the dashboard forms rather than wait on a pipe nobody writes to.
+ * `CG_SETUP_ARCADE_TTY=1` is the test harness's stand-in for a terminal, read
+ * from the shell only, never from `.env`.
+ */
+const interactive = process.stdin.isTTY === true || shellEnv.CG_SETUP_ARCADE_TTY === "1";
 
 // The org and project the hooks and the gateway are registered in (#30).
 const resolution = resolveContext(loaded);
@@ -256,6 +312,9 @@ if (scope !== null) {
   out(`  arcade        no org and project: ${"why" in resolution ? resolution.why : "unknown"}.`);
   out("                The hooks and the gateway are printed as dashboard forms instead. Set ARCADE_ORG_ID and");
   out("                ARCADE_PROJECT_ID in .env, or make the project the Arcade CLI's active one, to register them by API.");
+}
+if (scope !== null) {
+  out(`  coordinator   ${coordinatorBase.url ?? `none: ${"why" in coordinatorBase ? coordinatorBase.why : "unknown"}`}`);
 }
 const loanToolkit = effective("ARCADE_LOAN_TOOLKIT") || "Loan";
 const approvalsToolkit = effective("ARCADE_APPROVALS_TOOLKIT") || "Approvals";
@@ -314,33 +373,52 @@ for (const key of MANAGED_KEYS) {
 process.env.APP_PUBLIC_HOST = host;
 
 const admin = new ArcadeAdmin(apiUrl, apiKey, dryRun, out);
+const coordinator = coordinatorBase.url === null ? null : new Coordinator(coordinatorBase.url, apiKey, dryRun, out);
+/** Set once the app answered through the tunnel after this run wrote .env: the steps left then skip starting it (#52). */
+let appConfirmed = false;
 
-/** The forms left for the dashboard, and the steps after them. The last thing every run prints. */
-function finish(userSource: { clientId: string; clientSecret: string | null }, gateway: NextSteps["gateway"]): never {
+/**
+ * The forms left for the dashboard, and the steps after them. The last thing
+ * every run prints. `registered` is a User Source the run registered or found
+ * before the gateway failed (#52): its form is then not left, only the
+ * gateway's, and the run exits `code`.
+ */
+function finish(
+  userSource: { clientId: string; clientSecret: string | null },
+  gateway: NextSteps["gateway"],
+  registered: UserSource | null = null,
+  code = 0,
+): never {
   if (gateway === "form") {
     out("\nThree dashboard forms are left, in the order you fill them in:\n");
+  } else if (gateway === "needs-gateway" && registered !== null) {
+    out(`\nOne dashboard form is left, the gateway, through the User Source ${registered.id}, unless the next run creates it.\n`);
   } else if (gateway === "needs-gateway") {
     out("\nTwo dashboard forms are left, in the order you fill them in: the User Source, then the gateway through it.");
     out("A project key can create neither, because it cannot read a User Source's id.\n");
   }
   if (gateway !== "enabled") {
-    out(userSourceForm({ origin, ...userSource }));
-    out();
-    out(gatewayForm({ slug, loanToolkit, approvalsToolkit }));
+    if (registered === null) {
+      out(userSourceForm({ origin, ...userSource }));
+      out();
+    }
+    out(gatewayForm({ slug, loanToolkit, approvalsToolkit, ...(registered === null ? {} : { userSourceId: registered.id }) }));
   }
   if (gateway === "form") {
     out();
     out(hooksForm({ origin }));
   }
   out();
-  out(nextSteps({ host, origin, port: effective("PORT") || "3000", gateway, deployed: !skipDeploy }));
+  out(
+    nextSteps({ host, origin, port: effective("PORT") || "3000", gateway, deployed: !skipDeploy, userSourceReady: registered !== null, appRunning: appConfirmed }),
+  );
   if (gateway === "needs-gateway") {
     out(`\nOnce the gateway ${slug} exists, turn the hooks on with the same command:`);
     out(`  ${hooksOnCommand(host)}`);
     out(`\nwarning: until then the gateway runs ungoverned. The hooks are disabled, so Arcade calls none of`);
     out(`${origin}/hooks/access, /hooks/pre and /hooks/post, and every tool call runs unchecked.`);
   }
-  process.exit(0);
+  process.exit(code);
 }
 
 /**
@@ -435,11 +513,48 @@ if (dryRun) {
     }
     out("    (the deploys' check, one per toolkit: 404 deploys it, found skips it; --redeploy deploys both anyway)");
   }
+  if (scope !== null && coordinator !== null) {
+    out(`    (the User Source, through the Coordinator API at ${coordinator.baseUrl}:)`);
+    await coordinator.list(scope);
+    out(`    (searched for the issuer ${origin} and the arcade-user-source client. One that differs stops the run, and`);
+    out("    one that matches is used. With none, the run waits for you to start `bun run dev` and the tunnel. On Enter");
+    out(`    it reads the issuer from ${origin}/.well-known/openid-configuration through the tunnel, and has Arcade check it:)`);
+    const discovered = `<the issuer ${origin}/.well-known/openid-configuration names>`;
+    await coordinator.testIssuer(scope, discovered);
+    out("    (204 creates it. A 422 prints Arcade's reason and asks again:)");
+    await coordinator.create(
+      scope,
+      userSourceBody({
+        issuer: discovered,
+        clientId: "<the arcade-user-source client id in idp.db>",
+        clientSecret: clientsOnDisk ? "<a new secret for the arcade-user-source client, rotated by this run>" : "<its secret, minted by this run>",
+      }),
+    );
+    out("    (then the one found or created is read back by id, and must be active and this app's:)");
+    await coordinator.get(scope, "<user_source_id>");
+  }
   if (scope !== null) {
     await admin.request("GET", projectPath(scope, "/gateways?limit=100"));
-    out(`    (searched for the gateway ${slug}, and never written. Not there, as on the first run: the hooks stay disabled`);
-    out(`    and the forms below are left. There: the hooks are turned on, PATCH ${projectPath(scope, "/plugins/<plugin_id>")}`);
-    out(`    with status "active", and read back, unless they already are.)`);
+    if (coordinator !== null) {
+      out(`    (searched for the gateway ${slug}. With none, it is created through the User Source, and read back:)`);
+      await admin.request(
+        "POST",
+        projectPath(scope, "/gateways"),
+        gatewayBody({ slug, userSourceId: "<the User Source's id>", loanToolkit, approvalsToolkit }),
+      );
+      await admin.request("GET", projectPath(scope, "/gateways/<gateway_id>"));
+      out("    (then the hooks are turned on, last, and read back, unless they already are:)");
+      await admin.request("PATCH", projectPath(scope, "/plugins/<plugin_id>"), pluginPatch(origin, hookToken.generated ? hookToken.value : "<ARCADE_HOOK_SIGNING_SECRET from .env>", "active"));
+      await admin.request("GET", projectPath(scope, "/plugins/<plugin_id>"));
+      await admin.request("GET", projectPath(scope, "/hooks?plugin_id=<plugin_id>"));
+      out("    (If a Coordinator call fails, if you answer n at the pause, or if stdin is not a terminal, the run says which,");
+      out("    sends none of the User Source or gateway writes above, and falls back to the dashboard forms (#48): the");
+      out(`    gateway ${slug} is only looked for, the hooks stay disabled, and the forms below are left.)`);
+    } else {
+      out(`    (searched for the gateway ${slug}, and never written. Not there, as on the first run: the hooks stay disabled`);
+      out(`    and the forms below are left. There: the hooks are turned on, PATCH ${projectPath(scope, "/plugins/<plugin_id>")}`);
+      out(`    with status "active", and read back, unless they already are.)`);
+    }
   }
   out(
     skipDeploy
@@ -449,6 +564,10 @@ if (dryRun) {
   if (!skipDeploy) {
     for (const dir of TOOLKIT_DIRS) out(deployLine(dir));
     out(DEPLOY_SECRETS_NOTE);
+  }
+  if (scope !== null && coordinator !== null) {
+    out("\nWith the User Source and the gateway made by API, nothing is left for the dashboard. If the run falls back,");
+    out("it ends on these forms instead:");
   }
   finish(
     { clientId: "<the arcade-user-source client id in idp.db>", clientSecret: clientsOnDisk ? null : "<its secret, minted by this run>" },
@@ -556,7 +675,8 @@ if (webConfigured && fromFile("IDP_CLIENT_ID") !== client("web").client_id) {
   out(`  warning       IDP_CLIENT_ID is ${fromFile("IDP_CLIENT_ID")}, but idp.db's web client is ${client("web").client_id}; sign-in will fail until they match`);
 }
 // `arcade-user-source`: shown when minted now; never rotated behind a User Source that may exist.
-const userSourceSecret = client("arcade-user-source").client_secret;
+// Rotated only when the Coordinator API shows this project has none for the app, right before one is created with it (#52).
+let userSourceSecret = client("arcade-user-source").client_secret;
 
 // --- 4. .env, blanks only ---------------------------------------------------
 
@@ -767,15 +887,32 @@ if (skipDeploy) {
   }
 }
 
-// --- 8. The gateway, and the hooks turned on behind it (#48) ----------------
+// --- 8. The User Source and the gateway by API (#52), else the dashboard forms (#48)
 
-let gatewayState: NextSteps["gateway"] = "form";
-if (scope !== null && hooks !== null) {
+/** The hooks turned on behind a gateway that exists, and read back: the last write of every run that gets there. */
+async function turnHooksOn(scope: ProjectScope, hooks: { id: string; status: HooksStatus }): Promise<void> {
+  if (hooks.status === "active") {
+    out(`  hooks: already on (status active); nothing to do`);
+    return;
+  }
+  await step("turning the hooks on", () =>
+    admin.expect("PATCH", projectPath(scope, `/plugins/${encodeURIComponent(hooks.id)}`), pluginPatch(origin, hookToken.value, "active")),
+  );
+  await readHooksBack(scope, hooks.id, "active", "the hooks did not turn on");
+  out(`  hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through ${slug}`);
+}
+
+/**
+ * The #48 flow, unchanged: the gateway is looked for under the slug and never
+ * written. Not there, the hooks stay as they are and the forms are left; there,
+ * the hooks are turned on behind it. The fallback whenever the Coordinator
+ * path is not available.
+ */
+async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: HooksStatus }): Promise<NextSteps["gateway"]> {
   out(`\nThe gateway (${apiUrl}):`);
   const listed = pageItems(await step("listing the gateways", () => admin.expect("GET", projectPath(scope, "/gateways?limit=100"))));
   const gateway = listed.find((each) => objectField(each, "slug") === slug);
   if (gateway === undefined) {
-    gatewayState = "needs-gateway";
     out(`  gateway: there is no ${slug} in this project yet; it is the dashboard form below`);
     out(
       hooks.status === "active"
@@ -801,17 +938,303 @@ if (scope !== null && hooks !== null) {
           `while it is on, the gateway form does not list the ${loanToolkit} and ${approvalsToolkit} tools. Then run this again.`,
       );
     }
-    if (hooks.status === "active") {
-      out(`  hooks: already on (status active); nothing to do`);
-    } else {
-      await step("turning the hooks on", () =>
-        admin.expect("PATCH", projectPath(scope, `/plugins/${encodeURIComponent(hooks!.id)}`), pluginPatch(origin, hookToken.value, "active")),
-      );
-      await readHooksBack(scope, hooks.id, "active", "the hooks did not turn on");
-      out(`  hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through ${slug}`);
-    }
-    gatewayState = "enabled";
+    await turnHooksOn(scope, hooks);
+    return "enabled";
   }
+  return "needs-gateway";
 }
 
+/** Why the one-click path stopped short, as the one line the run prints before the #48 flow. */
+type Fallback = { fallback: string };
+
+/**
+ * The app's own OIDC discovery through the public host, which Arcade reads at
+ * the create (#52): the issuer it names, byte for byte, which is what the
+ * create must send, or what is wrong, in one line. Wrong: no answer, not
+ * JSON, an issuer that is not the app's origin (an app started before `.env`
+ * was written), or a `scopes_supported` without one of the scopes the User
+ * Source asks for. `CG_SETUP_ARCADE_ISSUER_URL` is the test harness's
+ * stand-in for the tunnel, read from the shell only, never from `.env`.
+ */
+async function appDiscovery(): Promise<{ issuer: string } | { problem: string }> {
+  const base = (shellEnv.CG_SETUP_ARCADE_ISSUER_URL?.trim() || origin).replace(/\/+$/, "");
+  const url = `${base}/.well-known/openid-configuration`;
+  let response: Response;
+  try {
+    // ngrok's free-domain warning page is for browsers; this header skips it for anything else.
+    response = await fetch(url, { headers: { accept: "application/json", "ngrok-skip-browser-warning": "1" }, signal: AbortSignal.timeout(10_000) });
+  } catch (error) {
+    return { problem: `GET ${url} failed: ${(error as Error).message}. Is the tunnel up, pointing at the app's port?` };
+  }
+  const raw = await response.text();
+  if (response.status !== 200) {
+    return {
+      problem: `GET ${url} answered ${response.status}${response.status === 503 ? ": the app's sign-in did not start (start `bun run dev` again, so it reads the new .env)" : ""}`,
+    };
+  }
+  let document: { issuer?: unknown; scopes_supported?: unknown } | null;
+  try {
+    document = JSON.parse(raw) as typeof document;
+  } catch {
+    return { problem: `GET ${url} answered 200 with a body that is not JSON: is the tunnel pointing at this app?` };
+  }
+  const issuer = document?.issuer;
+  if (typeof issuer !== "string" || issuer.replace(/\/+$/, "") !== origin) {
+    return {
+      problem: `GET ${url} names the issuer ${JSON.stringify(issuer) ?? "nothing"}, not ${origin}: stop \`bun run dev\` and start it again, so it reads APP_PUBLIC_HOST from .env`,
+    };
+  }
+  const supported = document?.scopes_supported;
+  if (Array.isArray(supported)) {
+    const missing = USER_SOURCE_SCOPES.filter((scope) => !supported.includes(scope));
+    if (missing.length > 0) {
+      return {
+        problem: `GET ${url} does not publish the scope${missing.length > 1 ? "s" : ""} ${missing.join(", ")} in scopes_supported, which the User Source asks for: is an older app still running?`,
+      };
+    }
+  }
+  return { issuer };
+}
+
+/**
+ * The one reader of stdin for the whole run, made at the first question: the
+ * lines typed so far and not yet answered (typed ahead, or piped), whoever is
+ * waiting for the next one, and whether stdin has ended.
+ */
+interface Prompt {
+  rl: import("node:readline").Interface;
+  lines: string[];
+  waiting: ((line: string | null) => void) | null;
+  ended: boolean;
+}
+let prompt: Prompt | null = null;
+
+/**
+ * One line from the terminal, or `null` for no (`n`), the end of stdin, or
+ * Ctrl-C (#52). Ctrl-C is caught for the question alone, so it falls back to
+ * the forms instead of leaving the run half-printed. Stdin that is not a
+ * terminal does not echo the Enter, so the line break is printed for it.
+ */
+async function ask(question: string): Promise<string | null> {
+  if (prompt === null) {
+    const { createInterface } = await import("node:readline");
+    const rl = createInterface({ input: process.stdin, terminal: process.stdin.isTTY === true });
+    const state: Prompt = { rl, lines: [], waiting: null, ended: false };
+    const give = (line: string | null) => {
+      const waiting = state.waiting;
+      state.waiting = null;
+      if (waiting) waiting(line);
+      else if (line !== null) state.lines.push(line);
+    };
+    rl.on("line", (line) => give(line));
+    rl.on("SIGINT", () => give(null));
+    rl.once("close", () => {
+      state.ended = true;
+      give(null);
+    });
+    prompt = state;
+  }
+  const state = prompt;
+  if (state.lines.length === 0 && state.ended) return null;
+  process.stdout.write(question);
+  const answer = await new Promise<string | null>((resolve) => {
+    const queued = state.lines.shift();
+    if (queued !== undefined) return resolve(queued);
+    const interrupted = () => resolve(null);
+    process.once("SIGINT", interrupted);
+    state.waiting = (line) => {
+      process.removeListener("SIGINT", interrupted);
+      resolve(line);
+    };
+  });
+  state.waiting = null;
+  if (process.stdin.isTTY !== true || answer === null) out();
+  return answer === null || /^\s*n(o)?\s*$/i.test(answer) ? null : answer;
+}
+
+/**
+ * What is left when the User Source is registered and the gateway is not
+ * (#52): said plainly, then the gateway form alone, and exit 1. The hooks are
+ * left as they were, so no gateway runs ungoverned by this run's doing.
+ */
+function gatewayNotCreated(source: UserSource, createdNow: boolean, hooks: { status: HooksStatus }, why: string): never {
+  console.error(`\nsetup-arcade: the gateway ${slug} was not created: ${why}`);
+  out(`\nThe User Source ${source.id} is registered (${createdNow ? "created by this run" : "it was there already"}), and the gateway is not, so the hooks`);
+  out(`are left ${hooks.status === "active" ? "on" : "disabled"}. What is left: run this same command again, which finds the User Source and creates the`);
+  out("gateway through it, or fill in the gateway form below and then run this command again to turn the hooks on.");
+  finish({ clientId: client("arcade-user-source").client_id, clientSecret: null }, "needs-gateway", source, 1);
+}
+
+/**
+ * The one-click path (#52): the User Source found by issuer or created through
+ * the Coordinator API, read back by id, then the gateway created through it
+ * by API, then the hooks turned on, last, each read back. Anything the
+ * Coordinator answers that is not what this script expects returns the one
+ * line to print before the #48 flow, having written nothing to Arcade.
+ */
+async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksStatus }): Promise<"enabled" | Fallback> {
+  if (coordinator === null) return { fallback: `coordinator: ${"why" in coordinatorBase ? coordinatorBase.why : "none"}` };
+  out(`\nThe User Source (${coordinator.baseUrl}):`);
+  const want: UserSourceSpec = { issuer: origin, clientId: client("arcade-user-source").client_id };
+  const listed = await coordinator.list(scope);
+  if (!listed.ok) return { fallback: failureLine(listed) };
+  const hooksLeft = `the hooks are left ${hooks.status === "active" ? "on" : "disabled"}`;
+
+  let found: UserSource;
+  let createdNow = false;
+  const claimants = candidates(listed.value, want);
+  const mismatched = claimants.map((each) => ({ each, differences: userSourceDifferences(each, want) })).filter(({ differences }) => differences.length > 0);
+  if (mismatched.length > 0 || claimants.length > 1) {
+    const report = (claimants.length > 1 && mismatched.length === 0 ? claimants.map((each) => ({ each, differences: ["one of several for this app"] })) : mismatched)
+      .map(({ each, differences }) => `The User Source ${each.name ?? "(no name)"} (${each.id}):\n${differences.map((line) => `  - ${line}`).join("\n")}`)
+      .join("\n");
+    fail(
+      `${claimants.length > 1 ? `${claimants.length} User Sources in this project claim this app's issuer or client` : "a User Source in this project claims this app's issuer or client"}, and this command will not pick one or reuse one that differs:\n` +
+        `${report}\n` +
+        `Nothing was changed in Arcade: this command never edits a User Source, because it is hop 1, the access model itself. No gateway was created, ` +
+        `and ${hooksLeft}. In the dashboard (your project → User Sources), correct it or delete it, then run this again.`,
+    );
+  }
+  if (claimants.length === 1) {
+    found = claimants[0]!;
+    out(`  user source: found ${found.name ?? USER_SOURCE_NAME} (${found.id}), issuer ${origin}, client ${want.clientId}; it matches and is left as it is`);
+  } else {
+    out(`  user source: there is none for ${origin} in this project yet. Arcade reads the app's sign-in through the tunnel`);
+    out("  when it creates one, so the app has to be up behind it first.");
+    if (!interactive) {
+      return {
+        fallback: "user source: not created, because stdin is not a terminal, so this run cannot wait for you to start `bun run dev` and the tunnel",
+      };
+    }
+    const port = effective("PORT") || "3000";
+    for (;;) {
+      // The human's wording (#52): the app starts after .env is written, so there is nothing to restart.
+      const answer = await ask(
+        `\n  Now start the app and the tunnel, in two other terminals: bun run dev, and ngrok http --url=${host} ${port}.\n` +
+          "  Press Enter when both are running (n, or Ctrl-C, ends on the dashboard forms instead): ",
+      );
+      if (answer === null) return { fallback: "user source: not created, at your answer, so none of it is sent" };
+      // The issuer as the app names it, byte for byte: the create compares the two so.
+      const discovery = await appDiscovery();
+      if ("problem" in discovery) {
+        out(`  ${discovery.problem}`);
+        continue;
+      }
+      want.issuer = discovery.issuer;
+      // Arcade's own check, the create's without the save: a 422 is the app or the tunnel not up yet, as Arcade sees it.
+      const checked = await coordinator.testIssuer(scope, discovery.issuer);
+      if (checked.ok) break;
+      if (checked.code === 422) {
+        out(`  Arcade cannot use the issuer ${discovery.issuer} yet: ${checked.msg ?? "(no reason given)"}`);
+        continue;
+      }
+      if (checked.code === 404 || checked.code === 405) {
+        return { fallback: `coordinator: ${checked.call} answered ${checked.status}, so this Coordinator cannot check the issuer before the create` };
+      }
+      return { fallback: failureLine(checked) };
+    }
+    prompt?.rl.close();
+    out(`  the app answers for ${want.issuer} through the tunnel, and Arcade can use it`);
+    // The client's secret goes to Arcade in the create, and only there: a
+    // client minted by this run already has one, and an older one is rotated,
+    // which is safe because no User Source in this project uses it.
+    const secret = userSourceSecret ?? (await secretOf("arcade-user-source", true));
+    userSourceSecret = secret;
+    if (secret === null) fail("bun run oauth-client --client arcade-user-source --rotate printed no secret");
+    const created = await coordinator.create(scope, userSourceBody({ issuer: want.issuer, clientId: want.clientId, clientSecret: secret }));
+    if (!created.ok) return { fallback: failureLine(created) };
+    found = created.value;
+    createdNow = true;
+    appConfirmed = true;
+  }
+
+  // Read back by id, found or created: the gateway create checks only the id's shape, not that it is there, active and this app's.
+  const read = await coordinator.get(scope, found.id);
+  if (!read.ok) {
+    if (!createdNow) return { fallback: failureLine(read) };
+    gatewayNotCreated(found, true, hooks, `reading the User Source back failed: ${failureLine(read)}`);
+  }
+  const source = read.value;
+  const differences = [...readinessDifferences(source, found.id), ...userSourceDifferences(source, want)];
+  if (differences.length > 0) {
+    fail(
+      `the User Source ${found.id} ${createdNow ? "did not take" : "is not one a gateway can use"}: Arcade reads back\n${differences.map((line) => `  - ${line}`).join("\n")}\n` +
+        `No gateway was created, and ${hooksLeft}. In the dashboard (your project → User Sources), correct it or delete it, then run this again.`,
+    );
+  }
+  out(
+    createdNow
+      ? `  user source: created ${USER_SOURCE_NAME} (${source.id}), issuer ${source.issuer}, client ${want.clientId}, status active (read back)`
+      : `  user source: ${source.id} is active (read back)`,
+  );
+  out(`  user source: ${reported(source)} (reported, not checked)`);
+
+  // The gateway, through it (#30's create, restored).
+  out(`\nThe gateway (${apiUrl}):`);
+  const spec: GatewaySpec = { slug, userSourceId: source.id, loanToolkit, approvalsToolkit };
+  const listPath = projectPath(scope, "/gateways?limit=100");
+  const listing = await admin.request("GET", listPath);
+  if (listing.status !== 200) gatewayNotCreated(source, createdNow, hooks, new ArcadeError("GET", listPath, listing.status, JSON.stringify(listing.json)).message);
+  const existing = pageItems(listing.json).find((each) => objectField(each, "slug") === slug);
+  if (existing !== undefined) {
+    // Made before, by a run like this one or in the dashboard: held to the User Source, never edited.
+    const check = gatewayCheck(existing, loanToolkit, approvalsToolkit);
+    const through = objectField(existing, "user_source_id");
+    const other = typeof through === "string" && through !== source.id ? `user_source_id: Arcade has ${JSON.stringify(through)}, this app needs "${source.id}"` : null;
+    if (check.authType !== null || other !== null) {
+      fail(
+        `the gateway ${slug} does not authenticate through this app's User Source:\n  - ${check.authType ?? other}\n` +
+          `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Hop 1 is the access model, and this template never runs a ` +
+          "gateway on Arcade Headers or on Arcade accounts. In the dashboard, set its Authentication to Non-Arcade Users → User Source → " +
+          "Loan Approval Limits, or delete it and run this again.",
+      );
+    }
+    out(`  gateway: found ${slug}, through the User Source ${source.id}`);
+    for (const line of check.tools) out(`  warning       ${line}`);
+  } else {
+    const path = projectPath(scope, "/gateways");
+    const created = await admin.request("POST", path, gatewayBody(spec));
+    if (created.status === 409) {
+      gatewayNotCreated(source, createdNow, hooks, `Arcade says the slug ${slug} is taken. Blank ARCADE_GATEWAY_ID in .env and run this with --gateway <another-slug>`);
+    }
+    if (created.status < 200 || created.status >= 300) {
+      const error = new ArcadeError("POST", path, created.status, JSON.stringify(created.json));
+      const said = arcadeMessage(error);
+      gatewayNotCreated(source, createdNow, hooks, `${error.message}${said ? `\nArcade says: ${said}` : ""}`);
+    }
+    const id = objectField(created.json, "id");
+    if (typeof id !== "string" || id === "") gatewayNotCreated(source, createdNow, hooks, `Arcade answered with no id: ${JSON.stringify(created.json)}`);
+    const readPath = projectPath(scope, `/gateways/${encodeURIComponent(id)}`);
+    const readBack = await admin.request("GET", readPath);
+    if (readBack.status !== 200) {
+      fail(
+        `the gateway ${slug} was created (${id}), and reading it back failed: ${new ArcadeError("GET", readPath, readBack.status, JSON.stringify(readBack.json)).message}\n` +
+          `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Run this again: it finds the gateway, checks it, and turns the hooks on.`,
+      );
+    }
+    const differences = gatewayDifferences(readBack.json, spec);
+    if (differences.length > 0) {
+      fail(
+        `the gateway did not take: Arcade reads back\n${differences.map((line) => `  - ${line}`).join("\n")}\n` +
+          `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Correct it in the dashboard, or delete it and run this again.`,
+      );
+    }
+    out(`  gateway: created ${slug}, through the User Source ${source.id}, with the six tools of ${loanToolkit} and ${approvalsToolkit} (read back)`);
+  }
+
+  // The hooks, last: the gateway exists, and is the User Source's.
+  await turnHooksOn(scope, hooks);
+  return "enabled";
+}
+
+let gatewayState: NextSteps["gateway"] = "form";
+if (scope !== null && hooks !== null) {
+  const result = await oneClick(scope, hooks);
+  if (result === "enabled") {
+    gatewayState = "enabled";
+  } else {
+    out(`  ${result.fallback}. The rest is the dashboard flow (#48):`);
+    gatewayState = await dashboardFlow(scope, hooks);
+  }
+}
 finish({ clientId: client("arcade-user-source").client_id, clientSecret: userSourceSecret }, gatewayState);
