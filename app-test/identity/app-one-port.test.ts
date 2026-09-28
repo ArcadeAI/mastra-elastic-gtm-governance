@@ -227,6 +227,50 @@ describe("the identity provider, on the app's own port", () => {
     expect(output).toContain("code_state=already_consumed");
   });
 
+  // The #52 live test's sign-in, with a stale IDP_CLIENT_ID (#54): the plugin
+  // cannot send the error back to a client it does not know, so it sends the
+  // browser to its own `/error`, which was a 404 until #54.
+  test("a client the provider does not hold lands on the app's /error page, which shows the error and its description", async () => {
+    const authorize = await browse(
+      `${app.origin}/oauth2/authorize?${new URLSearchParams({
+        response_type: "code",
+        client_id: "a-client-from-an-older-clone",
+        redirect_uri: REDIRECT_URI,
+        scope: "openid email",
+        state: "stale-client",
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+        code_challenge_method: "S256",
+      })}`,
+    );
+    expect(authorize.status).toBe(302);
+    const location = new URL(authorize.headers.get("location")!, app.origin);
+    expect(`${location.origin}${location.pathname}`).toBe(`${app.origin}/error`);
+    expect(location.searchParams.get("error")).toBe("invalid_client");
+
+    const page = await call(location.toString());
+    const html = await page.text();
+    console.log(`[one-port] GET ${location.pathname}${location.search} -> ${page.status}\n${html.replace(/<style>[\s\S]*<\/style>/, "")}`);
+    expect(page.status).toBe(400);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(html).toContain("Sign-in stopped");
+    expect(html).toContain(`<code>invalid_client</code>: ${location.searchParams.get("error_description")}`);
+    expect(location.searchParams.get("error_description")).toBe("client_id is required");
+    expect(html).toContain("IDP_CLIENT_ID");
+  });
+
+  // The code is the query string's, so anybody can type one, and a name
+  // Object.prototype holds answered 500 (the #54 review).
+  test("an /error code that names an Object.prototype member gets the page too, with the generic hint", async () => {
+    for (const code of ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf", "isPrototypeOf", "propertyIsEnumerable", "toLocaleString", "__defineGetter__", "no_such_code"]) {
+      const page = await call(`${app.origin}/error?${new URLSearchParams({ error: code, error_description: "typed by hand" })}`);
+      const html = await page.text();
+      expect({ code, status: page.status }).toEqual({ code, status: 400 });
+      expect(page.headers.get("content-type")).toContain("text/html");
+      expect(html).toContain(`<code>${code}</code>: typed by hand`);
+      expect(html).toContain("Start the sign-in again from the app.");
+    }
+  });
+
   test("and every request above went to the app's one port", () => {
     expect(asked.length).toBeGreaterThan(8);
     expect([...new Set(asked.map((url) => new URL(url).host))]).toEqual([app.host]);

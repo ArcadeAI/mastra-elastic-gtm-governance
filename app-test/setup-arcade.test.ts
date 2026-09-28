@@ -33,6 +33,13 @@ import { join } from "node:path";
 
 import { spawnChild } from "./child.ts";
 import { childEnv } from "./child-env.ts";
+import { Browser } from "./identity-harness.ts";
+import { readWebConfig, type WebConfig } from "../lib/config.ts";
+import { signin, signinCallback } from "../lib/identity/handlers.ts";
+import { linkIdentity } from "../lib/identity/link.ts";
+import { readConfig as readIdpConfig } from "../lib/identity/provider/config.ts";
+import { isIdentityPath, openIdentityProvider } from "../lib/identity/provider/server.ts";
+import { SESSION_COOKIE } from "../lib/identity/session.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const SCRIPT = join(ROOT, "scripts", "setup-arcade.ts");
@@ -2903,3 +2910,193 @@ test("the Coordinator is only read and created on: no run, fresh, rerun or faile
   // The only POSTs are the issuer check and the one create.
   expect(arcade.coordinatorRequests.filter((each) => each.method === "POST").map((each) => each.path.replace(/^\/api/, ""))).toEqual([`${USER_SOURCES}/test_issuer`, USER_SOURCES]);
 }, 90_000);
+
+// --- #54: the shell, a stale web client, and the identity module's advice -----
+
+/**
+ * The app's own sign-in, in this process, against the project's `.env` and
+ * `idp.db` as `bun run dev` would open them: the real identity provider, and
+ * the real `/api/auth/signin` and `/api/auth/callback` handlers, with a
+ * password typed into the real login form. Only the network is left out: every
+ * URL is the public host's, and each is answered by the module the app routes
+ * it to. Lands on the gateway start when the sign-in worked, or wherever the
+ * chain stopped when it did not.
+ */
+class InProcessBrowser extends Browser {
+  readonly #provider: (request: Request) => Promise<Response>;
+  readonly #config: WebConfig;
+  constructor(provider: (request: Request) => Promise<Response>, config: WebConfig) {
+    super();
+    this.#provider = provider;
+    this.#config = config;
+  }
+  override async fetch(url: string, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+    if (this.cookies.size > 0) headers.set("cookie", [...this.cookies].map(([name, value]) => `${name}=${value}`).join("; "));
+    const request = new Request(url, { ...init, headers });
+    const { pathname } = new URL(url);
+    const response = isIdentityPath(pathname)
+      ? await this.#provider(request)
+      : pathname === "/api/auth/signin"
+        ? await signin(request, this.#config)
+        : pathname === "/api/auth/callback"
+          ? await signinCallback(request, this.#config)
+          : new Response(`not routed: ${pathname}`, { status: 404 });
+    this.visited.push(`${response.status} ${init.method ?? "GET"} ${url.split("?")[0]}`);
+    this.store(response);
+    return response;
+  }
+}
+
+async function signInAt(dir: string, email: string, password: string): Promise<{ signedIn: boolean; landed: string; html: string; visited: string[] }> {
+  const env = { ...envOf(dir), IDP_DB_PATH: join(dir, "idp.db"), NODE_ENV: "test" };
+  const provider = await openIdentityProvider(readIdpConfig(env));
+  linkIdentity({ fetch: provider.fetch, failure: () => null });
+  try {
+    const browser = new InProcessBrowser(provider.fetch, readWebConfig(env));
+    const end = await browser.follow(
+      `${ORIGIN}/api/auth/signin`,
+      (fields) => ({ ...fields, ...("email" in fields ? { email, password } : {}), ...("decision" in fields ? { decision: "allow" } : {}) }),
+      { stopAt: "/api/arcade/start" },
+    );
+    const signedIn = [...browser.cookies.keys()].some((name) => name.startsWith(SESSION_COOKIE)) && new URL(end.url).pathname === "/api/arcade/start";
+    return { signedIn, landed: new URL(end.url).pathname, html: end.html, visited: browser.visited };
+  } finally {
+    linkIdentity(undefined);
+    provider.close();
+  }
+}
+
+/** `bun run users …` in the project, reading its `.env` the way the command does from there. */
+async function usersIn(dir: string, ...args: string[]): Promise<{ code: number; out: string }> {
+  const child = spawnChild(["bun", join(ROOT, "scripts", "users.ts"), ...args], { cwd: dir, env: childEnv({}), stdout: "pipe", stderr: "pipe" });
+  const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
+  return { code, out: `${stdout}${stderr}` };
+}
+
+const PERSON = { email: "alice@bank.example", name: "Alice", role: "loan_officer", clearance: "50000", password: "setup-arcade-54-password" };
+const addPerson = (dir: string) =>
+  usersIn(dir, "add", PERSON.email, "--name", PERSON.name, "--role", PERSON.role, "--clearance", PERSON.clearance, "--password", PERSON.password);
+
+test("an IDP_CLIENT_ID idp.db does not hold is rewritten with its secret, so sign-in works, and a rerun leaves it alone (#54)", async () => {
+  const dir = project("stale-web-client");
+  expect((await setupArcade(dir)).code).toBe(0);
+  expect((await addPerson(dir)).code).toBe(0);
+  expect((await signInAt(dir, PERSON.email, PERSON.password)).signedIn).toBe(true);
+
+  // An older clone's sign-in client, copied into .env: the #52 live test's state.
+  const text = readFileSync(join(dir, ".env"), "utf8");
+  const stale = { id: "stale-web-client-from-an-older-clone", secret: "stale-web-secret-from-an-older-clone" };
+  writeFileSync(join(dir, ".env"), text.replace(/^IDP_CLIENT_ID=.*$/m, `IDP_CLIENT_ID=${stale.id}`).replace(/^IDP_CLIENT_SECRET=.*$/m, `IDP_CLIENT_SECRET=${stale.secret}`));
+  const refused = await signInAt(dir, PERSON.email, PERSON.password);
+  console.log(`--- sign-in with a stale IDP_CLIENT_ID ---\n${refused.visited.join("\n")}`);
+  expect(refused.signedIn).toBe(false);
+  expect(refused.landed).toBe("/error");
+  expect(refused.html).toContain("<code>invalid_client</code>: client_id is required");
+
+  arcade.requests = [];
+  const run = await setupArcade(dir);
+  console.log(`--- setup-arcade ${HOST}, with a stale IDP_CLIENT_ID in .env ---\n${run.stdout}${run.stderr}`);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  const env = envOf(dir);
+  const web = clientsIn(dir).web!.clientId;
+  expect(env.IDP_CLIENT_ID).toBe(web);
+  expect(env.IDP_CLIENT_SECRET).not.toBe(stale.secret);
+  expect(env.IDP_CLIENT_SECRET!.length).toBeGreaterThan(20);
+  expect(run.stdout).toContain(`rewrote  IDP_CLIENT_ID, IDP_CLIENT_SECRET  (.env named a web client idp.db does not hold; now idp.db's ${web},`);
+  expect(`${run.stdout}${run.stderr}`, "the new secret was printed").not.toContain(env.IDP_CLIENT_SECRET!);
+  expect(run.stdout).not.toContain("sign-in will fail until they match");
+  // Only the web client: nothing Arcade holds was rotated or re-registered.
+  expect(sequence(arcade.requests)).toEqual(RERUN);
+  expect((await signInAt(dir, PERSON.email, PERSON.password)).signedIn).toBe(true);
+
+  const after = readFileSync(join(dir, ".env"), "utf8");
+  const again = await setupArcade(dir);
+  expect(again.code).toBe(0);
+  expect(again.stdout).not.toContain("rewrote");
+  expect(readFileSync(join(dir, ".env"), "utf8")).toBe(after);
+}, 120_000);
+
+test("a dry run with an IDP_CLIENT_ID and no idp.db says the real run rewrites it", async () => {
+  const dir = project("stale-web-client-dry", (env) => env.replace(/^IDP_CLIENT_ID=$/m, "IDP_CLIENT_ID=stale").replace(/^IDP_CLIENT_SECRET=$/m, "IDP_CLIENT_SECRET=stale"));
+  const dry = await setupArcade(dir, "--dry-run");
+  expect(dry.code).toBe(0);
+  expect(dry.stdout).toContain("and would rewrite IDP_CLIENT_ID and IDP_CLIENT_SECRET: with no idp.db, a real run mints a new web client");
+});
+
+test("a shell that exports any IDP_* key .env does not hold stops the run too, managed or not, naming it and not its value (#54)", async () => {
+  const dir = project("shell-idp-keys");
+  const before = readFileSync(join(dir, ".env"), "utf8");
+  const shell = { IDP_DB_PATH: join(scratch, "an-older-clone", "idp.db"), IDP_SCOPES: "openid email planted-scope", IDP_CLIENT_ID: "planted-older-client" };
+  const run = await setupArcade(dir, { shell });
+  expect(run.code).toBe(1);
+  expect(run.stderr).toContain("IDP_CLIENT_ID, IDP_DB_PATH, IDP_SCOPES are exported in this shell with a value .env does not hold");
+  expect(run.stderr).toContain("unset IDP_CLIENT_ID IDP_DB_PATH IDP_SCOPES");
+  for (const [key, value] of Object.entries(shell)) expect(`${run.stdout}${run.stderr}`, `the run printed ${key}'s value`).not.toContain(value);
+  expect(arcade.requests).toEqual([]);
+  expect(readFileSync(join(dir, ".env"), "utf8")).toBe(before);
+  expect(existsSync(join(dir, "idp.db"))).toBe(false);
+});
+
+/**
+ * Criterion 5 of #54: the identity module's refusal, `identity_unavailable`
+ * on every identity route, names steps that end in a working sign-in when
+ * followed to the letter. The #52 live test's state: Arcade already holds the
+ * provider, created with the arcade client of the `idp.db` about to be deleted.
+ */
+test("the identity module's advice, followed to the letter, ends in a working sign-in", async () => {
+  const dir = project("advice");
+  expect((await setupArcade(dir)).code).toBe(0);
+  expect((await addPerson(dir)).code).toBe(0);
+  // The first sign-in signs an ID token, which mints idp.db's signing key.
+  expect((await signInAt(dir, PERSON.email, PERSON.password)).signedIn).toBe(true);
+
+  // The secret changes under it, as it did when an exported one stopped being exported.
+  const other = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("hex");
+  writeFileSync(join(dir, ".env"), readFileSync(join(dir, ".env"), "utf8").replace(/^BETTER_AUTH_SECRET=.*$/m, `BETTER_AUTH_SECRET=${other}`));
+  const dbPath = join(dir, "idp.db");
+  const advice = await openIdentityProvider(readIdpConfig({ ...envOf(dir), IDP_DB_PATH: dbPath, NODE_ENV: "test" })).then(
+    () => null,
+    (error: Error) => error.message,
+  );
+  console.log(`--- the identity module's refusal ---\n${advice}`);
+  expect(advice).not.toBeNull();
+  // The steps, as the test below takes them.
+  const steps = ["(1) stop the app", `(2) delete ${dbPath}`, `(3) run \`bun run setup-arcade ${HOST}\``, "`bun run users list`", "`bun run users remove <email>`", "`bun run users add <email>", "(5) start the app, and sign in"];
+  for (const step of steps) expect(advice).toContain(step);
+  expect(steps.map((step) => advice!.indexOf(step))).toEqual([...steps.map((step) => advice!.indexOf(step))].sort((a, b) => a - b));
+
+  // (1) Nothing is running: the provider above refused to open. (2)
+  for (const suffix of ["", "-wal", "-shm"]) rmSync(`${dbPath}${suffix}`, { force: true });
+
+  // (3) Arcade's provider names the deleted arcade client, so the run stops there, and says so...
+  const run = await setupArcade(dir);
+  console.log(`--- step 3, setup-arcade ${HOST} ---\n${run.stdout}${run.stderr}`);
+  expect(run.code).toBe(1);
+  expect(run.stdout).toContain("oauth2.client_id: Arcade has");
+  expect(run.stderr).toContain("never edits an existing provider");
+  // ...having set .env's web client to the new idp.db's first.
+  expect(run.stdout).toContain("rewrote  IDP_CLIENT_ID, IDP_CLIENT_SECRET");
+  expect(run.stderr).toContain(".env's IDP_CLIENT_ID and IDP_CLIENT_SECRET were rewritten above, so the app's own sign-in works");
+  expect(envOf(dir).IDP_CLIENT_ID).toBe(clientsIn(dir).web!.clientId);
+
+  // (4) For each person the list shows: remove, then add again.
+  const listed = await usersIn(dir, "list");
+  console.log(`--- step 4, bun run users list ---\n${listed.out}`);
+  expect(listed.out).toContain(PERSON.email);
+  expect((await usersIn(dir, "remove", PERSON.email)).code).toBe(0);
+  expect((await addPerson(dir)).code).toBe(0);
+
+  // (5) Sign in.
+  const signedIn = await signInAt(dir, PERSON.email, PERSON.password);
+  console.log(`--- step 5, sign in ---\n${signedIn.visited.join("\n")}`);
+  expect(signedIn.signedIn).toBe(true);
+
+  // And the provider, deleted in the dashboard as the advice says, is created again by step 3.
+  arcade.providers.clear();
+  const again = await setupArcade(dir);
+  expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
+  expect((arcade.providers.get("app-identity") as Json).oauth2.client_id).toBe(clientsIn(dir).arcade!.clientId);
+  expect(again.stdout).not.toContain("rewrote");
+  expect((await signInAt(dir, PERSON.email, PERSON.password)).signedIn).toBe(true);
+}, 180_000);

@@ -241,6 +241,13 @@ export async function openPeople(path: string, people: PersonSeed[] = []): Promi
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
 
   const db = new Database(path, { create: true });
+  // First, before anything that takes a lock. The last connection to close
+  // checkpoints the WAL, and an open that lands in that window got
+  // SQLITE_BUSY at once: setup-arcade's `oauth-client` failed that way right
+  // after a sign-in closed the file (#54's CI), and `bun run setup-arcade`,
+  // `oauth-client` and `users` all open idp.db while `bun run dev` holds it.
+  // Measured on #54: 2464 busy opens in about 21k without this, 0 with it.
+  db.exec("PRAGMA busy_timeout = 5000");
   db.exec("PRAGMA journal_mode = WAL");
   db.exec("PRAGMA foreign_keys = ON");
 

@@ -71,6 +71,7 @@ const MAY_OPEN_THE_DOOR = [
   "app/identity/[...path]/route.ts",
   "app/login/route.ts",
   "app/consent/route.ts",
+  "app/error/route.ts",
   "app/jwks/route.ts",
   "app/health/route.ts",
   "instrumentation.ts",
