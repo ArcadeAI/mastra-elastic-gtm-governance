@@ -25,10 +25,15 @@ import { childEnv } from "../app-test/child-env.ts";
 const REPO = join(import.meta.dir, "..");
 const README = readFileSync(join(REPO, "README.md"), "utf8");
 const DOMAIN_SWAP = readFileSync(join(REPO, "docs", "DOMAIN-SWAP.md"), "utf8");
+/** The FAQ moved out of the README into its own page, one H2 per question (#58). */
+const FAQ = readFileSync(join(REPO, "docs", "faq.md"), "utf8");
+const ACCOUNTS_QUESTION = "Do my users need Arcade accounts?";
 
 /** Who needs an Arcade account, and why, moved out of the README into its own page (#55). */
 const ACCOUNTS_PAGE = "docs/app-users-and-arcade-accounts.md";
 const ACCOUNTS_LINK = `[\`${ACCOUNTS_PAGE}\`](./${ACCOUNTS_PAGE})`;
+/** The same page linked from `docs/faq.md`, its neighbour. */
+const ACCOUNTS_LINK_FROM_DOCS = "[`app-users-and-arcade-accounts.md`](./app-users-and-arcade-accounts.md)";
 const SLACK_PAGE = "https://docs.arcade.dev/en/references/auth-providers/slack";
 
 const ADD_STEP = "7. **Add yourself and an approver**";
@@ -163,15 +168,24 @@ describe("the README's users commands", () => {
   }, 60_000);
 });
 
+/** The FAQ's answer to who needs an Arcade account: the text under its H2 in `docs/faq.md`. */
+function accountsAnswer(faq: string): string {
+  return section(faq, ACCOUNTS_QUESTION);
+}
+
 describe("the FAQ the docs point at", () => {
-  test("the README's FAQ answers it, and DOMAIN-SWAP links to it rather than repeating it", () => {
-    const faq = section(README, "FAQ");
-    const entry = faq.split("\n").find((line) => line.startsWith("**Do my users need Arcade accounts?**")) ?? "";
+  test("docs/faq.md answers it, and DOMAIN-SWAP links to that answer rather than repeating it", () => {
+    const entry = accountsAnswer(FAQ);
     expect(entry).toContain("With Arcade's built-in Slack app, the default, each loan officer who requests an approval has to be invited");
     expect(entry).toContain("With your own Slack app");
-    expect(entry).toContain(ACCOUNTS_LINK);
-    expect(DOMAIN_SWAP).toContain("[Do my users need Arcade accounts?](../README.md#faq)");
+    expect(entry).toContain(ACCOUNTS_LINK_FROM_DOCS);
+    expect(DOMAIN_SWAP).toContain("[Do my users need Arcade accounts?](./faq.md#do-my-users-need-arcade-accounts)");
     expect(DOMAIN_SWAP).not.toContain("each loan officer who requests an approval has to be invited");
+  });
+
+  test("the README keeps no FAQ of its own, and links the page from Further reading", () => {
+    expect(section(README, "FAQ")).toBe("");
+    expect(section(README, "Further reading")).toContain("[`docs/faq.md`](./docs/faq.md)");
   });
 });
 
@@ -193,8 +207,9 @@ describe("the page on who needs an Arcade account", () => {
     expect(accountsPageGaps(readFileSync(path, "utf8"))).toEqual([]);
   });
 
-  test("the README points at it from Prerequisites, step 7 and the FAQ", () => {
-    for (const title of ["Prerequisites", "Quickstart 🚀", "FAQ"]) expect(section(README, title)).toContain(ACCOUNTS_LINK);
+  test("the README points at it from Prerequisites, step 7 and Further reading, and the FAQ from its answer", () => {
+    for (const title of ["Prerequisites", "Quickstart 🚀", "Further reading"]) expect(section(README, title)).toContain(ACCOUNTS_LINK);
+    expect(accountsAnswer(FAQ)).toContain(ACCOUNTS_LINK_FROM_DOCS);
   });
 
   test("the check bites on a page with the Slack link or a route missing", () => {
@@ -220,6 +235,12 @@ describe("the checks bite on a planted violation", () => {
   test("an approver whose clearance does not cover the $95K, and a loan officer whose does", () => {
     expect(coversTheAct(addCommands(addStep(README.replace("--clearance 250000", "--clearance 90000"))))).toBe(false);
     expect(coversTheAct(addCommands(addStep(README.replace("--clearance 50000", "--clearance 100000"))))).toBe(false);
+  });
+
+  test("the FAQ's answer without the route that needs no Arcade account, or under a renamed question", () => {
+    const entry = accountsAnswer(FAQ);
+    expect(accountsAnswer(FAQ.replace(entry, entry.replace("With your own Slack app", "With a Slack app")))).not.toContain("With your own Slack app");
+    expect(accountsAnswer(FAQ.replace(`## ${ACCOUNTS_QUESTION}`, "## Arcade accounts"))).toBe("");
   });
 
   test("the add step moved after the step that opens the app", () => {

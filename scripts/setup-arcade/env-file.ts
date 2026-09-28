@@ -1,8 +1,12 @@
 /**
  * Reading and filling in `.env` for `bun run setup-arcade` (#9).
  *
- * The one rule: **blanks only.** A key with a value is never changed, whoever
- * wrote it. A key present and empty (`KEY=`, as `.env.example` ships them) is
+ * The rule: **blanks only**, with two exceptions. A key with a value is never
+ * changed, whoever wrote it, except `IDP_OAUTH_REDIRECT_URIS_ARCADE`, which is
+ * kept in sync with the live provider's callback (#30), and `IDP_CLIENT_ID` and
+ * `IDP_CLIENT_SECRET`, which are rewritten when `IDP_CLIENT_ID` names a web
+ * client `idp.db` does not hold (#54); both go through {@link replaceValue}.
+ * A key present and empty (`KEY=`, as `.env.example` ships them) is
  * filled where it stands; a key that is absent is appended under one header.
  * Comments and order survive, so the file stays the one the developer copied.
  */
