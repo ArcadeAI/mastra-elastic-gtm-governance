@@ -109,6 +109,7 @@ import {
   failureLine,
   USER_SOURCE_CALLBACK,
   USER_SOURCE_NAME,
+  reported,
   type UserSource,
   userSourceBody,
   userSourceDifferences,
@@ -171,8 +172,6 @@ const shellEnv: Record<string, string | undefined> = { ...process.env };
 const envPath = join(cwd, ".env");
 const examplePath = join(cwd, ".env.example");
 let envText = readEnvFile(envPath);
-/** `.env` as this run found it, to tell whether the app has to be restarted to read what the run wrote (#52). */
-const envOnDisk = envText;
 const envExists = existsSync(envPath);
 if (!envExists && existsSync(examplePath)) envText = readFileSync(examplePath, "utf8");
 const fileEnv = parseEnv(envText);
@@ -348,6 +347,8 @@ process.env.APP_PUBLIC_HOST = host;
 
 const admin = new ArcadeAdmin(apiUrl, apiKey, dryRun, out);
 const coordinator = coordinatorBase.url === null ? null : new Coordinator(coordinatorBase.url, apiKey, dryRun, out);
+/** Set once the app answered through the tunnel after this run wrote .env: the steps left then skip starting it (#52). */
+let appConfirmed = false;
 
 /**
  * The forms left for the dashboard, and the steps after them. The last thing
@@ -381,7 +382,9 @@ function finish(
     out(hooksForm({ origin }));
   }
   out();
-  out(nextSteps({ host, origin, port: effective("PORT") || "3000", gateway, deployed: !skipDeploy, userSourceReady: registered !== null }));
+  out(
+    nextSteps({ host, origin, port: effective("PORT") || "3000", gateway, deployed: !skipDeploy, userSourceReady: registered !== null, appRunning: appConfirmed }),
+  );
   if (gateway === "needs-gateway") {
     out(`\nOnce the gateway ${slug} exists, turn the hooks on with the same command:`);
     out(`  ${hooksOnCommand(host)}`);
@@ -487,8 +490,8 @@ if (dryRun) {
     out(`    (the User Source, through the Coordinator API at ${coordinator.baseUrl}:)`);
     await coordinator.list(scope);
     out(`    (searched for the issuer ${origin} and the arcade-user-source client. One that differs stops the run, and`);
-    out("    one that matches is used. With none, the run pauses: restart `bun run dev`, press Enter, and it checks");
-    out(`    ${origin}/.well-known/openid-configuration through the tunnel, then creates it:)`);
+    out("    one that matches is used. With none, the run waits for you to start `bun run dev` and the tunnel, and on");
+    out(`    Enter it checks ${origin}/.well-known/openid-configuration through the tunnel, then creates it:)`);
     await coordinator.create(
       scope,
       userSourceBody({
@@ -911,6 +914,10 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
   return "needs-gateway";
 }
 
+/** What the run says of the one field the Coordinator's answer leaves out (#52). */
+const CALLBACK_UNCHECKED =
+  `user source: Arcade's answer carries no callback, so it can't be checked; the arcade-user-source client allowlists ${USER_SOURCE_CALLBACK}`;
+
 /** Why the one-click path stopped short, as the one line the run prints before the #48 flow. */
 type Fallback = { fallback: string };
 
@@ -932,7 +939,7 @@ async function issuerProblem(): Promise<string | null> {
   }
   const raw = await response.text();
   if (response.status !== 200) {
-    return `GET ${url} answered ${response.status}${response.status === 503 ? ": the app's sign-in did not start (restart `bun run dev` so it reads the new .env)" : ""}`;
+    return `GET ${url} answered ${response.status}${response.status === 503 ? ": the app's sign-in did not start (start `bun run dev` again, so it reads the new .env)" : ""}`;
   }
   let issuer: unknown;
   try {
@@ -941,7 +948,7 @@ async function issuerProblem(): Promise<string | null> {
     return `GET ${url} answered 200 with a body that is not JSON: is the tunnel pointing at this app?`;
   }
   if (typeof issuer !== "string" || issuer.replace(/\/+$/, "") !== origin) {
-    return `GET ${url} names the issuer ${JSON.stringify(issuer) ?? "nothing"}, not ${origin}: restart \`bun run dev\` so it reads APP_PUBLIC_HOST from .env`;
+    return `GET ${url} names the issuer ${JSON.stringify(issuer) ?? "nothing"}, not ${origin}: stop \`bun run dev\` and start it again, so it reads APP_PUBLIC_HOST from .env`;
   }
   return null;
 }
@@ -1025,7 +1032,7 @@ function gatewayNotCreated(source: UserSource, createdNow: boolean, hooks: { sta
 async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksStatus }): Promise<"enabled" | Fallback> {
   if (coordinator === null) return { fallback: `coordinator: ${"why" in coordinatorBase ? coordinatorBase.why : "none"}` };
   out(`\nThe User Source (${coordinator.baseUrl}):`);
-  const want: UserSourceSpec = { issuer: origin, clientId: client("arcade-user-source").client_id, callback: USER_SOURCE_CALLBACK };
+  const want: UserSourceSpec = { issuer: origin, clientId: client("arcade-user-source").client_id };
   const listed = await coordinator.list(scope);
   if (!listed.ok) return { fallback: failureLine(listed) };
 
@@ -1047,20 +1054,22 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
   if (found.length === 1) {
     source = found[0]!;
     out(`  user source: found ${source.name ?? USER_SOURCE_NAME} (${source.id}), issuer ${origin}, client ${want.clientId}; it matches and is left as it is`);
+    out(`  ${CALLBACK_UNCHECKED}`);
+    out(`  user source: ${reported(source)} (reported, not checked)`);
   } else {
     out(`  user source: there is none for ${origin} in this project yet. Arcade reads the app's sign-in through the tunnel`);
     out("  when it creates one, so the app has to be up behind it first.");
     if (!interactive) {
       return {
-        fallback: "user source: not created, because stdin is not a terminal, so this run cannot pause for you to restart `bun run dev`",
+        fallback: "user source: not created, because stdin is not a terminal, so this run cannot wait for you to start `bun run dev` and the tunnel",
       };
     }
-    const changed = readEnvFile(envPath) !== envOnDisk;
     const port = effective("PORT") || "3000";
     for (;;) {
+      // The human's wording (#52): the app starts after .env is written, so there is nothing to restart.
       const answer = await ask(
-        `\n  ${changed ? "Restart `bun run dev` so it reads the new .env" : "Check that `bun run dev` is running"}, with the tunnel up ` +
-          `(ngrok http --url=${host} ${port}), then press Enter.\n  n, or Ctrl-C, ends on the dashboard forms instead: `,
+        `\n  Now start the app and the tunnel, in two other terminals: bun run dev, and ngrok http --url=${host} ${port}.\n` +
+          "  Press Enter when both are running (n, or Ctrl-C, ends on the dashboard forms instead): ",
       );
       if (answer === null) return { fallback: "user source: not created, at your answer, so none of it is sent" };
       const problem = await issuerProblem();
@@ -1099,6 +1108,9 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
     }
     source = readBack;
     out(`  user source: created ${USER_SOURCE_NAME} (${source.id}), issuer ${origin}, client ${want.clientId} (read back)`);
+    out(`  ${CALLBACK_UNCHECKED}`);
+    out(`  user source: ${reported(source)} (reported, not checked)`);
+    appConfirmed = true;
   }
 
   // The gateway, through it (#30's create, restored).

@@ -123,6 +123,8 @@ export interface NextSteps {
   deployed: boolean;
   /** True when the User Source is registered already (#52), so its form is not a step left. */
   userSourceReady?: boolean;
+  /** True when the app answered through the tunnel after this run wrote .env (#52): starting it is not a step left. */
+  appRunning?: boolean;
 }
 
 /** The second run, which turns the hooks on once the gateway exists: the same command as the first. */
@@ -140,10 +142,11 @@ export function hooksOnCommand(host: string): string {
  * lists the toolkits' tools only once they are deployed and while the hooks
  * are disabled; so the hooks are turned on last, by the second run.
  */
-export function nextSteps({ host, origin, port, gateway, deployed, userSourceReady = false }: NextSteps): string {
+export function nextSteps({ host, origin, port, gateway, deployed, userSourceReady = false, appRunning = false }: NextSteps): string {
   const steps = [
-    "Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.",
-    `Start the tunnel: ngrok http --url=${host} ${port}`,
+    ...(appRunning
+      ? []
+      : ["Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.", `Start the tunnel: ngrok http --url=${host} ${port}`]),
     ...(deployed || gateway === "enabled"
       ? []
       : ["Deploy both toolkits (their secrets are set above): arcade deploy, in tools/loan and in tools/approvals."]),
