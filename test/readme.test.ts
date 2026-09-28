@@ -12,8 +12,10 @@
  * one that passes.
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { brokenRelativeLinks as brokenLinks, headings, links, proseLines, section } from "./markdown.ts";
 
 const REPO = join(import.meta.dir, "..");
 const README = readFileSync(join(REPO, "README.md"), "utf8");
@@ -59,57 +61,6 @@ const NOT_VARIABLES = new Set(["CHECK_FAILED", "CLOUDINARY_DEMO_VIDEO_URL_REQUIR
 
 // --- Reading the Markdown ----------------------------------------------------
 
-/** The lines outside fenced code blocks, with their 1-based line numbers. */
-function proseLines(markdown: string): Array<{ n: number; text: string }> {
-  const lines: Array<{ n: number; text: string }> = [];
-  let fenced = false;
-  markdown.split("\n").forEach((text, i) => {
-    if (/^\s*```/.test(text)) {
-      fenced = !fenced;
-      return;
-    }
-    if (!fenced) lines.push({ n: i + 1, text });
-  });
-  return lines;
-}
-
-function headings(markdown: string): Array<{ level: number; title: string }> {
-  return proseLines(markdown).flatMap(({ text }) => {
-    const match = /^(#{1,6}) (.+?)\s*$/.exec(text);
-    return match ? [{ level: match[1]!.length, title: match[2]! }] : [];
-  });
-}
-
-/** The text under one H2, up to the next H2. */
-function section(markdown: string, title: string): string {
-  const lines = markdown.split("\n");
-  const start = lines.findIndex((line) => line === `## ${title}`);
-  if (start === -1) return "";
-  const end = lines.findIndex((line, i) => i > start && line.startsWith("## "));
-  return lines.slice(start + 1, end === -1 ? undefined : end).join("\n");
-}
-
-/** GitHub's heading anchors: lowercased, punctuation and emoji dropped, spaces to hyphens, repeats suffixed. */
-function anchors(markdown: string): Set<string> {
-  const seen = new Map<string, number>();
-  const found = new Set<string>();
-  for (const { title } of headings(markdown)) {
-    const base = title
-      .replace(/`/g, "")
-      .toLowerCase()
-      .replace(/[^\p{L}\p{N}\s_-]/gu, "")
-      .replace(/\s/g, "-");
-    const count = seen.get(base) ?? 0;
-    seen.set(base, count + 1);
-    found.add(count === 0 ? base : `${base}-${count}`);
-  }
-  return found;
-}
-
-function links(markdown: string): string[] {
-  return proseLines(markdown).flatMap(({ text }) => [...text.matchAll(/\]\(([^)\s]+)\)/g)].map((match) => match[1]!));
-}
-
 /** Every upper-snake word in the text, which is how this repo spells an environment variable. */
 function variablesNamed(markdown: string): Set<string> {
   const words = markdown.match(/\b[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\b/g) ?? [];
@@ -131,18 +82,9 @@ function requiredBlock(example: string): Set<string> {
 
 // --- The checks ---------------------------------------------------------------
 
-/** Relative links whose file, or whose anchor in that file, does not exist. */
+/** Relative links whose file, or whose anchor in that file, does not exist; read as the README unless `from` says otherwise. */
 function brokenRelativeLinks(markdown: string, from = join(REPO, "README.md")): string[] {
-  return links(markdown).flatMap((target) => {
-    if (/^(https?:|mailto:)/.test(target)) return [];
-    const [path, anchor] = target.split("#") as [string, string | undefined];
-    const file = path === "" ? from : resolve(dirname(from), path);
-    if (!existsSync(file)) return [`${target}: no such file`];
-    if (anchor === undefined) return [];
-    if (statSync(file).isDirectory() || !file.endsWith(".md")) return [`${target}: an anchor into something that is not Markdown`];
-    const text = file === from ? markdown : readFileSync(file, "utf8");
-    return anchors(text).has(anchor) ? [] : [`${target}: no heading with that anchor`];
-  });
+  return brokenLinks(markdown, from);
 }
 
 /** External links nobody verified. */
@@ -516,3 +458,4 @@ describe("each check bites on a planted violation", () => {
     expect(boldTitles("Intro.\n\n**Customization**\n\n- **Label**: a bullet with a bold label is fine\n")).toEqual([3]);
   });
 });
+
