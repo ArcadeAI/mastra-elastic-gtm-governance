@@ -15,7 +15,7 @@
  * is under the $95K the Quickstart asks for, and the approver's covers it.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -25,6 +25,11 @@ import { childEnv } from "../app-test/child-env.ts";
 const REPO = join(import.meta.dir, "..");
 const README = readFileSync(join(REPO, "README.md"), "utf8");
 const DOMAIN_SWAP = readFileSync(join(REPO, "docs", "DOMAIN-SWAP.md"), "utf8");
+
+/** Who needs an Arcade account, and why, moved out of the README into its own page (#55). */
+const ACCOUNTS_PAGE = "docs/app-users-and-arcade-accounts.md";
+const ACCOUNTS_LINK = `[\`${ACCOUNTS_PAGE}\`](./${ACCOUNTS_PAGE})`;
+const SLACK_PAGE = "https://docs.arcade.dev/en/references/auth-providers/slack";
 
 const ADD_STEP = "7. **Add yourself and an approver**";
 const ASK_STEP = "8. **Ask for the $95K approval**";
@@ -127,10 +132,12 @@ describe("the README's users commands", () => {
     expect(coversTheAct(quickstartAdds)).toBe(true);
   });
 
-  test("step 7 says the approver's email is their Slack one, names the Arcade invite, and offers seed-demo", () => {
+  test("step 7 says the approver's email is their Slack one, answers who needs an Arcade account, and offers seed-demo", () => {
     expect(step).toContain("Use the email the approver's Slack account uses");
-    expect(step).toContain("under your project's Members");
-    expect(step).toContain("(see [Do my users need Arcade accounts?](#faq))");
+    expect(step).toContain(
+      "   - Do your app's users need Arcade accounts? With Arcade's built-in Slack app, yes: invite each loan officer to your Arcade project's Members. " +
+        `With your own Slack app, no. See ${ACCOUNTS_LINK}.\n`,
+    );
     expect(step).toContain("`bun run users seed-demo`");
   });
 
@@ -159,10 +166,45 @@ describe("the README's users commands", () => {
 describe("the FAQ the docs point at", () => {
   test("the README's FAQ answers it, and DOMAIN-SWAP links to it rather than repeating it", () => {
     const faq = section(README, "FAQ");
-    expect(faq).toContain("**Do my users need Arcade accounts?** Anyone who requests an approval does, and nobody else.");
-    expect(faq).toContain("register your own Slack app as a custom OAuth provider");
+    const entry = faq.split("\n").find((line) => line.startsWith("**Do my users need Arcade accounts?**")) ?? "";
+    expect(entry).toContain("With Arcade's built-in Slack app, the default, each loan officer who requests an approval has to be invited");
+    expect(entry).toContain("With your own Slack app");
+    expect(entry).toContain(ACCOUNTS_LINK);
     expect(DOMAIN_SWAP).toContain("[Do my users need Arcade accounts?](../README.md#faq)");
-    expect(DOMAIN_SWAP).not.toContain("Anyone who requests an approval does, and nobody else.");
+    expect(DOMAIN_SWAP).not.toContain("each loan officer who requests an approval has to be invited");
+  });
+});
+
+/** The ways the accounts page falls short of answering the question: each one a thing a reader would miss. */
+function accountsPageGaps(page: string): string[] {
+  const gaps: string[] = [];
+  if (!page.startsWith("# Do your app's users need Arcade accounts?\n")) gaps.push("the question as its title");
+  if (!page.includes(`](${SLACK_PAGE})`)) gaps.push("a link to Arcade's Slack auth provider page");
+  for (const heading of ["## Why", "## Route 1: Arcade's built-in Slack app", "## Route 2: your own Slack app"])
+    if (!page.split("\n").includes(heading)) gaps.push(heading);
+  return gaps;
+}
+
+describe("the page on who needs an Arcade account", () => {
+  const path = join(REPO, ACCOUNTS_PAGE);
+
+  test("exists, answers the question for both routes, and links Arcade's Slack page", () => {
+    expect(existsSync(path)).toBe(true);
+    expect(accountsPageGaps(readFileSync(path, "utf8"))).toEqual([]);
+  });
+
+  test("the README points at it from Prerequisites, step 7 and the FAQ", () => {
+    for (const title of ["Prerequisites", "Quickstart 🚀", "FAQ"]) expect(section(README, title)).toContain(ACCOUNTS_LINK);
+  });
+
+  test("the check bites on a page with the Slack link or a route missing", () => {
+    const page = readFileSync(path, "utf8");
+    expect(accountsPageGaps(page.replaceAll(SLACK_PAGE, "https://example.com/slack"))).toEqual([
+      "a link to Arcade's Slack auth provider page",
+    ]);
+    expect(accountsPageGaps(page.replace("## Route 2: your own Slack app", "## Your own Slack app"))).toEqual([
+      "## Route 2: your own Slack app",
+    ]);
   });
 });
 
