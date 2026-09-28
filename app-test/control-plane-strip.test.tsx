@@ -16,17 +16,16 @@
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
 
 import type { ControlPlaneReport } from "../lib/governance/control-plane.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 // Bun's own, captured before happy-dom replaces the globals — `Bun.serve`
 // refuses a `Response` that is not Bun's. Same reason as `chat-rendering`.
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const NativeResponse = globalThis.Response;
 
-const { GlobalRegistrator } = await import("@happy-dom/global-registrator");
-GlobalRegistrator.register({ url: "http://panel.test/" });
+installDom({ url: "http://panel.test/" });
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 const { ControlPlaneStatus } = await import("../components/governance/ControlPlaneStatus.tsx");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -112,11 +111,9 @@ beforeAll(() => {
 
 afterAll(async () => {
   server?.stop(true);
-  // Both halves, and both matter: `bun test` runs every file in this service
-  // in one process, so a `fetch` left pointing at this file's stand-in and a
-  // DOM left registered are inherited by whichever suite runs next.
-  globalThis.fetch = nativeFetch;
-  await GlobalRegistrator.unregister();
+  // The `fetch` above and the DOM come off in `installDom`'s own `afterAll`,
+  // which runs before this one: `bun test` runs every file in one process, so
+  // either left behind is inherited by whichever file runs next.
 });
 
 const mounted: Array<{ root: ReturnType<typeof createRoot>; host: HTMLElement }> = [];

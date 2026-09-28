@@ -15,10 +15,10 @@
  *   real loan module, the gateway stand-in, the scripted model), for the claim
  *   that the JSON on screen equals what the model saw.
  */
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
+import { afterEach, beforeAll, describe, expect, test } from "bun:test";
 
 import type { ChatEvent } from "../lib/agent/events.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const NativeRequest = globalThis.Request;
@@ -34,7 +34,7 @@ const NativeWritableStream = globalThis.WritableStream;
 const NativeTransformStream = globalThis.TransformStream;
 const NativeTextEncoderStream = globalThis.TextEncoderStream;
 
-GlobalRegistrator.register({ url: "http://chat-feel.test/" });
+installDom({ url: "http://chat-feel.test/" });
 globalThis.Request = NativeRequest;
 globalThis.Response = NativeResponse;
 globalThis.Headers = NativeHeaders;
@@ -48,7 +48,6 @@ globalThis.TextEncoderStream = NativeTextEncoderStream;
 globalThis.fetch = nativeFetch;
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 type Root = import("react-dom/client").Root;
 const { Chat } = await import("../components/chat/Chat.tsx");
 const { encodeEvent } = await import("../lib/agent/events.ts");
@@ -68,11 +67,6 @@ beforeAll(() => {
     if (cookie !== null) headers.set("cookie", cookie);
     return nativeFetch(new URL(String(input), origin), { ...init, headers });
   }) as typeof fetch;
-});
-
-afterAll(async () => {
-  await GlobalRegistrator.unregister();
-  globalThis.fetch = nativeFetch;
 });
 
 // ---------------------------------------------------------------------------

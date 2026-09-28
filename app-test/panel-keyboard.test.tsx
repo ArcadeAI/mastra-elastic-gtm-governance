@@ -19,16 +19,18 @@
  *    with an `onClick` would pass a click-based test and be unreachable from a
  *    keyboard. The element is the claim.
  */
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 import { aGovernanceEvent } from "@cg/policy-schema";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
-import { act } from "react";
-import { createRoot } from "react-dom/client";
 
-import { ControlPlanePanelView } from "../components/governance/ControlPlanePanelView.tsx";
 import { appendEvents, emptyTimeline } from "../lib/governance/timeline.ts";
+import { createRoot, installDom } from "./dom.ts";
 
-GlobalRegistrator.register({ url: "http://panel-keyboard.test/" });
+// React after the DOM, never in a static import: a static import is evaluated
+// before this line runs, and `react-dom/client` keeps the environment it was
+// first evaluated in for every later file in the process (app-test/dom.ts).
+installDom({ url: "http://panel-keyboard.test/" });
+const { act } = await import("react");
+const { ControlPlanePanelView } = await import("../components/governance/ControlPlanePanelView.tsx");
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mounted: Array<{ root: ReturnType<typeof createRoot>; host: HTMLElement }> = [];
@@ -38,10 +40,6 @@ afterEach(async () => {
     await act(async () => each.root.unmount());
     each.host.remove();
   }
-});
-
-afterAll(async () => {
-  await GlobalRegistrator.unregister();
 });
 
 /** The mounted panel, and the host it is in. */

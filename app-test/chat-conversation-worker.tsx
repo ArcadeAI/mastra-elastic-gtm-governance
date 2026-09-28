@@ -3,9 +3,9 @@
  * isolation through the real `Chat` component and real local HTTP.
  */
 import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
-import { GlobalRegistrator } from "@happy-dom/global-registrator";
 
 import type { ChatEvent } from "../lib/agent/events.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const NativeRequest = globalThis.Request;
@@ -16,7 +16,7 @@ const NativeTextEncoder = globalThis.TextEncoder;
 const NativeTextDecoder = globalThis.TextDecoder;
 const NativeTextDecoderStream = globalThis.TextDecoderStream;
 
-GlobalRegistrator.register({ url: "http://chat-conversation.test/" });
+installDom({ url: "http://chat-conversation.test/" });
 globalThis.Request = NativeRequest;
 globalThis.Response = NativeResponse;
 globalThis.Headers = NativeHeaders;
@@ -27,7 +27,6 @@ globalThis.TextDecoderStream = NativeTextDecoderStream;
 globalThis.fetch = nativeFetch;
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 type Root = import("react-dom/client").Root;
 const { Chat } = await import("../components/chat/Chat.tsx");
 const { encodeEvent } = await import("../lib/agent/events.ts");
@@ -58,8 +57,6 @@ afterEach(() => {
 afterAll(async () => {
   harness?.stop();
   harness = null;
-  await GlobalRegistrator.unregister();
-  globalThis.fetch = nativeFetch;
 });
 
 function start(eventsForPost: (body: Record<string, unknown>, postNumber: number) => ChatEvent[]): void {

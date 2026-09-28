@@ -24,22 +24,21 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import type { ChatEvent } from "../lib/agent/events.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 // Bun's own, captured before happy-dom replaces the globals with the DOM's
 // look-alikes. Two reasons, both measured here: `Chat`'s request goes to a real
 // server over real HTTP (only the origin in front of the relative path is
 // supplied), and `Bun.serve` rejects a `Response` that is not Bun's — with the
-// registrator installed, a bare `new Response(…)` in this file is happy-dom's.
+// DOM installed, a bare `new Response(…)` in this file is happy-dom's.
 const nativeFetch = globalThis.fetch.bind(globalThis);
 const NativeResponse = globalThis.Response;
 const NativeReadableStream = globalThis.ReadableStream;
 const NativeTextEncoder = globalThis.TextEncoder;
 
-const { GlobalRegistrator } = await import("@happy-dom/global-registrator");
-GlobalRegistrator.register({ url: "http://chat.test/" });
+installDom({ url: "http://chat.test/" });
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 const { Chat } = await import("../components/chat/Chat.tsx");
 const { encodeEvent } = await import("../lib/agent/events.ts");
 
@@ -111,7 +110,6 @@ beforeAll(() => {
 
 afterAll(async () => {
   server?.stop(true);
-  await GlobalRegistrator.unregister();
 });
 
 /** Mount the real `Chat`, press Send, and let the stream finish. */
