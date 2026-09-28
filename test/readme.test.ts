@@ -52,11 +52,6 @@ const VERIFIED_URLS = new Set([
   "https://docs.arcade.dev/en/references/cli-cheat-sheet",
   "https://docs.arcade.dev/en/get-started/setup/api-keys",
   "https://docs.arcade.dev/en/operate/quickstart",
-  // Fetched on #55, for the two Slack routes: "Configuring your own Slack Auth
-  // Provider in Arcade" (User Token Scopes, not Bot Token Scopes; the redirect
-  // URL Arcade generates; Connected apps, Add OAuth Provider, Included
-  // Providers, Slack), and "Arcade will automatically use this Slack OAuth provider".
-  "https://docs.arcade.dev/en/references/auth-providers/slack",
 ]);
 
 /** Upper-snake words in the README that are not environment variables. Each is also proved absent from `.env.example`. */
