@@ -1,5 +1,5 @@
 /**
- * `bun run setup-arcade <ngrok-host> [--dry-run] [--skip-deploy] [--redeploy] [--gateway <slug>]` (#9, #30, #48)
+ * `bun run setup-arcade <ngrok-host> [--dry-run] [--skip-deploy] [--redeploy] [--gateway <slug>]` (#9, #30, #48, #52)
  *
  * Everything the Arcade side of this template needs, from one command, after
  * the developer has filled in the few required values in `.env`
@@ -32,23 +32,42 @@
  *    (#30). A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
  *    the CLI's own check, answers 404 when it is missing. `--redeploy`
  *    deploys it anyway, and `--skip-deploy` leaves both to the developer.
- * 8. **Looks for the gateway** (#48), `GET …/gateways`, under the slug the
- *    gateway form names. It never creates one: the gateway authenticates
- *    through the User Source, and a project key cannot read a User Source's id.
- *    - **Not there** (the first run): the hooks stay disabled, and the run
- *      ends on the User Source form, then the gateway form, then the command
- *      for the second run, and a warning that the gateway runs ungoverned
- *      until that second run.
- *    - **There** (the second run): the hooks are `PATCH`ed to `active` and read
- *      back, and a read-back that does not say `active` fails the run. Hooks
- *      already active are left, and the run says they are on. A gateway whose
- *      `auth_type` is not the User Source stops the run with the hooks as they
- *      were; a tool list that is not the six is printed as warnings, and the
- *      hooks are turned on anyway (the human's call on #48).
+ * 8. **Registers the User Source and the gateway by API, then turns the hooks
+ *    on** (#52), the one-click path, through the Coordinator API
+ *    (`setup-arcade/coordinator.ts`, `ARCADE_COORDINATOR_URL`, default
+ *    `https://cloud.arcade.dev/api`, never experience.arcade.dev):
+ *    - The project's User Sources are listed. One whose issuer is the app's
+ *      origin, or whose client is the app's `arcade-user-source`, is held to
+ *      the issuer, the client id, the `email` subject claim and the scopes: it
+ *      matches and is used, or it differs and the run stops (exit 1), naming
+ *      each difference, with no gateway and the hooks as they were.
+ *    - With none, the run waits, on a terminal only, for the developer to
+ *      start `bun run dev` and the tunnel, checks the app's
+ *      `/.well-known/openid-configuration` through it on Enter (again on a
+ *      failure), then creates the User Source, the `arcade-user-source` secret
+ *      rotated unless this run minted it, and reads it back.
+ *    - The gateway is created through it (`POST …/gateways`, the six tools,
+ *      `auth_type` `user_source`) and read back; one already under the slug is
+ *      held to that User Source, never edited. Then the hooks are `PATCH`ed to
+ *      `active` and read back, last. A User Source registered with the gateway
+ *      not is said plainly, with the gateway form and the rerun that finishes.
+ *    - **The fallback** (#48): a Coordinator call that fails, or answers a
+ *      shape this script does not expect, `n` or Ctrl-C at the wait, or stdin
+ *      that is not a terminal prints one line naming which, then the #48 flow,
+ *      unchanged: `GET …/gateways`, never written, under the slug the gateway
+ *      form names. Not there (the first run): the hooks stay disabled, and the
+ *      run ends on the User Source form, then the gateway form, then the
+ *      command for the second run, and a warning that the gateway runs
+ *      ungoverned until that second run. There (the second run): the hooks
+ *      are turned on and read back, and a read-back that does not say
+ *      `active` fails the run. A gateway whose `auth_type` is not the User
+ *      Source stops the run with the hooks as they were; a tool list that is
+ *      not the six is printed as warnings, and the hooks are turned on anyway
+ *      (the human's call on #48).
  *
- * The same command is the first run and the second: the gateway's presence is
- * what tells them apart, so rerunning the first one after a failure never
- * turns the hooks on ahead of the gateway form.
+ * The same command is every run: what Arcade already holds tells them apart,
+ * and a rerun of a finished project is a no-op that says so. Rerunning after a
+ * failure never turns the hooks on ahead of the gateway.
  *
  * With no org and project to be found, the hooks and the gateway are printed as
  * the dashboard forms they were before #30, and the run says why.

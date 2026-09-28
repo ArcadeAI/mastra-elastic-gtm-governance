@@ -1,15 +1,17 @@
 /**
  * What `bun run setup-arcade` prints for the registrations it cannot make by
- * API (#9, #28, #30, #48).
+ * API (#9, #28, #30, #48), which since #52 is the fallback of the one-click
+ * path through the Coordinator API.
  *
- * - **The User Source** (hop 1), always. Arcade's API has no User Source route
- *   a project key can reach. The fields are the ones docs.arcade.dev lists under "Operate →
+ * - **The User Source** (hop 1), when the run fell back before it was
+ *   registered. The fields are the ones docs.arcade.dev lists under "Operate →
  *   Identity → User Sources": Name, Description, Issuer URL, Client ID, Client
  *   Secret, and under Advanced, Scopes and Subject Claim.
- * - **The gateway**, always since #48. It authenticates through the User
- *   Source, whose id the API never shows this script, so the developer creates
- *   it in the dashboard, right after the User Source and while the hooks are
- *   still disabled: active hooks filter the tool list the gateway form shows.
+ * - **The gateway**, whenever the run fell back, or the User Source was
+ *   registered and the gateway create failed. It authenticates through the
+ *   User Source, so the developer creates it in the dashboard, right after the
+ *   User Source and while the hooks are still disabled: active hooks filter the
+ *   tool list the gateway form shows.
  *   Its fields are from docs.arcade.dev "MCP Gateways → Create via dashboard",
  *   under a slug this script picks and writes as `ARCADE_GATEWAY_ID`.
  * - **The contextual access hooks**, only when the run found no Arcade org and

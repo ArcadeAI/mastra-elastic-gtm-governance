@@ -917,10 +917,10 @@ function stepOrder(text: string): string[] {
   return found.sort((a, b) => a.at - b.at).map(({ name }) => name);
 }
 
-/** From the Quickstart step that starts the app and fills in both forms to the end of the Quickstart. */
+/** From the fallback's Quickstart step (#52), which starts the app and fills in both forms, to the end of the Quickstart. */
 function readmeRemainder(): string {
   const readme = readFileSync(join(ROOT, "README.md"), "utf8");
-  const start = readme.indexOf("5. **Create the User Source and the gateway**");
+  const start = readme.indexOf("5. **If it fell back: create the User Source and the gateway**");
   const end = readme.indexOf("\n## ", start);
   if (start === -1 || end === -1) throw new Error("README.md's Quickstart has no step 5 to read from");
   return readme.slice(start, end);
