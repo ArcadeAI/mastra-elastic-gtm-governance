@@ -59,6 +59,7 @@ describe("and the app sends the provider nothing it does not answer", () => {
     ["app/identity/[...path]/route.ts", "/identity/health"],
     ["app/login/route.ts", "/login"],
     ["app/consent/route.ts", "/consent"],
+    ["app/error/route.ts", "/error"],
     ["app/jwks/route.ts", "/jwks"],
   ];
 

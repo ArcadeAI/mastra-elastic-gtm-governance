@@ -175,3 +175,33 @@ export function renderConsentPage({ oauthQuery, clientName, scopes, user }: Cons
 export function renderMessagePage(title: string, text: string): string {
   return page(title, `<div class="card"><h1>${escape(title)}</h1><p>${escape(text)}</p></div>`);
 }
+
+/**
+ * Hints for the codes a developer meets while setting up, keyed on the
+ * plugin's own `error`. `invalid_client` is the #52 live test's: the app's
+ * sign-in named a client `idp.db` does not hold.
+ */
+const ERROR_HINTS: Record<string, string> = {
+  invalid_client:
+    "The client_id this request named is not a client of this identity provider. For the app's own sign-in, " +
+    "that is IDP_CLIENT_ID: check that the shell does not export an older one (`bun run dev` warns when it " +
+    "does), then run `bun run setup-arcade <APP_PUBLIC_HOST>`, which sets IDP_CLIENT_ID and IDP_CLIENT_SECRET " +
+    "in .env to idp.db's web client, and restart `bun run dev`.",
+  invalid_redirect:
+    "The redirect_uri this request named is not on the client's allowlist in idp.db.",
+};
+
+/** `/error`: where the OAuth plugin sends a request it cannot send back to the client (#54). */
+export function renderErrorPage(error: string | null, description: string | null): string {
+  const code = error?.trim() || "unknown_error";
+  const hint = ERROR_HINTS[code];
+  return page(
+    "Sign-in stopped",
+    `<div class="card">
+      <h1>Sign-in stopped</h1>
+      <p>The identity provider refused this request, and could not send it back to the app that made it.</p>
+      <div class="error" role="alert"><code>${escape(code)}</code>${description?.trim() ? `: ${escape(description.trim())}` : ""}</div>
+      ${hint ? `<p>${escape(hint)}</p>` : ""}
+    </div>`,
+  );
+}

@@ -15,6 +15,15 @@ import { jwt } from "better-auth/plugins/jwt";
 /** Where the login and consent pages live. `server.ts` serves them; the plugin redirects to them. */
 export const LOGIN_PAGE = "/login";
 export const CONSENT_PAGE = "/consent";
+/**
+ * Where the OAuth plugin sends an authorize request it cannot hand back to the
+ * client, because the client or its redirect URI is not one it can trust
+ * (`invalid_client`, `invalid_redirect`, …). It is the plugin's default,
+ * `${baseURL}/error` (`getErrorURL` in `@better-auth/oauth-provider` 1.7.5),
+ * named here so `server.ts` serves it: until #54 nothing did, and the one
+ * explanation of a failed sign-in landed on a 404.
+ */
+export const ERROR_PAGE = "/error";
 
 /**
  * Every Better Auth route hangs off the site root — `/oauth2/authorize`,
@@ -130,14 +139,32 @@ export async function signingKeysOpen(db: Database, secret: string): Promise<boo
   return true;
 }
 
-/** What the provider, `oauth-client` and `/health` say when {@link signingKeysOpen} is false. */
-export function staleSigningKey(dbPath: string): string {
+/**
+ * What the provider, `oauth-client` and `/health` say when {@link signingKeysOpen} is false.
+ *
+ * Its steps are held to one rule (#54): followed to the letter, they end in a
+ * working sign-in. Until #54 they ended on `invalid_client`: deleting `idp.db`
+ * mints a new web client, and `setup-arcade` left the old `IDP_CLIENT_ID` in
+ * `.env` with a warning. It now rewrites it, and the steps name the people too,
+ * because a fresh `idp.db` has nobody in it. `app-test/setup-arcade.test.ts`
+ * ("the identity module's advice, followed to the letter, ends in a working
+ * sign-in") runs them. `host` is the issuer's, for the setup-arcade line.
+ */
+export function staleSigningKey(dbPath: string, host?: string): string {
+  const publicHost = host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? host : "<APP_PUBLIC_HOST>";
   return (
     `${dbPath} holds an ID-token signing key encrypted under a different BETTER_AUTH_SECRET, so this ` +
-    `secret cannot open it, and nothing was re-keyed. It is local development data: stop the app, ` +
-    `delete ${dbPath}, and start again. If Arcade already holds this app's OAuth clients, they change ` +
-    `with it, so run \`bun run setup-arcade\` after deleting it and before registering anything. ` +
-    `Or restore the BETTER_AUTH_SECRET it was written with.`
+    `secret cannot open it, and nothing was re-keyed. If this shell exports a BETTER_AUTH_SECRET, open a new ` +
+    `terminal and start the app again. Otherwise put back the BETTER_AUTH_SECRET it was written with, or start ` +
+    `the local identity over, which loses its sign-ins and its OAuth clients: ` +
+    `(1) stop the app; (2) delete ${dbPath}; (3) run \`bun run setup-arcade ${publicHost}\`, which mints new ` +
+    `clients and sets IDP_CLIENT_ID and IDP_CLIENT_SECRET in .env to the new web client; (4) for each person ` +
+    `\`bun run users list\` shows, run \`bun run users remove <email>\`, then \`bun run users add <email> ` +
+    `--name <name> --role <role> [--clearance <n>]\` with the role and clearance it listed; (5) start the app, ` +
+    `and sign in. If Arcade already holds this app's provider or User Source, they name the deleted clients: ` +
+    `step 3 stops at each one and names it, and it is deleted in the Arcade dashboard before step 3 is run ` +
+    `again. The app's own sign-in does not wait for that: steps 4 and 5 work once step 3 has run, whether or ` +
+    `not it stopped there.`
   );
 }
 

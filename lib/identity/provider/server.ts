@@ -25,7 +25,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import { authorizationCodeId, codeState, type CodeState } from "./authorization-code.ts";
-import { createAuth, CONSENT_PAGE, ID_TOKEN_ALG, JWKS_PATH, LOGIN_PAGE, signingKeysOpen, staleSigningKey, type Auth } from "./auth.ts";
+import { createAuth, CONSENT_PAGE, ERROR_PAGE, ID_TOKEN_ALG, JWKS_PATH, LOGIN_PAGE, signingKeysOpen, staleSigningKey, type Auth } from "./auth.ts";
 import {
   ARCADE_PROVIDER_ID,
   CLIENT_SECRET_STATE_MESSAGE,
@@ -35,7 +35,7 @@ import {
 } from "./client.ts";
 import { readConfig, resetEnabled, usingDevSecret, type IdpConfig } from "./config.ts";
 import { countPeople, listPeople, openPeople } from "./db.ts";
-import { renderConsentPage, renderLoginPage, renderMessagePage } from "./pages.ts";
+import { renderConsentPage, renderErrorPage, renderLoginPage, renderMessagePage } from "./pages.ts";
 import { tolerateAuthorizationCodeReplay } from "./replay-tolerance.ts";
 import { OAuthClientRotatedError, RESET_PATH, resetSummary, runIdpReset } from "./reset.ts";
 import { formatTokenLine } from "./token-log.ts";
@@ -73,7 +73,7 @@ export const MOUNTED_RESET_PATH = `${MOUNT}${RESET_PATH}`;
  * route for every entry.
  */
 export const IDENTITY_PATHS = {
-  exact: [LOGIN_PAGE, CONSENT_PAGE, JWKS_PATH, HEALTH_PATH, MOUNTED_RESET_PATH],
+  exact: [LOGIN_PAGE, CONSENT_PAGE, ERROR_PAGE, JWKS_PATH, HEALTH_PATH, MOUNTED_RESET_PATH],
   prefixes: ["/oauth2/", "/.well-known/", "/sign-in/"],
 } as const;
 
@@ -482,7 +482,7 @@ export async function openIdentityProvider(config: IdpConfig = readConfig()): Pr
   try {
     // Before anything else touches the database: a signing key this secret
     // cannot open is a boot that must not happen, never a silent re-key (#9).
-    if (!(await signingKeysOpen(db, config.secret))) throw new Error(staleSigningKey(config.dbPath));
+    if (!(await signingKeysOpen(db, config.secret))) throw new Error(staleSigningKey(config.dbPath, new URL(config.baseURL).host));
 
     auth = createAuth({ db, baseURL: config.baseURL, secret: config.secret });
 
@@ -824,6 +824,11 @@ export async function openIdentityProvider(config: IdpConfig = readConfig()): Pr
     if (pathname === CONSENT_PAGE) {
       if (request.method === "GET") return consentPage(request, url);
       if (request.method === "POST") return handleConsent(request);
+    }
+    // The plugin's own error redirect (#54): its code and description, on a
+    // page of this module's, rather than Better Auth's built-in one.
+    if (pathname === ERROR_PAGE && request.method === "GET") {
+      return html(renderErrorPage(url.searchParams.get("error"), url.searchParams.get("error_description")), 400);
     }
 
     // The token endpoint, wrapped for two things: Arcade's duplicated
