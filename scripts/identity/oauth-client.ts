@@ -43,7 +43,7 @@ const db = await openPeople(config.dbPath);
 // here, would register them in Arcade before anybody found out.
 if (!(await signingKeysOpen(db, config.secret))) {
   db.close();
-  console.error(`[idp] ${staleSigningKey(config.dbPath)}`);
+  console.error(`[idp] ${staleSigningKey(config.dbPath, new URL(config.baseURL).host)}`);
   process.exit(1);
 }
 const auth = createAuth({ db, baseURL: config.baseURL, secret: config.secret });
