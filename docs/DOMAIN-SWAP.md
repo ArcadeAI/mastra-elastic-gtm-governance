@@ -321,7 +321,7 @@ Two places reference it from outside and both are configuration rather than code
 
 | | |
 |---|---|
-| **Arcade** | one custom OAuth provider (hop 2, id `app-identity`) and one User Source (hop 1), both registered by `bun run setup-arcade`. Both point at issuer URLs. Point them at yours |
+| **Arcade** | one custom OAuth provider (hop 2, id `app-identity`), registered by `bun run setup-arcade`, and one User Source (hop 1), created in the dashboard from the form it prints. Both point at issuer URLs. Point them at yours |
 | **`lib/loans/`** | validates bearer tokens at `IDENTITY_HOST` + `/oauth2/userinfo` and reads `$.email`. `IDENTITY_HOST` defaults to the app's own listener; set it to your IdP |
 
 The application seam is one function pair:
