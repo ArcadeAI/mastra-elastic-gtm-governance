@@ -191,17 +191,23 @@ const ERROR_HINTS: Record<string, string> = {
     "The redirect_uri this request named is not on the client's allowlist in idp.db.",
 };
 
+/** Any other code, including one somebody typed into the URL. */
+const UNKNOWN_ERROR_HINT = "Start the sign-in again from the app. If it stops here again, the code above is what the identity provider refused.";
+
 /** `/error`: where the OAuth plugin sends a request it cannot send back to the client (#54). */
 export function renderErrorPage(error: string | null, description: string | null): string {
   const code = error?.trim() || "unknown_error";
-  const hint = ERROR_HINTS[code];
+  // Own keys only: the code comes from the query string, and `constructor` or
+  // `__proto__` would otherwise read Object.prototype and hand a function to
+  // `escape`, a 500 (the #54 review).
+  const hint = Object.hasOwn(ERROR_HINTS, code) ? ERROR_HINTS[code]! : UNKNOWN_ERROR_HINT;
   return page(
     "Sign-in stopped",
     `<div class="card">
       <h1>Sign-in stopped</h1>
       <p>The identity provider refused this request, and could not send it back to the app that made it.</p>
       <div class="error" role="alert"><code>${escape(code)}</code>${description?.trim() ? `: ${escape(description.trim())}` : ""}</div>
-      ${hint ? `<p>${escape(hint)}</p>` : ""}
+      <p>${escape(hint)}</p>
     </div>`,
   );
 }

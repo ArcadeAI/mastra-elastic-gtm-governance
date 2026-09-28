@@ -258,6 +258,19 @@ describe("the identity provider, on the app's own port", () => {
     expect(html).toContain("IDP_CLIENT_ID");
   });
 
+  // The code is the query string's, so anybody can type one, and a name
+  // Object.prototype holds answered 500 (the #54 review).
+  test("an /error code that names an Object.prototype member gets the page too, with the generic hint", async () => {
+    for (const code of ["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf", "isPrototypeOf", "propertyIsEnumerable", "toLocaleString", "__defineGetter__", "no_such_code"]) {
+      const page = await call(`${app.origin}/error?${new URLSearchParams({ error: code, error_description: "typed by hand" })}`);
+      const html = await page.text();
+      expect({ code, status: page.status }).toEqual({ code, status: 400 });
+      expect(page.headers.get("content-type")).toContain("text/html");
+      expect(html).toContain(`<code>${code}</code>: typed by hand`);
+      expect(html).toContain("Start the sign-in again from the app.");
+    }
+  });
+
   test("and every request above went to the app's one port", () => {
     expect(asked.length).toBeGreaterThan(8);
     expect([...new Set(asked.map((url) => new URL(url).host))]).toEqual([app.host]);
