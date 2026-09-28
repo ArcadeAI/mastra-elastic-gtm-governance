@@ -947,29 +947,59 @@ async function issuerProblem(): Promise<string | null> {
 }
 
 /**
+ * The one reader of stdin for the whole run, made at the first question: the
+ * lines typed so far and not yet answered (typed ahead, or piped), whoever is
+ * waiting for the next one, and whether stdin has ended.
+ */
+interface Prompt {
+  rl: import("node:readline").Interface;
+  lines: string[];
+  waiting: ((line: string | null) => void) | null;
+  ended: boolean;
+}
+let prompt: Prompt | null = null;
+
+/**
  * One line from the terminal, or `null` for no (`n`), the end of stdin, or
- * Ctrl-C (#52). Ctrl-C is caught for the prompt alone, so it falls back to the
- * forms instead of leaving the run half-printed.
+ * Ctrl-C (#52). Ctrl-C is caught for the question alone, so it falls back to
+ * the forms instead of leaving the run half-printed. Stdin that is not a
+ * terminal does not echo the Enter, so the line break is printed for it.
  */
 async function ask(question: string): Promise<string | null> {
-  const { createInterface } = await import("node:readline");
-  const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: process.stdin.isTTY === true });
-  try {
-    return await new Promise<string | null>((resolve) => {
-      const no = () => resolve(null);
-      rl.once("SIGINT", no);
-      process.once("SIGINT", no);
-      rl.once("close", no);
-      rl.question(question, (answer) => {
-        process.removeListener("SIGINT", no);
-        resolve(/^\s*n(o)?\s*$/i.test(answer) ? null : answer);
-      });
+  if (prompt === null) {
+    const { createInterface } = await import("node:readline");
+    const rl = createInterface({ input: process.stdin, terminal: process.stdin.isTTY === true });
+    const state: Prompt = { rl, lines: [], waiting: null, ended: false };
+    const give = (line: string | null) => {
+      const waiting = state.waiting;
+      state.waiting = null;
+      if (waiting) waiting(line);
+      else if (line !== null) state.lines.push(line);
+    };
+    rl.on("line", (line) => give(line));
+    rl.on("SIGINT", () => give(null));
+    rl.once("close", () => {
+      state.ended = true;
+      give(null);
     });
-  } finally {
-    rl.removeAllListeners("close");
-    rl.close();
-    process.removeAllListeners("SIGINT");
+    prompt = state;
   }
+  const state = prompt;
+  if (state.lines.length === 0 && state.ended) return null;
+  process.stdout.write(question);
+  const answer = await new Promise<string | null>((resolve) => {
+    const queued = state.lines.shift();
+    if (queued !== undefined) return resolve(queued);
+    const interrupted = () => resolve(null);
+    process.once("SIGINT", interrupted);
+    state.waiting = (line) => {
+      process.removeListener("SIGINT", interrupted);
+      resolve(line);
+    };
+  });
+  state.waiting = null;
+  if (process.stdin.isTTY !== true || answer === null) out();
+  return answer === null || /^\s*n(o)?\s*$/i.test(answer) ? null : answer;
 }
 
 /**
@@ -1037,6 +1067,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
       if (problem === null) break;
       out(`  ${problem}`);
     }
+    prompt?.rl.close();
     out(`  the app answers for ${origin} through the tunnel`);
     // The client's secret goes to Arcade in the create, and only there: a
     // client minted by this run already has one, and an older one is rotated,

@@ -2001,3 +2001,520 @@ test("a worker lookup that fails for another reason stops the run with Arcade's 
   expect(run.stderr).toContain("Arcade says: the engine is having a moment");
   expect(projects.get(dir)!.deploys()).toEqual([]);
 }, 60_000);
+
+// --- One click, through the Coordinator API (#52) -----------------------------
+
+const SIX_TOOLS = ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"];
+/** Enter, once, at the pause: what a developer does after restarting `bun run dev`. */
+const ENTER: RunOptions = { tty: true, input: "\n" };
+
+/** Everything the stand-ins hold, secrets included: what "the rerun changed nothing" is checked against. */
+function arcadeState(): string {
+  return JSON.stringify({
+    providers: [...arcade.providers.values()],
+    secrets: [...arcade.secrets.entries()],
+    verifier: arcade.verifier,
+    plugins: [...arcade.plugins.values()],
+    hooks: arcade.hooks,
+    gateways: [...arcade.gateways.values()],
+    userSources: [...arcade.userSources.values()],
+  });
+}
+
+/** Where `needle` first appears in the stand-ins' shared timeline; fails when it never does. */
+function when(needle: string): number {
+  const index = arcade.timeline.findIndex((each) => each.startsWith(needle));
+  expect(index, `nothing in the timeline starts with ${needle}:\n${arcade.timeline.join("\n")}`).toBeGreaterThan(-1);
+  return index;
+}
+
+test("one run, one click: the User Source is created through the Coordinator, the gateway through it with the six tools, then the hooks on, each read back", async () => {
+  const dir = project("one-click");
+  arcade.coordinatorMode = "available";
+  // The worst case of #48's finding, assumed of the API: active hooks hide the tools from a gateway create.
+  expect(arcade.activeHooksHideTools).toBe(true);
+  const run = await setupArcade(dir, ENTER);
+  console.log(`--- setup-arcade ${HOST}, one click ---\n${run.stdout}${run.stderr}`);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+
+  // Arcade's API: #48's first run, then the gateway created and read back, then the hooks on and read back.
+  expect(sequence(arcade.requests)).toEqual([...FIRST_RUN, ...ONE_CLICK_TAIL]);
+  // The Coordinator: the list, the create, the read-back, all with the project key.
+  expect(coordinatorSequence()).toEqual(ONE_CLICK_COORDINATOR);
+  for (const request of arcade.coordinatorRequests) expect(request.authorization).toBe(`Bearer ${KEY}`);
+
+  // The User Source: the dashboard form's fields, the app's own client.
+  const clients = clientsIn(dir);
+  expect(arcade.userSources.size).toBe(1);
+  const [source] = [...arcade.userSources.values()] as [Json];
+  expect(source.name).toBe("Loan Approval Limits");
+  expect(source.issuer_url).toBe(ORIGIN);
+  expect(source.client_id).toBe(clients["arcade-user-source"]!.clientId);
+  expect(source.client_secret).toMatch(/^\S{16,}$/);
+  expect(source.scopes).toBe("openid profile email");
+  expect(source.subject_claim).toBe("email");
+  expect(clients["arcade-user-source"]!.redirectUris).toEqual([source.redirect_uri]);
+  expect(`${run.stdout}${run.stderr}`).not.toContain(source.client_secret);
+
+  // The gateway: through that User Source, never Headers, exactly the six tools.
+  const created = arcade.requests.find((each) => each.method === "POST" && each.path === `${SCOPED}/gateways`)!.body as Json;
+  expect(created).toEqual({
+    name: "Loan Approval Limits",
+    description: "The loan officer's agent",
+    slug: "loan-approval-limits",
+    auth_type: "user_source",
+    user_source_id: source.id,
+    tool_filter: { allowed_tools: SIX_TOOLS },
+  });
+  expect(arcade.gateways.size).toBe(1);
+  hooksAreRegistered(dir, "active");
+
+  // The order, across both APIs: the tunnel checked, then the User Source, then the gateway, then the hooks on, last.
+  const order = [
+    when("arcade POST /v1/orgs/org_standin/projects/prj_standin/plugins"),
+    when("tunnel GET /.well-known/openid-configuration"),
+    when(`coordinator POST ${USER_SOURCES}`),
+    when(`arcade POST ${SCOPED}/gateways`),
+    when(`arcade PATCH ${SCOPED}/plugins/`),
+  ];
+  expect([...order].sort((a, b) => a - b)).toEqual(order);
+  expect(arcade.timeline.at(-1)).toStartWith(`arcade GET ${SCOPED}/hooks?plugin_id=`);
+
+  // What it said: the pause, each step read back, and nothing left for the dashboard.
+  expect(run.stdout).toContain("Restart `bun run dev` so it reads the new .env, with the tunnel up (ngrok http --url=template-test.ngrok.app 3000), then press Enter.");
+  expect(run.stdout).toContain(`the app answers for ${ORIGIN} through the tunnel`);
+  expect(run.stdout).toContain(`user source: created Loan Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id} (read back)`);
+  expect(run.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}, with the six tools of Loan and Approvals (read back)`);
+  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
+  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through loan-approval-limits");
+  expect(formOrder(run.stdout)).toEqual([]);
+  expect(run.stdout).not.toMatch(/ungoverned|dashboard flow/);
+  expect(thenList(run.stdout).split("\n").slice(1)).toEqual([
+    "  1. Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.",
+    `  2. Start the tunnel: ngrok http --url=${HOST} 3000`,
+    `  3. Open ${ORIGIN}, never localhost, and sign in.`,
+  ]);
+  expect(`${run.stdout}${run.stderr}`).not.toContain(KEY);
+  expect(JSON.stringify([...arcade.requests, ...arcade.coordinatorRequests])).not.toMatch(/arcade_header/i);
+}, 60_000);
+
+test("a rerun after one click is a no-op that says so: nothing paused, created, rotated or turned on", async () => {
+  const dir = project("one-click-rerun");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  const state = arcadeState();
+  const envText = readFileSync(join(dir, ".env"), "utf8");
+  const rows = clientRows(dir);
+  arcade.requests = [];
+  arcade.coordinatorRequests = [];
+  arcade.tunnelRequests = 0;
+
+  // No input: a run that paused would read the end of stdin and fall back, which the checks below would catch.
+  const again = await setupArcade(dir, { tty: true, input: "" });
+  console.log(`--- setup-arcade ${HOST}, one click, again ---\n${again.stdout}${again.stderr}`);
+  expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
+  const [source] = [...arcade.userSources.values()] as [Json];
+  expect(again.stdout).toContain(`user source: found Loan Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}; it matches and is left as it is`);
+  expect(again.stdout).toContain(`gateway: found loan-approval-limits, through the User Source ${source.id}`);
+  expect(again.stdout).toContain("hooks: already on (status active); nothing to do");
+  expect(again.stdout).not.toMatch(/press Enter|dashboard flow|created/);
+  expect(arcade.tunnelRequests).toBe(0);
+  expect(coordinatorSequence()).toEqual([`GET ${USER_SOURCES}`]);
+  expect(sequence(arcade.requests)).toEqual(RERUN);
+  // Its only writes are the upserts every run sends, with the same values.
+  expect(arcade.requests.filter((each) => each.method !== "GET").map((each) => `${each.method} ${each.path}`)).toEqual([
+    "PUT /v1/admin/secrets/APP_PUBLIC_HOST",
+    "PUT /v1/admin/secrets/APPROVALS_STORE_TOKEN",
+    "PUT /v1/admin/settings/session_verification",
+  ]);
+  expect(arcadeState()).toBe(state);
+  expect(readFileSync(join(dir, ".env"), "utf8")).toBe(envText);
+  expect(clientRows(dir)).toBe(rows);
+  expect(formOrder(again.stdout)).toEqual([]);
+}, 90_000);
+
+/** The part of a fallback run from the #48 gateway check on, with what differs per project written the same way. */
+function afterFallback(stdout: string): string {
+  const at = stdout.indexOf("\nThe gateway (");
+  expect(at, "no #48 gateway check after the fallback").toBeGreaterThan(-1);
+  return stdout
+    .slice(at)
+    .replace(/127\.0\.0\.1:\d+/g, "127.0.0.1:{port}")
+    .replace(/(Client ID {7})\S+/, "$1{id}")
+    .replace(/(Client Secret {3})\S+/, "$1{secret}");
+}
+
+/** The one line a fallback prints, and it alone: the coordinator's, or the pause's. */
+function fallbackLines(stdout: string): string[] {
+  return stdout.split("\n").filter((line) => /The rest is the dashboard flow \(#48\):$/.test(line));
+}
+
+/** A fresh run that fell back: #48's first run exactly, the hooks disabled, both forms, nothing written by the one-click path. */
+function isTheFallback(dir: string, run: { code: number; stdout: string; stderr: string }, baseline: string | null): void {
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(sequence(arcade.requests)).toEqual(FIRST_RUN);
+  hooksAreRegistered(dir, "inactive");
+  noGatewayWritten();
+  expect(arcade.gateways.size).toBe(0);
+  expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
+  expect(run.stdout.trimEnd().split("\n").slice(-2)).toEqual([
+    "warning: until then the gateway runs ungoverned. The hooks are disabled, so Arcade calls none of",
+    `${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, and every tool call runs unchecked.`,
+  ]);
+  if (baseline !== null) expect(afterFallback(run.stdout)).toBe(baseline);
+}
+
+test("any failure of the Coordinator call prints one line naming it and its status, then runs the #48 flow unchanged", async () => {
+  // The baseline: the Coordinator answers 404, as the project key's `…/user_sources` did on api.arcade.dev (#7).
+  const base = project("fallback-404");
+  const first = await setupArcade(base, ENTER);
+  console.log(`--- setup-arcade ${HOST}, the Coordinator answering 404 ---\n${first.stdout}${first.stderr}`);
+  expect(fallbackLines(first.stdout)).toEqual([
+    `  coordinator: GET ${arcade.coordinatorUrl}${USER_SOURCES} answered 404. The rest is the dashboard flow (#48):`,
+  ]);
+  isTheFallback(base, first, null);
+  const baseline = afterFallback(first.stdout);
+
+  const list = `GET {coordinator}${USER_SOURCES}`;
+  const create = `POST {coordinator}${USER_SOURCES}`;
+  const triggers: Array<{ name: string; arrange: () => void; options?: RunOptions; line: string }> = [
+    { name: "401", arrange: () => (arcade.nextCoordinator.GET = { status: 401, body: { message: "unauthorized" } }), line: `${list} answered 401` },
+    { name: "403", arrange: () => (arcade.nextCoordinator.GET = { status: 403, body: { message: "forbidden" } }), line: `${list} answered 403` },
+    { name: "500", arrange: () => (arcade.nextCoordinator.GET = { status: 500, body: { message: "internal" } }), line: `${list} answered 500` },
+    { name: "503", arrange: () => (arcade.nextCoordinator.GET = { status: 503, body: "upstream connect error" }), line: `${list} answered 503` },
+    {
+      name: "network",
+      arrange: () => {},
+      options: { shell: { ARCADE_COORDINATOR_URL: "http://127.0.0.1:9/api" } },
+      line: `GET http://127.0.0.1:9/api${USER_SOURCES} answered a network error`,
+    },
+    { name: "another list shape", arrange: () => (arcade.nextCoordinator.GET = { status: 200, body: { user_sources: [] } }), line: `${list} answered 200 with a body that is not a list of User Sources` },
+    { name: "a bare array", arrange: () => (arcade.nextCoordinator.GET = { status: 200, body: [] }), line: `${list} answered 200 with a body that is not a list of User Sources` },
+    { name: "an entry with no id", arrange: () => (arcade.nextCoordinator.GET = { status: 200, body: { items: [{ name: "x", issuer_url: ORIGIN }] } }), line: `${list} answered 200 with a body that is not a list of User Sources` },
+    { name: "not JSON", arrange: () => (arcade.nextCoordinator.GET = { status: 200, body: "<html>sign in</html>" }), line: `${list} answered 200 with a body that is not JSON` },
+    { name: "the create refused", arrange: () => (arcade.nextCoordinator.POST = { status: 500, body: { message: "internal" } }), line: `${create} answered 500` },
+    { name: "the create in another shape", arrange: () => (arcade.nextCoordinator.POST = { status: 201, body: { ok: true } }), line: `${create} answered 201 with a body that is not a User Source` },
+  ];
+  for (const trigger of triggers) {
+    arcade.stop();
+    arcade = new StandIn();
+    arcade.coordinatorMode = "available";
+    trigger.arrange();
+    const dir = project(`fallback-${trigger.name.replace(/\W+/g, "-")}`);
+    const run = await setupArcade(dir, { ...ENTER, ...trigger.options });
+    const lines = fallbackLines(run.stdout);
+    expect(lines, `${trigger.name}:\n${run.stdout}\n${run.stderr}`).toHaveLength(1);
+    expect(lines[0]!.replace(arcade.coordinatorUrl, "{coordinator}"), trigger.name).toStartWith(`  coordinator: ${trigger.line}`);
+    isTheFallback(dir, run, baseline);
+    // Nothing was created where the Coordinator answered wrong.
+    expect(arcade.userSources.size, trigger.name).toBe(0);
+  }
+}, 180_000);
+
+test("the Coordinator host is ARCADE_COORDINATOR_URL, default https://cloud.arcade.dev/api, and experience.arcade.dev is refused before anything is sent", async () => {
+  const { coordinatorUrl, DEFAULT_COORDINATOR_URL } = await import("../scripts/setup-arcade/coordinator.ts");
+  expect(DEFAULT_COORDINATOR_URL).toBe("https://cloud.arcade.dev/api");
+  expect(coordinatorUrl(undefined)).toEqual({ url: "https://cloud.arcade.dev/api" });
+  expect(coordinatorUrl("  ")).toEqual({ url: "https://cloud.arcade.dev/api" });
+  expect(coordinatorUrl("http://127.0.0.1:4410/api/")).toEqual({ url: "http://127.0.0.1:4410/api" });
+  for (const refused of ["https://experience.arcade.dev/api", "https://EXPERIENCE.arcade.dev", "https://eu.experience.arcade.dev/api"]) {
+    expect(coordinatorUrl(refused).url, refused).toBeNull();
+  }
+  expect(coordinatorUrl("cloud.arcade.dev").url).toBeNull();
+
+  // The default, in a dry run, which sends nothing: the request it names is on cloud.arcade.dev.
+  const dry = await setupArcade(project("coordinator-default-dry"), "--dry-run", { shell: { ARCADE_COORDINATOR_URL: "" } });
+  expect(dry.code, `${dry.stdout}\n${dry.stderr}`).toBe(0);
+  expect(dry.stdout).toContain("  coordinator   https://cloud.arcade.dev/api");
+  expect(dry.stdout).toContain(`  GET https://cloud.arcade.dev/api${USER_SOURCES}\n`);
+  expect(arcade.requests).toEqual([]);
+
+  // The dashboard's proxy, configured: refused, nothing sent anywhere, and the #48 flow. A proxy that
+  // answers nothing is set as well, so a request that got out anyway would fail rather than reach it.
+  arcade.coordinatorMode = "available";
+  const dir = project("coordinator-experience");
+  const run = await setupArcade(dir, {
+    ...ENTER,
+    shell: { ARCADE_COORDINATOR_URL: "https://experience.arcade.dev/api", HTTPS_PROXY: "http://127.0.0.1:9", https_proxy: "http://127.0.0.1:9", NO_PROXY: "127.0.0.1", no_proxy: "127.0.0.1" },
+  });
+  expect(run.stdout).toContain("  coordinator   none: ARCADE_COORDINATOR_URL=https://experience.arcade.dev/api is the dashboard's own proxy, which this command never calls");
+  expect(fallbackLines(run.stdout)).toEqual([
+    "  coordinator: ARCADE_COORDINATOR_URL=https://experience.arcade.dev/api is the dashboard's own proxy, which this command never calls. The rest is the dashboard flow (#48):",
+  ]);
+  expect(arcade.coordinatorRequests).toEqual([]);
+  expect(arcade.tunnelRequests).toBe(0);
+  isTheFallback(dir, run, null);
+
+  // And nothing that ships names that host, but to refuse it.
+  const shipped = ["scripts/setup-arcade.ts", ...[...new Bun.Glob("scripts/setup-arcade/*.ts").scanSync({ cwd: ROOT })]].flatMap((file) =>
+    readFileSync(join(ROOT, file), "utf8")
+      .split("\n")
+      .filter((line) => line.includes("experience.arcade.dev") && !/^\s*(\*|\/\/)/.test(line))
+      .map((line) => `${file}: ${line.trim()}`),
+  );
+  expect(shipped).toEqual(['scripts/setup-arcade/coordinator.ts: const FORBIDDEN_HOST = "experience.arcade.dev";']);
+}, 90_000);
+
+test("with no User Source yet and stdin not a terminal, the run does not pause: it says so and falls back", async () => {
+  arcade.coordinatorMode = "available";
+  const dir = project("one-click-no-tty");
+  const run = await setupArcade(dir);
+  expect(run.stdout).toContain(`user source: there is none for ${ORIGIN} in this project yet.`);
+  expect(fallbackLines(run.stdout)).toEqual([
+    "  user source: not created, because stdin is not a terminal, so this run cannot pause for you to restart `bun run dev`. The rest is the dashboard flow (#48):",
+  ]);
+  expect(run.stdout).not.toContain("press Enter");
+  expect(arcade.tunnelRequests).toBe(0);
+  expect(coordinatorSequence()).toEqual([`GET ${USER_SOURCES}`]);
+  isTheFallback(dir, run, null);
+  // The form shows the secret minted by this run: nothing was rotated for a create that never came.
+  expect(run.stdout).toMatch(/Client Secret {3}\S{16,}$/m);
+}, 60_000);
+
+test("answering n at the pause falls back, sends nothing more, and a later run with Enter rotates only the User Source client and finishes", async () => {
+  arcade.coordinatorMode = "available";
+  const dir = project("one-click-no");
+  const no = await setupArcade(dir, { tty: true, input: "n\n" });
+  expect(no.stdout).toContain("press Enter.\n  n, or Ctrl-C, ends on the dashboard forms instead:");
+  expect(fallbackLines(no.stdout)).toEqual(["  user source: not created, at your answer, so none of it is sent. The rest is the dashboard flow (#48):"]);
+  expect(arcade.tunnelRequests).toBe(0);
+  expect(coordinatorSequence()).toEqual([`GET ${USER_SOURCES}`]);
+  isTheFallback(dir, no, null);
+
+  // Later, with the app restarted: the client minted and shown on the first run is rotated for the create, and nothing else is.
+  const before = JSON.parse(clientRows(dir)) as Array<Record<string, unknown>>;
+  arcade.requests = [];
+  arcade.coordinatorRequests = [];
+  const yes = await setupArcade(dir, ENTER);
+  expect(yes.code, `${yes.stdout}\n${yes.stderr}`).toBe(0);
+  // Nothing written to .env this time, so the pause asks for the app to be running, not restarted.
+  expect(yes.stdout).toContain("Check that `bun run dev` is running, with the tunnel up");
+  const after = JSON.parse(clientRows(dir)) as Array<Record<string, unknown>>;
+  const changed = after.filter((row, i) => JSON.stringify(row) !== JSON.stringify(before[i])).map((row) => row.id);
+  expect(changed).toEqual(["arcade-user-source"]);
+  expect(after.find((row) => row.id === "arcade-user-source")!.clientId).toBe(before.find((row) => row.id === "arcade-user-source")!.clientId);
+  expect(coordinatorSequence()).toEqual(ONE_CLICK_COORDINATOR);
+  expect(arcade.userSources.size).toBe(1);
+  hooksAreRegistered(dir, "active");
+  expect(arcade.gateways.size).toBe(1);
+}, 90_000);
+
+test("Ctrl-C at the pause falls back to the #48 forms, with the hooks disabled", async () => {
+  arcade.coordinatorMode = "available";
+  const dir = project("one-click-ctrl-c");
+  const child = spawnChild(["bun", "--no-env-file", SCRIPT, HOST], {
+    cwd: dir,
+    env: childEnv({
+      ARCADE_COORDINATOR_URL: arcade.coordinatorUrl,
+      CG_SETUP_ARCADE_ISSUER_URL: arcade.tunnelUrl,
+      CG_SETUP_ARCADE_TTY: "1",
+      ARCADE_API_URL: arcade.url,
+      HOME: projects.get(dir)!.home,
+      PATH: `${FAKE_BIN}:${process.env.PATH ?? ""}`,
+      FAKE_ARCADE_LOG: join(scratch, "one-click-ctrl-c.arcade.log"),
+    }),
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const stderr = new Response(child.stderr as ReadableStream).text();
+  let stdout = "";
+  const decoder = new TextDecoder();
+  const reader = (child.stdout as ReadableStream<Uint8Array>).getReader();
+  let interrupted = false;
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    stdout += decoder.decode(value, { stream: true });
+    if (!interrupted && stdout.includes("ends on the dashboard forms instead: ")) {
+      interrupted = true;
+      // The supervisor turns any signal into SIGTERM, so Ctrl-C goes to the script itself, as a terminal sends it.
+      const found = Bun.spawnSync(["pgrep", "-P", String(child.pid)]).stdout.toString().trim().split("\n").filter(Boolean);
+      expect(found).toHaveLength(1);
+      process.kill(Number(found[0]), "SIGINT");
+    }
+  }
+  const code = await child.exited;
+  const run = { code, stdout, stderr: await stderr };
+  expect(interrupted, run.stdout).toBe(true);
+  expect(fallbackLines(run.stdout)).toEqual(["  user source: not created, at your answer, so none of it is sent. The rest is the dashboard flow (#48):"]);
+  expect(arcade.tunnelRequests).toBe(0);
+  isTheFallback(dir, run, null);
+}, 60_000);
+
+test("Enter with the app not reachable through the tunnel says what failed and asks again, and never creates the User Source", async () => {
+  arcade.coordinatorMode = "available";
+  const cases: Array<{ name: string; tunnel: { status: number; issuer?: string }; says: string }> = [
+    { name: "tunnel-down", tunnel: { status: 502 }, says: `GET ${"{tunnel}"}/.well-known/openid-configuration answered 502` },
+    {
+      name: "app-not-restarted",
+      tunnel: { status: 200, issuer: "http://localhost:4400" },
+      says: `GET {tunnel}/.well-known/openid-configuration names the issuer "http://localhost:4400", not ${ORIGIN}: restart \`bun run dev\` so it reads APP_PUBLIC_HOST from .env`,
+    },
+    { name: "sign-in-down", tunnel: { status: 503 }, says: "answered 503: the app's sign-in did not start (restart `bun run dev` so it reads the new .env)" },
+  ];
+  for (const { name, tunnel, says } of cases) {
+    arcade.stop();
+    arcade = new StandIn();
+    arcade.coordinatorMode = "available";
+    arcade.tunnel = tunnel;
+    const dir = project(`one-click-${name}`);
+    // Enter twice, each checked and each failing, then stdin ends: the third question reads the end, and the run falls back.
+    const run = await setupArcade(dir, { tty: true, input: "\n\n" });
+    const printed = run.stdout.replaceAll(arcade.tunnelUrl, "{tunnel}");
+    expect(printed.split(says).length - 1, `${name}:\n${run.stdout}`).toBe(2);
+    expect(run.stdout.match(/then press Enter\./g), name).toHaveLength(2);
+    expect(arcade.tunnelRequests, name).toBe(2);
+    expect(fallbackLines(run.stdout), name).toEqual(["  user source: not created, at your answer, so none of it is sent. The rest is the dashboard flow (#48):"]);
+    expect(coordinatorSequence(), name).toEqual([`GET ${USER_SOURCES}`]);
+    isTheFallback(dir, run, null);
+  }
+}, 120_000);
+
+test("a User Source that claims this app and differs is reported, field by field, and never reused, edited or duplicated", async () => {
+  // A project whose clients exist, so a User Source can name the app's own client.
+  const setUp = async (name: string) => {
+    arcade.stop();
+    arcade = new StandIn();
+    arcade.coordinatorMode = "available";
+    const dir = project(name);
+    expect((await setupArcade(dir, { tty: true, input: "n\n" })).code).toBe(0);
+    return { dir, clientId: clientsIn(dir)["arcade-user-source"]!.clientId };
+  };
+  const seed = (fields: Json) => {
+    const source = { id: `us_seeded${arcade.userSources.size + 1}`, name: "Loan Approval Limits", issuer_url: ORIGIN, redirect_uri: "https://cloud.arcade.dev/oauth2/intermediate_callback", subject_claim: "email", ...fields };
+    arcade.userSources.set(source.id, source);
+    return source;
+  };
+  const cases: Array<{ name: string; seed: (clientId: string) => Json[]; lines: string[] }> = [
+    { name: "another client", seed: () => [seed({ client_id: "somebody-elses-client" })], lines: ['  - client id: Arcade has "somebody-elses-client", this app needs "{client}"'] },
+    {
+      name: "another issuer",
+      seed: (clientId) => [seed({ client_id: clientId, issuer_url: "https://old-host.ngrok.app" })],
+      lines: [`  - issuer: Arcade has "https://old-host.ngrok.app", this app needs "${ORIGIN}"`],
+    },
+    {
+      name: "another callback",
+      seed: (clientId) => [seed({ client_id: clientId, redirect_uri: "https://example.com/callback" })],
+      lines: ['  - callback: Arcade has "https://example.com/callback", this app needs "https://cloud.arcade.dev/oauth2/intermediate_callback"'],
+    },
+    { name: "the sub claim", seed: (clientId) => [seed({ client_id: clientId, subject_claim: "sub" })], lines: ['  - subject claim: Arcade has "sub", this app needs "email"'] },
+    { name: "two of them", seed: (clientId) => [seed({ client_id: clientId }), seed({ client_id: clientId })], lines: ["2 User Sources in this project claim this app's issuer or client", "  - one of several for this app"] },
+  ];
+  for (const each of cases) {
+    const { dir, clientId } = await setUp(`user-source-${each.name.replace(/\W+/g, "-")}`);
+    const seeded = JSON.stringify(each.seed(clientId));
+    arcade.requests = [];
+    arcade.coordinatorRequests = [];
+    const run = await setupArcade(dir, ENTER);
+    if (each.name === "another client") console.log(`--- setup-arcade ${HOST}, a User Source that differs ---\n${run.stdout}${run.stderr}`);
+    expect(run.code, `${each.name}: ${run.stdout}\n${run.stderr}`).toBe(1);
+    for (const line of each.lines) expect(run.stderr, each.name).toContain(line.replace("{client}", clientId));
+    expect(run.stderr).toContain("this command will not pick one or reuse one that differs");
+    expect(run.stderr).toContain("No gateway was created, and the hooks are left disabled. In the dashboard (your project → User Sources), correct it or delete it, then run this again.");
+    // A read, and nothing after it: no create, no edit, no pause, no gateway, no forms.
+    expect(coordinatorSequence(), each.name).toEqual([`GET ${USER_SOURCES}`]);
+    expect(JSON.stringify([...arcade.userSources.values()])).toBe(seeded);
+    expect(arcade.tunnelRequests).toBe(0);
+    expect(arcade.requests.filter((each) => each.path.includes("/gateways") && each.method !== "GET")).toEqual([]);
+    expect(arcade.gateways.size).toBe(0);
+    hooksAreRegistered(dir, "inactive");
+    expect(formOrder(run.stdout)).toEqual([]);
+  }
+}, 180_000);
+
+test("the User Source created and the gateway not: it says so and what is left, the hooks stay disabled, and a rerun finishes", async () => {
+  arcade.coordinatorMode = "available";
+  const dir = project("one-click-gateway-fails");
+  arcade.nextGatewayCreate = { status: 500, body: { name: "internal", message: "the gateway service is having a moment" } };
+  const run = await setupArcade(dir, ENTER);
+  console.log(`--- setup-arcade ${HOST}, the gateway refused after the User Source ---\n${run.stdout}${run.stderr}`);
+  expect(run.code).toBe(1);
+  const [source] = [...arcade.userSources.values()] as [Json];
+  expect(run.stderr).toContain(`setup-arcade: the gateway loan-approval-limits was not created: POST ${SCOPED}/gateways answered 500`);
+  expect(run.stderr).toContain("Arcade says: the gateway service is having a moment");
+  expect(run.stdout).toContain(`The User Source ${source.id} is registered (created by this run), and the gateway is not, so the hooks\nare left disabled.`);
+  expect(run.stdout).toContain("What is left: run this same command again, which finds the User Source and creates the\ngateway through it");
+  // Only the gateway form: the User Source is not to be made again.
+  expect(formOrder(run.stdout)).toEqual(["gateway"]);
+  expect(run.stdout).toContain(`→ Loan Approval Limits (${source.id}, already registered). Never Arcade Headers.`);
+  expect(thenList(run.stdout)).not.toContain("User Source form");
+  expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
+  hooksAreRegistered(dir, "inactive");
+
+  // The rerun: the User Source is found, the gateway made through it, the hooks turned on.
+  arcade.coordinatorRequests = [];
+  const again = await setupArcade(dir, { tty: true, input: "" });
+  expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
+  expect(coordinatorSequence()).toEqual([`GET ${USER_SOURCES}`]);
+  expect(arcade.userSources.size).toBe(1);
+  expect(again.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}`);
+  hooksAreRegistered(dir, "active");
+}, 90_000);
+
+test("the other ways the gateway is not made after the User Source are each reported the same way", async () => {
+  const cases: Array<{ name: string; arrange: () => void; says: string }> = [
+    {
+      name: "slug taken",
+      arrange: () => (arcade.nextGatewayCreate = { status: 409, body: { name: "conflict", message: "slug taken" } }),
+      says: "was not created: Arcade says the slug loan-approval-limits is taken. Blank ARCADE_GATEWAY_ID in .env and run this with --gateway <another-slug>",
+    },
+    { name: "no id", arrange: () => (arcade.nextGatewayCreate = { status: 201, body: { slug: "loan-approval-limits" } }), says: 'was not created: Arcade answered with no id: {"slug":"loan-approval-limits"}' },
+    {
+      name: "not listed back",
+      arrange: () => (arcade.createdNotListed = true),
+      says: "was not created: the User Source us_standin",
+    },
+  ];
+  for (const each of cases) {
+    arcade.stop();
+    arcade = new StandIn();
+    arcade.coordinatorMode = "available";
+    each.arrange();
+    const dir = project(`one-click-partial-${each.name.replace(/\W+/g, "-")}`);
+    const run = await setupArcade(dir, ENTER);
+    expect(run.code, `${each.name}: ${run.stdout}\n${run.stderr}`).toBe(1);
+    expect(run.stderr, each.name).toContain(each.says);
+    expect(run.stdout, each.name).toMatch(/The User Source us_standin\d+ is registered \(created by this run\), and the gateway is not/);
+    expect(formOrder(run.stdout), each.name).toEqual(["gateway"]);
+    hooksAreRegistered(dir, "inactive");
+  }
+}, 120_000);
+
+test("the order does not depend on active hooks hiding tools: a fresh run passes under it, and only hooks already on meet it", async () => {
+  // Hooks already on and no gateway: the #48 flow to the end, then the gateway deleted in the dashboard.
+  const dir = project("hooks-on-first");
+  expect((await setupArcade(dir)).code).toBe(0);
+  dashboardGateway();
+  expect((await setupArcade(dir)).code).toBe(0);
+  hooksAreRegistered(dir, "active");
+  arcade.gateways.clear();
+  arcade.coordinatorMode = "available";
+
+  // Under the worst case, the create after the hooks is refused, and the run says what is left.
+  const refused = await setupArcade(dir, ENTER);
+  expect(refused.code).toBe(1);
+  expect(refused.stderr).toContain("Arcade says: tool Loan.SearchLoans not found");
+  expect(refused.stdout).toContain("and the gateway is not, so the hooks\nare left on.");
+  expect(arcade.gateways.size).toBe(0);
+
+  // Where the API does not filter, which is what the issue records of it, the same state finishes.
+  arcade.activeHooksHideTools = false;
+  const passed = await setupArcade(dir, { tty: true, input: "" });
+  expect(passed.code, `${passed.stdout}\n${passed.stderr}`).toBe(0);
+  expect(passed.stdout).toContain("gateway: created loan-approval-limits");
+  expect(passed.stdout).toContain("hooks: already on (status active); nothing to do");
+  // And the fresh run, under the worst case, is the first one-click test's: it creates the gateway before the hooks go on.
+}, 120_000);
+
+test("a gateway under the slug that authenticates through another User Source is refused, and the hooks stay disabled", async () => {
+  arcade.coordinatorMode = "available";
+  const dir = project("one-click-other-user-source");
+  dashboardGateway({ user_source_id: "us_somebody_else" });
+  const run = await setupArcade(dir, ENTER);
+  expect(run.code).toBe(1);
+  expect(run.stderr).toMatch(/the gateway loan-approval-limits does not authenticate through this app's User Source:\n {2}- user_source_id: Arcade has "us_somebody_else", this app needs "us_standin\d+"/);
+  expect(run.stderr).toContain("The hooks are left disabled.");
+  hooksAreRegistered(dir, "inactive");
+  expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
+}, 60_000);
