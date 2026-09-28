@@ -21,6 +21,7 @@ import { MORGAN, SAM, startAgentHarness, type AgentHarness } from "./agent-harne
 import { homeSurface } from "../lib/home/surface.ts";
 import { sessionSurface } from "../lib/agent/tool-list.ts";
 import type { Session } from "../lib/identity/session.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 // Keep the network implementation captured before happy-dom replaces browser
 // globals. The stream still crosses a real socket; this only gives relative
@@ -31,11 +32,9 @@ const NativeRequest = globalThis.Request;
 const NativeHeaders = globalThis.Headers;
 const NativeReadableStream = globalThis.ReadableStream;
 const NativeTextDecoderStream = globalThis.TextDecoderStream;
-const { GlobalRegistrator } = await import("@happy-dom/global-registrator");
-GlobalRegistrator.register({ url: "http://panel.test/" });
+installDom({ url: "http://panel.test/" });
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 const { ControlPlanePanel } = await import("../components/governance/ControlPlanePanel.tsx");
 
 let harness: AgentHarness;
@@ -70,9 +69,7 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(async () => {
-  globalThis.fetch = nativeFetch;
   await harness?.stop();
-  await GlobalRegistrator.unregister();
 });
 
 function sessionFor(email: string): Session {

@@ -6,6 +6,8 @@
  * runner shares ReactDOM and Happy DOM globals between test files, so keeping
  * the real-DOM fixture in a subprocess prevents its closed window from being
  * retained by the later live-panel suites while preserving the same tests.
+ * Since #46 no DOM file closes a window (`app-test/dom.ts`), and the worker
+ * installs its DOM the same way; it still runs in a subprocess of its own.
  */
 import { test } from "bun:test";
 import { join } from "node:path";

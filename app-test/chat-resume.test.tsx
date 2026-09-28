@@ -31,6 +31,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:tes
 
 import type { ApprovalNotice } from "@cg/policy-schema";
 import type { ChatEvent } from "../lib/agent/events.ts";
+import { createRoot, installDom } from "./dom.ts";
 
 // Bun's own, captured before happy-dom replaces the globals. `Bun.serve`
 // rejects a `Response` that is not Bun's, and the component's requests go to a
@@ -40,11 +41,9 @@ const NativeResponse = globalThis.Response;
 const NativeReadableStream = globalThis.ReadableStream;
 const NativeTextEncoder = globalThis.TextEncoder;
 
-const { GlobalRegistrator } = await import("@happy-dom/global-registrator");
-GlobalRegistrator.register({ url: "http://chat.test/" });
+installDom({ url: "http://chat.test/" });
 
 const { act } = await import("react");
-const { createRoot } = await import("react-dom/client");
 const { Chat } = await import("../components/chat/Chat.tsx");
 const { encodeEvent } = await import("../lib/agent/events.ts");
 
@@ -263,7 +262,6 @@ beforeAll(() => {
 
 afterAll(async () => {
   harness?.stop();
-  await GlobalRegistrator.unregister();
 });
 
 beforeEach(() => {

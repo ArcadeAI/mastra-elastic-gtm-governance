@@ -185,7 +185,9 @@ describe("running a reset through it", () => {
     // deliberately does reach all three; this pins what the two existing ones
     // are.
     const asked: string[] = [];
-    const real = globalThis.fetch.bind(globalThis);
+    // The original goes back, not a bound copy of it: every later file in the
+    // process would inherit the copy (#46).
+    const real = globalThis.fetch;
     globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
       asked.push(new URL(String(input)).host);
       return real(input, init);
