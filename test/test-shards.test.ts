@@ -8,14 +8,16 @@
  * the check is shown red here on exactly that — a split that drops one file —
  * and on the other ways a shard can run less than it was given, and the record
  * it reads is shown catching the two files Bun's own JUnit report leaves out,
- * both in one shared global and under the `--isolate` the shards run with.
- * The last test is the reason for `--isolate`: a file that passes only through
- * what an earlier file leaked passes in a shared global and fails isolated.
+ * both in one shared global, as the shards run since #46, and under the
+ * `--isolate` they ran with before. The last test is why they had it: a file
+ * that passes only through what an earlier file leaked passes in a shared
+ * global and fails isolated. #46 fixed the leaks at the source instead, and
+ * the shard's record is shown still complete when the globals check fails.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 import {
   checkShards,
@@ -216,8 +218,8 @@ function runPlanted(flags: string[]): { loaded: string; log: string; exitCode: n
 }
 
 describe.each([
-  ["in one shared global, as a local bun test runs", [] as string[]],
-  ["with --isolate, as the shards run", ["--isolate"]],
+  ["in one shared global, as a local bun test and the shards run", [] as string[]],
+  ["with --isolate, as the shards ran until #46", ["--isolate"]],
 ])("the record, from a real bun test %s", (_mode, flags) => {
   const { loaded, log, exitCode } = runPlanted(flags);
 
@@ -243,4 +245,29 @@ describe.each([
 test("a test that passes only through an earlier file's leak passes in a shared global and fails under --isolate", () => {
   expect(runPlanted([]).log).not.toContain("(fail) passes only through the leak");
   expect(runPlanted(["--isolate"]).log).toContain("(fail) passes only through the leak");
+});
+
+test("from the repo root, as a shard runs, the record is complete when the globals check fails the run", () => {
+  // Under the repo root, so `bunfig.toml`'s two preloads load in its order; `.test-fixtures/` is gitignored.
+  mkdirSync(join(ROOT, ".test-fixtures"), { recursive: true });
+  const dir = mkdtempSync(join(ROOT, ".test-fixtures", "shard-"));
+  try {
+    writeFileSync(join(dir, "keeps-fetch.test.ts"), `import { test } from "bun:test";\ntest("points fetch at a stand-in", () => { globalThis.fetch = (async () => new Response("")) as unknown as typeof fetch; });\n`);
+    writeFileSync(join(dir, "after.test.ts"), `import { test } from "bun:test";\ntest("runs after", () => {});\n`);
+    const record = join(dir, "loaded.txt");
+    writeFileSync(record, "");
+    const ran = Bun.spawnSync(["bun", "test", ...["keeps-fetch.test.ts", "after.test.ts"].map((name) => `./${relative(ROOT, join(dir, name))}`)], {
+      cwd: ROOT,
+      env: { PATH: process.env.PATH ?? "", HOME: process.env.HOME ?? scratch, CG_SHARD_RECORD: record },
+    });
+    const log = `${ran.stdout.toString()}${ran.stderr.toString()}`;
+    expect(log).toContain("keeps-fetch.test.ts left the global object changed for the files after it: replaced 1 global (fetch)");
+    expect(parseSummary(log).fail).toBe(1);
+    expect(ran.exitCode).toBe(1);
+    const parsed = parseRecord(readFileSync(record, "utf8"));
+    expect(parsed.complete).toBe(true);
+    expect(parsed.loaded.map(({ file }) => file.split("/").at(-1))).toEqual(["keeps-fetch.test.ts", "after.test.ts"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

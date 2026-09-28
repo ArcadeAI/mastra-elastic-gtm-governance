@@ -102,11 +102,13 @@ jobs:
         with:
           node-version: 22
 
-      # `run` is `bun test --isolate` on this shard's files, with a preload that
-      # writes down every file Bun loaded (`scripts/test-shards-record.ts`), and
-      # it keeps Bun's output. Its exit status is Bun's. `--isolate` gives each
-      # file a fresh global object, so a file cannot pass or fail because of
-      # which files the split put before it; `runShard` has the measured case.
+      # `run` is `bun test` on this shard's files, in one global object as a
+      # local `bun test` runs them, and keeps Bun's output. Its exit status is
+      # Bun's. `bunfig.toml`'s preloads write down every file Bun loaded
+      # (`scripts/test-shards-record.ts`) and fail the file that leaves a DOM
+      # or a replaced global behind for the files after it
+      # (`scripts/test-globals.ts`). No `--isolate` since #46, which fixed the
+      # leaks it was hiding; `runShard` has the history.
       - name: Test
         run: bun scripts/test-shards.ts run ${{ matrix.shard }} 4 test-shard-${{ matrix.shard }}
         env:

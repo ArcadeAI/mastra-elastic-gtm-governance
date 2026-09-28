@@ -293,18 +293,16 @@ async function runShard(shard: number, of: number, dir: string): Promise<number>
   // also runs `app-test/x.test.ts` (.orca/project.md, "run the root group as
   // bun test ./test/"). `check` would catch it as a duplicate; this avoids it.
   //
-  // `--isolate`: every file gets a fresh global object, so no file can depend
-  // on which files the split put before it. Without it the split surfaced
-  // leaks the serial order had always hidden, measured on 1.3.14 by running
-  // one file before another: `chat-rendering`, `chat-resume` and
-  // `control-plane-strip` each leave React DOM bound to a closed happy-dom
-  // window, and `panel-live` then times out; `panel-keyboard` does the same to
-  // `chat-resume`. #142 fixed two such files by moving their DOM into an
-  // isolated worker (`chat-conversation.test.tsx`); this does it for every file,
-  // at no measured cost (a 75-file shard, 53.2s without, 53.7s with). A local
-  // `bun test` still runs everything in one shared global, in Bun's order.
+  // No `--isolate`, and no `--preload`: `bunfig.toml` preloads the recorder,
+  // which records because `CG_SHARD_RECORD` is set, and the globals check. The
+  // shards ran with `--isolate` from #38 to #46, because the split put files
+  // side by side that the serial order never had and `panel-live` timed out
+  // behind `chat-rendering`. #46 fixed that at the source (`app-test/dom.ts`),
+  // and `scripts/test-globals.ts` fails the file that leaves a DOM or a
+  // replaced global behind, so every file now runs in one global object here
+  // exactly as it does in a local `bun test`.
   const child = spawn(
-    ["bun", "test", "--isolate", "--preload", "./scripts/test-shards-record.ts", ...files.map((file) => `./${file}`)],
+    ["bun", "test", ...files.map((file) => `./${file}`)],
     {
       cwd: ROOT,
       env: { ...process.env, CG_SHARD_RECORD: join(dir, "loaded.txt") },
