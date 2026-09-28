@@ -83,9 +83,12 @@ export interface GatewayForm {
   slug: string;
   loanToolkit: string;
   approvalsToolkit: string;
+  /** The User Source already registered (#52), when the run got that far and the gateway failed. */
+  userSourceId?: string;
 }
 
-export function gatewayForm({ slug, loanToolkit, approvalsToolkit }: GatewayForm): string {
+export function gatewayForm({ slug, loanToolkit, approvalsToolkit, userSourceId }: GatewayForm): string {
+  const through = userSourceId === undefined ? "(the User Source above)" : `(${userSourceId}, already registered)`;
   return [
     "┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway",
     "│  Name              Loan Approval Limits",
@@ -96,7 +99,7 @@ export function gatewayForm({ slug, loanToolkit, approvalsToolkit }: GatewayForm
     `│                    ${loanToolkit}: SearchLoans, GetLoan, ApproveLoan, DenyLoan`,
     `│                    ${approvalsToolkit}: RequestApproval, Decide`,
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
-    "│                    → Loan Approval Limits (the User Source above). Never Arcade Headers.",
+    `│                    → Loan Approval Limits ${through}. Never Arcade Headers.`,
     "│",
     `│  The form lists the ${loanToolkit} and ${approvalsToolkit} tools only while the hooks are disabled,`,
     "│  which is how this run left them.",
@@ -118,6 +121,8 @@ export interface NextSteps {
   gateway: "enabled" | "needs-gateway" | "form";
   /** False under `--skip-deploy`: the toolkits still have to be deployed before the gateway form lists them. */
   deployed: boolean;
+  /** True when the User Source is registered already (#52), so its form is not a step left. */
+  userSourceReady?: boolean;
 }
 
 /** The second run, which turns the hooks on once the gateway exists: the same command as the first. */
@@ -135,7 +140,7 @@ export function hooksOnCommand(host: string): string {
  * lists the toolkits' tools only once they are deployed and while the hooks
  * are disabled; so the hooks are turned on last, by the second run.
  */
-export function nextSteps({ host, origin, port, gateway, deployed }: NextSteps): string {
+export function nextSteps({ host, origin, port, gateway, deployed, userSourceReady = false }: NextSteps): string {
   const steps = [
     "Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.",
     `Start the tunnel: ngrok http --url=${host} ${port}`,
@@ -145,7 +150,7 @@ export function nextSteps({ host, origin, port, gateway, deployed }: NextSteps):
     ...(gateway === "enabled"
       ? []
       : [
-          "With the app reachable through the tunnel, fill in the User Source form above.",
+          ...(userSourceReady ? [] : ["With the app reachable through the tunnel, fill in the User Source form above."]),
           "Fill in the gateway form above. It authenticates through the User Source, and lists the toolkits' tools once they are deployed.",
         ]),
     ...(gateway === "needs-gateway" ? [`Turn the hooks on: run ${hooksOnCommand(host)} again.`] : []),

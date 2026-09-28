@@ -48,12 +48,14 @@
  *   tools could not be picked there while they were on. The hooks are
  *   `PATCH`ed to `active` only once a gateway under the slug exists.
  *
- * The gateway is only read, never written (#48): `GET …/gateways`, to find the
- * slug the gateway form names, and check its `auth_type` and `tool_filter`
- * (`schemas.GatewayResponse`). It authenticates through the User Source, and a
- * project key has no route to User Sources (`…/user_sources` answered 404 on
- * #7), so this script never learns the User Source's id and cannot create the
- * gateway. Both are dashboard forms (`forms.ts`).
+ * The gateway, since #52: once the Coordinator API (`coordinator.ts`) gives
+ * this script the User Source's id, it creates the gateway through it,
+ * `POST …/gateways` ({@link gatewayBody}), and reads it back. When the
+ * Coordinator call fails, the gateway is only read, never written, as in #48:
+ * `GET …/gateways`, to find the slug the gateway form names, and check its
+ * `auth_type` and `tool_filter` (`schemas.GatewayResponse`). The project key
+ * has no User Source route on this API (`…/user_sources` answered 404 on #7),
+ * so without the Coordinator both are dashboard forms (`forms.ts`).
  *
  * Nothing here calls the bare `/v1/plugins`, which real Arcade answers 404
  * (#28), and nothing names the header auth type, which is Arcade Headers mode
@@ -467,6 +469,53 @@ export function gatewayCheck(gateway: unknown, loanToolkit: string, approvalsToo
     authType: authType === GATEWAY_AUTH_TYPE ? null : `auth_type: Arcade has ${JSON.stringify(authType) ?? "nothing"}, this app needs "${GATEWAY_AUTH_TYPE}"`,
     tools: toolDifferences,
   };
+}
+
+/**
+ * The gateway this script creates itself once it has the User Source's id
+ * (#52), as it did before #48 (#30): `POST …/gateways`
+ * (`schemas.CreateGatewayRequest`), in the shape the Arcade CLI sends it
+ * (`arcade_cli/connect.py` `create_gateway`: `tool_filter.allowed_tools`,
+ * qualified `Toolkit.Tool` names), with `auth_type: "user_source"` and the
+ * User Source's id. Create-only like the provider, and read back with
+ * `GET …/gateways/{id}`.
+ */
+export interface GatewaySpec {
+  slug: string;
+  userSourceId: string;
+  loanToolkit: string;
+  approvalsToolkit: string;
+}
+
+export function gatewayBody(spec: GatewaySpec) {
+  return {
+    name: "Loan Approval Limits",
+    description: "The loan officer's agent",
+    slug: spec.slug,
+    auth_type: GATEWAY_AUTH_TYPE,
+    user_source_id: spec.userSourceId,
+    tool_filter: { allowed_tools: gatewayTools(spec.loanToolkit, spec.approvalsToolkit) },
+  };
+}
+
+/** The same form of report as {@link pluginDifferences}, for a gateway read back (`schemas.GatewayResponse`). */
+export function gatewayDifferences(gateway: unknown, spec: GatewaySpec): string[] {
+  const differences: string[] = [];
+  const compare = (path: string, have: unknown, want: unknown) => {
+    if (JSON.stringify(have) !== JSON.stringify(want)) {
+      differences.push(`${path}: Arcade has ${JSON.stringify(have) ?? "nothing"}, this app needs ${JSON.stringify(want)}`);
+    }
+  };
+  compare("slug", at(gateway, "slug"), spec.slug);
+  compare("auth_type", at(gateway, "auth_type"), GATEWAY_AUTH_TYPE);
+  compare("user_source_id", at(gateway, "user_source_id"), spec.userSourceId);
+  const tools = at(gateway, "tool_filter.allowed_tools");
+  compare(
+    "tool_filter.allowed_tools",
+    Array.isArray(tools) ? [...tools].sort() : tools,
+    [...gatewayTools(spec.loanToolkit, spec.approvalsToolkit)].sort(),
+  );
+  return differences;
 }
 
 /** The `items` of one of Arcade's offset pages (`schemas.OffsetPage-*`). */

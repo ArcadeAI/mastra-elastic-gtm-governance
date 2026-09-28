@@ -117,6 +117,42 @@ class StandIn {
   workers = new Set<string>();
   /** When set, `GET …/workers/<name>` answers this instead. */
   workerLookup: { status: number; body: Json } | null = null;
+  /** When set, the next gateway create answers this instead of creating anything (#52). */
+  nextGatewayCreate: { status: number; body: Json } | null = null;
+  /** When set, a gateway read-back answers this instead (#52). */
+  gatewayReadBack: { status: number; body: Json } | null = null;
+  /**
+   * The dashboard's behaviour (#48), assumed of the API too, which is the worst
+   * case: while the project's hooks are active, a gateway create that names a
+   * Loan or Approvals tool is refused as if the tool did not exist. The one-click
+   * path creates the gateway before it turns the hooks on, so it must pass with
+   * this on; the default is on for that reason (#52).
+   */
+  activeHooksHideTools = true;
+
+  // --- The Coordinator API (#52) --------------------------------------------
+  /**
+   * `unavailable` answers every Coordinator call with the 404 the project key
+   * got for `…/user_sources` on api.arcade.dev (#7): the #48 suite runs as the
+   * fallback, and the one-click tests turn it on.
+   */
+  coordinatorMode: "unavailable" | "available" = "unavailable";
+  /** User Sources as the Coordinator stores them, secret included, which no read returns. */
+  userSources = new Map<string, Json>();
+  coordinatorRequests: Recorded[] = [];
+  /** When set, the next Coordinator call of that method answers this instead. */
+  nextCoordinator: Partial<Record<"GET" | "POST", { status: number; body: unknown }>> = {};
+  /** When set, a User Source created is kept but left out of every list read back. */
+  createdNotListed = false;
+  /**
+   * The app behind the tunnel: what its `/.well-known/openid-configuration`
+   * answers. The Coordinator reads it when it creates a User Source, as the
+   * dashboard's form does on save, so a create while it is down is refused.
+   */
+  tunnel: { status: number; issuer?: string } = { status: 200, issuer: ORIGIN };
+  tunnelRequests = 0;
+  /** Every request to either stand-in, in order, with which one got it: the ordering proof reads this. */
+  timeline: string[] = [];
   /** The callback Arcade generates for the next provider created: one per provider, `…/oauth/<ap_ id>/callback`. */
   nextCallback = CALLBACK;
   /**
@@ -132,9 +168,80 @@ class StandIn {
   // once on #28's full run).
   private readonly server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => this.handle(request) });
   readonly url = `http://127.0.0.1:${this.server.port}`;
+  /** Its own host, as `ARCADE_COORDINATOR_URL` names it: under `/api`, like the default `https://cloud.arcade.dev/api`. */
+  private readonly coordinatorServer = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => this.handleCoordinator(request) });
+  readonly coordinatorUrl = `http://127.0.0.1:${this.coordinatorServer.port}/api`;
+  /** The public host through ngrok, as `CG_SETUP_ARCADE_ISSUER_URL` points the run's check at it. */
+  private readonly tunnelServer = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: (request) => this.handleTunnel(request) });
+  readonly tunnelUrl = `http://127.0.0.1:${this.tunnelServer.port}`;
 
   stop(): void {
     this.server.stop(true);
+    this.coordinatorServer.stop(true);
+    this.tunnelServer.stop(true);
+  }
+
+  private handleTunnel(request: Request): Response {
+    this.tunnelRequests += 1;
+    this.timeline.push(`tunnel ${request.method} ${new URL(request.url).pathname}`);
+    if (new URL(request.url).pathname !== "/.well-known/openid-configuration") return new Response("not found", { status: 404 });
+    if (this.tunnel.status !== 200) return new Response("ERR_NGROK_8012", { status: this.tunnel.status });
+    return Response.json({ issuer: this.tunnel.issuer, jwks_uri: `${this.tunnel.issuer}/api/auth/jwks` });
+  }
+
+  /** A User Source as the Coordinator lists it: every field but the secret. */
+  private userSourceResponse(stored: Json): Json {
+    const { client_secret: _secret, ...shown } = stored;
+    return shown;
+  }
+
+  private async handleCoordinator(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const text = await request.text();
+    const body = text ? (JSON.parse(text) as Json) : undefined;
+    this.coordinatorRequests.push({ method: request.method, path: `${url.pathname}${url.search}`, authorization: request.headers.get("authorization"), body });
+    this.timeline.push(`coordinator ${request.method} ${url.pathname.replace(/^\/api/, "")}${url.search}`);
+    if (request.headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ message: "unauthorized" }, { status: 401 });
+    if (this.coordinatorMode === "unavailable") return Response.json(ROUTE_NOT_FOUND, { status: 404 });
+    const route = /^\/api\/v1\/orgs\/([^/]+)\/projects\/([^/]+)\/user_sources$/.exec(url.pathname);
+    if (!route) return Response.json(ROUTE_NOT_FOUND, { status: 404 });
+    if (route[1] !== ORG || route[2] !== PROJECT) return Response.json({ name: "not_found", message: "project not found" }, { status: 404 });
+    const injected = this.nextCoordinator[request.method as "GET" | "POST"];
+    if (injected) {
+      delete this.nextCoordinator[request.method as "GET" | "POST"];
+      return typeof injected.body === "string" ? new Response(injected.body, { status: injected.status }) : Response.json(injected.body, { status: injected.status });
+    }
+    if (request.method === "GET") {
+      const items = [...this.userSources.values()].filter((each) => !(this.createdNotListed && each.created_by_run)).map((each) => this.userSourceResponse(each));
+      return Response.json({ items, limit: 20, offset: 0, total_count: items.length });
+    }
+    if (request.method === "POST") {
+      for (const field of ["name", "issuer_url", "client_id", "client_secret"]) {
+        if (typeof body?.[field] !== "string" || body[field] === "") {
+          return Response.json({ name: "malformed_request", message: `${field} is a required field` }, { status: 400 });
+        }
+      }
+      // What the dashboard's form does on save, and assumed here of the API: the issuer is read through the tunnel.
+      if (this.tunnel.status !== 200 || this.tunnel.issuer !== body!.issuer_url) {
+        return Response.json({ name: "invalid_issuer", message: `could not read ${body!.issuer_url}/.well-known/openid-configuration` }, { status: 400 });
+      }
+      const id = `us_standin${++this.ids}`;
+      const stored = {
+        id,
+        name: body!.name,
+        description: body!.description ?? "",
+        issuer_url: body!.issuer_url,
+        client_id: body!.client_id,
+        client_secret: body!.client_secret,
+        scopes: body!.scopes ?? "openid",
+        subject_claim: body!.subject_claim ?? "sub",
+        redirect_uri: "https://cloud.arcade.dev/oauth2/intermediate_callback",
+        created_by_run: true,
+      };
+      this.userSources.set(id, stored);
+      return Response.json(this.userSourceResponse(stored), { status: 201 });
+    }
+    return Response.json(ROUTE_NOT_FOUND, { status: 404 });
   }
 
   /** A plugin as `GET` returns it (`schemas.PluginResponse`): the bearer only as `{ exists }`. */
@@ -179,6 +286,7 @@ class StandIn {
     const text = await request.text();
     const body = text ? (JSON.parse(text) as Json) : undefined;
     this.requests.push({ method: request.method, path: `${url.pathname}${url.search}`, authorization: request.headers.get("authorization"), body });
+    this.timeline.push(`arcade ${request.method} ${url.pathname}${url.search}`);
     if (request.headers.get("authorization") !== `Bearer ${KEY}`) return Response.json({ message: "unauthorized" }, { status: 401 });
 
     // The org and project routes: only the key's own project is there.
@@ -279,6 +387,36 @@ class StandIn {
       return page(this.hooks.filter((hook) => plugin === null || hook.plugin_id === plugin));
     }
     if (method === "GET" && rest === "/gateways") return page([...this.gateways.values()]);
+    // Since #52 the run creates the gateway itself (`schemas.CreateGatewayRequest`), through a User Source that exists.
+    if (method === "POST" && rest === "/gateways") {
+      if (this.nextGatewayCreate !== null) {
+        const { status, body: answer } = this.nextGatewayCreate;
+        this.nextGatewayCreate = null;
+        return Response.json(answer, { status });
+      }
+      if (body?.auth_type !== "user_source" || !this.userSources.has(body?.user_source_id)) {
+        return Response.json({ name: "malformed_request", message: "user_source_id must name a User Source in this project" }, { status: 400 });
+      }
+      if ([...this.gateways.values()].some((each) => each.slug === body.slug)) {
+        return Response.json({ name: "conflict", message: `slug ${body.slug} is taken` }, { status: 409 });
+      }
+      const tools: string[] = body.tool_filter?.allowed_tools ?? [];
+      const hooksOn = [...this.plugins.values()].some((each) => each.status === "active");
+      const hidden = tools.find((tool) => /^(Loan|Approvals)\./.test(tool));
+      if (this.activeHooksHideTools && hooksOn && hidden) {
+        return Response.json({ name: "malformed_request", message: `tool ${hidden} not found` }, { status: 400 });
+      }
+      const id = `gw_${++this.ids}`;
+      const stored = { ...body, id, status: "active" };
+      this.gateways.set(id, stored);
+      return Response.json(stored, { status: 201 });
+    }
+    const gatewayId = /^\/gateways\/([^/]+)$/.exec(rest)?.[1];
+    if (gatewayId !== undefined && method === "GET") {
+      if (this.gatewayReadBack !== null) return Response.json(this.gatewayReadBack.body, { status: this.gatewayReadBack.status });
+      const stored = this.gateways.get(gatewayId);
+      return stored ? Response.json(stored) : Response.json({ name: "not_found", message: "gateway not found" }, { status: 404 });
+    }
     // The Arcade CLI's `server_already_exists`: org-scoped, 404 when the server is missing.
     const worker = /^\/workers\/([^/]+)$/.exec(rest)?.[1];
     if (worker !== undefined && method === "GET") {
@@ -426,8 +564,11 @@ function project(
   return dir;
 }
 
-/** `failDeployIn`: the toolkit directory the fake CLI fails in. `shell`: variables the developer's shell exports. */
-type RunOptions = { failDeployIn?: string; shell?: Record<string, string> };
+/**
+ * `failDeployIn`: the toolkit directory the fake CLI fails in. `shell`: variables the developer's shell exports.
+ * `tty`: stdin counts as a terminal, so the run may pause (#52). `input`: what is typed at the pause, then stdin ends.
+ */
+type RunOptions = { failDeployIn?: string; shell?: Record<string, string>; tty?: boolean; input?: string };
 
 async function setupArcade(cwd: string, ...args: Array<string | RunOptions>): Promise<{ code: number; stdout: string; stderr: string }> {
   const project = projects.get(cwd);
@@ -436,6 +577,11 @@ async function setupArcade(cwd: string, ...args: Array<string | RunOptions>): Pr
   const child = spawnChild(["bun", "--no-env-file", SCRIPT, HOST, ...args.filter((arg): arg is string => typeof arg === "string")], {
     cwd,
     env: childEnv({
+      // Never the real Coordinator, whatever a test's shell says (#52): a test that
+      // wants another host sets it in `shell`, which wins, and it is always a local one.
+      ARCADE_COORDINATOR_URL: arcade.coordinatorUrl,
+      CG_SETUP_ARCADE_ISSUER_URL: arcade.tunnelUrl,
+      ...(options.tty ? { CG_SETUP_ARCADE_TTY: "1" } : {}),
       ...options.shell,
       ARCADE_API_URL: arcade.url,
       HOME: project.home,
@@ -448,6 +594,11 @@ async function setupArcade(cwd: string, ...args: Array<string | RunOptions>): Pr
     stdout: "pipe",
     stderr: "pipe",
   });
+  if (options.input !== undefined) {
+    const stdin = child.stdin as import("bun").FileSink;
+    stdin.write(options.input);
+    await stdin.end();
+  }
   const [stdout, stderr, code] = await Promise.all([
     new Response(child.stdout as ReadableStream).text(),
     new Response(child.stderr as ReadableStream).text(),
@@ -519,6 +670,15 @@ const RERUN = [
 /** What the second run adds once the gateway is there (#48): the hooks turned on, and read back. */
 const TURN_ON = [`PATCH ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/hooks?plugin_id={id}`];
 const DEPLOYS = ["tools/loan|deploy", "tools/approvals|deploy"];
+/** The Coordinator's User Source route under the stand-in's project (#52), as a sequence names it. */
+const USER_SOURCES = `/v1/orgs/${ORG}/projects/${PROJECT}/user_sources`;
+/** A fresh one-click run's Coordinator calls: the list, the create, the read-back. */
+const ONE_CLICK_COORDINATOR = [`GET ${USER_SOURCES}`, `POST ${USER_SOURCES}`, `GET ${USER_SOURCES}`];
+/** What a fresh one-click run adds on Arcade's API after the gateway check: the gateway created and read back, then the hooks on. */
+const ONE_CLICK_TAIL = [`POST ${SCOPED}/gateways`, `GET ${SCOPED}/gateways/{id}`, ...TURN_ON];
+/** Both stand-ins' requests, in the order they came, as one sequence: what a dry run describes. */
+const combined = () => arcade.timeline.filter((each) => !each.startsWith("tunnel ")).map((each) => normalise(each.replace(/^(arcade|coordinator) /, "")));
+const coordinatorSequence = () => arcade.coordinatorRequests.map((each) => `${each.method} ${each.path.replace(/^\/api/, "")}`);
 
 /**
  * The hooks as Arcade holds them, field by field: the three URLs on the
@@ -810,7 +970,8 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   expect(readFileSync(join(dir, ".env"), "utf8")).toBe(before);
   expect(existsSync(join(dir, "idp.db"))).toBe(false);
 
-  expect(printedRequests(run.stdout)).toEqual(FIRST_RUN);
+  expect(arcade.coordinatorRequests).toEqual([]);
+  expect(printedRequests(run.stdout)).toEqual([...FIRST_RUN.slice(0, -1), ...ONE_CLICK_COORDINATOR, GATEWAY_CHECK, ...ONE_CLICK_TAIL]);
   expect(run.stdout).toContain("Authorization: Bearer <ARCADE_API_KEY>");
   // Each tool secret: PUT, the CLI's `{ description, value }`, and the store
   // token only as a placeholder, because a dry run shows no secret.
@@ -824,10 +985,25 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   expect(plugin.webhook_config.auth).toEqual({ type: "bearer", token: "<generated ARCADE_HOOK_SIGNING_SECRET>" });
   expect(plugin.status).toBe("inactive");
   expect(plugin.webhook_config.endpoints.pre).toEqual({ url: `${ORIGIN}/hooks/pre`, phase: "before", failure_mode: "fail_closed", status: "inactive" });
-  // The gateway: looked for, and the turn-on described, never a write.
-  expect(run.stdout).toContain(`  GET ${arcade.url}${SCOPED}/gateways?limit=100\n`);
-  expect(run.stdout).toContain(`There: the hooks are turned on, PATCH ${SCOPED}/plugins/<plugin_id>\n    with status "active", and read back`);
-  expect(run.stdout).not.toMatch(/^ {2}(POST|PUT|PATCH|DELETE) \S*\/gateways/m);
+  // The User Source (#52): the Coordinator's create, with the client's secret as a placeholder.
+  const source = bodyAfter(run.stdout, `  POST ${arcade.coordinatorUrl}${USER_SOURCES}\n`);
+  expect(source).toEqual({
+    name: "Loan Approval Limits",
+    description: "The app's own sign-in (hop 1)",
+    issuer_url: ORIGIN,
+    client_id: "<the arcade-user-source client id in idp.db>",
+    client_secret: "<its secret, minted by this run>",
+    scopes: "openid profile email",
+    subject_claim: "email",
+  });
+  expect(run.stdout).toContain(`checks\n    ${ORIGIN}/.well-known/openid-configuration through the tunnel, then creates it`);
+  // The gateway through it, then the hooks on, last; and what the fallback does instead.
+  const gateway = bodyAfter(run.stdout, `  POST ${arcade.url}${SCOPED}/gateways\n`);
+  expect(gateway.auth_type).toBe("user_source");
+  expect(gateway.user_source_id).toBe("<the User Source's id>");
+  expect(gateway.tool_filter.allowed_tools).toEqual(["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"]);
+  expect(bodyAfter(run.stdout, `  PATCH ${arcade.url}${SCOPED}/plugins/<plugin_id>\n`).status).toBe("active");
+  expect(run.stdout).toContain("falls back to the dashboard forms (#48): the\n    gateway loan-approval-limits is only looked for, the hooks stay disabled");
   expect(run.stdout).toContain(
     "Deploys, after the hooks and before the gateway check, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in tools/loan)\n  arcade deploy   (in tools/approvals)",
   );
@@ -1009,7 +1185,7 @@ test("a leftover ARCADE_USER_SOURCE_ID in .env is ignored with a one-line note, 
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   const notes = run.stdout.split("\n").filter((line) => line.includes("ARCADE_USER_SOURCE_ID"));
-  expect(notes).toEqual(["  note          ARCADE_USER_SOURCE_ID is set, and ignored: the gateway is created in the dashboard now, so you can delete it"]);
+  expect(notes).toEqual(["  note          ARCADE_USER_SOURCE_ID is set, and ignored: this command finds the User Source itself, so you can delete it"]);
   expect(`${run.stdout}${run.stderr}`).not.toContain(USER_SOURCE);
   expect(sequence(arcade.requests)).toEqual(FIRST_RUN);
   noGatewayWritten();
@@ -1429,10 +1605,15 @@ test("a dry run of a fresh project describes the real run that follows it", asyn
   expect(dry.stdout).toContain("Client Secret   <its secret, minted by this run>");
   expect(dry.stdout).toContain(`  POST ${arcade.url}/v1/admin/auth_providers\n`);
 
-  const real = await setupArcade(dir);
+  // The real run it describes is the one-click one (#52), across both APIs.
+  arcade.coordinatorMode = "available";
+  const real = await setupArcade(dir, { tty: true, input: "\n" });
   expect(real.code, `${real.stdout}\n${real.stderr}`).toBe(0);
-  expect(printedRequests(dry.stdout)).toEqual(sequence(arcade.requests));
+  expect(printedRequests(dry.stdout)).toEqual(combined());
 }, 60_000);
+
+/** A dry run's requests as the fallback (#48) sends them: no Coordinator call, and nothing after the gateway check. */
+const asFallback = (printed: string[]) => printed.filter((each) => !each.includes("/user_sources")).slice(0, printed.filter((each) => !each.includes("/user_sources")).indexOf(GATEWAY_CHECK) + 1);
 
 /**
  * The human's live project as #30 describes it: after run 3, the provider,
@@ -1488,7 +1669,8 @@ test("from the live project's state after run 3, the dry run tells the truth, th
   expect(rerun.code, `${rerun.stdout}\n${rerun.stderr}`).toBe(0);
   const called = sequence(arcade.requests);
   expect(called).toEqual(FIRST_RUN.filter((each) => each !== "POST /v1/admin/auth_providers"));
-  expect(printedRequests(dry.stdout)).toEqual(called);
+  // This rerun falls back (the Coordinator answers 404), so it is the dry run's fallback half.
+  expect(asFallback(printedRequests(dry.stdout))).toEqual(called);
   hooksAreRegistered(dir, "inactive");
 
   // In this order: the project, the key's check, provider matches, .env has nothing to fill, both secrets, the verifier, the hooks, the deploys, the gateway check, both forms.
