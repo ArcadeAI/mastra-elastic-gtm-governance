@@ -6,35 +6,16 @@
  * filled where it stands; a key that is absent is appended under one header.
  * Comments and order survive, so the file stays the one the developer copied.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
+
+import { isOverrideWarned, parseEnv, readEnvText } from "../../lib/env-files.ts";
+
+export { parseEnv };
 
 const LINE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 
-/** `KEY=value` lines to a record. Comments, blanks and `export ` are handled; quotes are stripped. */
-export function parseEnv(text: string): Record<string, string> {
-  const env: Record<string, string> = {};
-  for (const line of text.split(/\r?\n/)) {
-    const match = LINE.exec(line);
-    if (!match) continue;
-    env[match[1]!] = unquote(match[2]!);
-  }
-  return env;
-}
-
-function unquote(raw: string): string {
-  const value = raw.trim();
-  const quoted = /^(['"])(.*)\1$/.exec(value);
-  if (quoted) return quoted[2]!;
-  // An unquoted value ends at a ` #` comment, the way dotenv reads it.
-  return value.replace(/\s+#.*$/, "");
-}
-
 export function readEnvFile(path: string): string {
-  try {
-    return readFileSync(path, "utf8");
-  } catch {
-    return "";
-  }
+  return readEnvText(path);
 }
 
 export interface FillResult {
@@ -102,11 +83,16 @@ export const WRITTEN_KEYS = [
 export const MANAGED_KEYS: readonly string[] = [...REQUIRED_KEYS, ...WRITTEN_KEYS];
 
 /**
- * The managed variables the shell exports with a value `.env` does not hold,
- * names only. A shell variable equal to `.env`'s value is no conflict.
+ * The variables the shell exports with a value `.env` does not hold, names
+ * only, sorted: every managed one, and every identity or secret key the app
+ * warns about on start (#54, `isOverrideWarned` in `lib/env-files.ts`), so
+ * `IDP_DB_PATH` or `IDP_SCOPES` left over from an older clone stops this run
+ * too. A shell variable equal to `.env`'s value is no conflict; one `.env`
+ * leaves blank or out is.
  */
 export function shellConflicts(shell: Record<string, string | undefined>, file: Record<string, string>): string[] {
-  return MANAGED_KEYS.filter((key) => shell[key] !== undefined && shell[key]!.trim() !== (file[key]?.trim() ?? ""));
+  const keys = new Set([...MANAGED_KEYS, ...Object.keys(shell).filter(isOverrideWarned)]);
+  return [...keys].filter((key) => shell[key] !== undefined && shell[key]!.trim() !== (file[key]?.trim() ?? ""));
 }
 
 /**

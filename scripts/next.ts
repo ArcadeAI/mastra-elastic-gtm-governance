@@ -43,6 +43,21 @@ if (args.length === 0) {
   process.exit(64);
 }
 
+// A shell variable beats `.env` here, as above, and on the #52 live test an
+// older clone's exported `.env` ran the app on its stale sign-in client with
+// nothing on screen to say so (#54). Named, never valued, and only under
+// `dev`: a host that runs `start` injects its configuration on purpose.
+// Advisory for the same reason as the URL below.
+if (args[0] === "dev") {
+  try {
+    const { warnShellOverrides } = await import("../lib/env-files.ts");
+    // The files Bun loaded into this process, from the directory it ran in.
+    warnShellOverrides("bun run dev", { log: (line) => console.error(`[next.ts] ${line}\n`) });
+  } catch (error) {
+    console.error(`[next.ts] could not compare the shell with .env: ${(error as Error).message}`);
+  }
+}
+
 // A port always reaches Next through the environment (#9). Unset, Next's own
 // default is 3000 too, but it then moves to 3001 when 3000 is taken, with a
 // warning: the tunnel pointed at 3000 would serve somebody else, and the URL

@@ -37,6 +37,14 @@ const BOOT_TIMEOUT_MS = 120_000;
 let arcade: ArcadeStandIn;
 let studio: Subprocess;
 let port: number;
+/** Everything `bun run studio` printed, as it arrives. */
+let output: () => string = () => "";
+/**
+ * An `IDP_CLIENT_ID` no `.env` file holds, exported the way an older clone's
+ * `.env` was on the #52 live test (#54). Studio never reads it; it is here to
+ * be named on start, and never printed.
+ */
+const PLANTED_CLIENT_ID = `planted-studio-client-${crypto.randomUUID()}`;
 
 /**
  * Studio's memory store for this run (#36), given as a **relative** path, so the
@@ -121,6 +129,7 @@ beforeAll(async () => {
           ANTHROPIC_API_KEY: "anthropic-key-for-studio-dev-tests",
           ANTHROPIC_BASE_URL: `http://localhost:${anthropic.port}`,
           MEMORY_DB_PATH: MEMORY_DB,
+          IDP_CLIENT_ID: PLANTED_CLIENT_ID,
         },
         stdin: "ignore",
         stdout: "pipe",
@@ -133,6 +142,7 @@ beforeAll(async () => {
   );
   studio = booted.child;
   port = booted.port;
+  output = booted.output;
 }, BOOT_TIMEOUT_MS);
 
 afterAll(async () => {
@@ -150,6 +160,15 @@ test("Studio lists the agent, with the chat route's instructions, on STUDIO_PORT
   expect(Object.keys(agents)).toEqual([AGENT_ID]);
   expect(agents[AGENT_ID]!.instructions).toBe(INSTRUCTIONS);
 }, BOOT_TIMEOUT_MS);
+
+test("a shell variable .env does not hold is named on start, and its value is not printed (#54)", () => {
+  const warnings = output().split("\n").filter((line) => line.includes("set in this shell"));
+  console.log(`[studio-dev] ${warnings.join("\n")}`);
+  expect(warnings.length).toBeGreaterThan(0);
+  expect(warnings[0]).toContain("IDP_CLIENT_ID is set in this shell");
+  expect(warnings[0]).toContain("the shell's value wins: `bun run studio` runs on it");
+  expect(output()).not.toContain(PLANTED_CLIENT_ID);
+});
 
 test("before hop 1, a turn in Studio fails and names the route that fixes it", async () => {
   const response = await fetch(`http://localhost:${port}/api/agents/${AGENT_ID}/generate`, {

@@ -16,6 +16,7 @@ import { Mastra } from "@mastra/core";
 import { registerApiRoute } from "@mastra/core/server";
 
 import { AGENT_ID } from "../../lib/agent/agent.ts";
+import { warnShellOverrides } from "../../lib/env-files.ts";
 import {
   STUDIO_AUTHORIZE_PATH,
   STUDIO_CALLBACK_PATH,
@@ -24,6 +25,11 @@ import {
   studioCallback,
   studioPort,
 } from "../../lib/agent/studio.ts";
+
+// A shell variable beats `.env` under `mastra dev` too: it never overrides a
+// variable it inherited (#54, `lib/env-files.ts`). Its server runs from inside
+// `.mastra/`, and names the project root in `MASTRA_PROJECT_ROOT`.
+warnShellOverrides("bun run studio", { dir: process.env.MASTRA_PROJECT_ROOT ?? process.cwd() });
 
 const port = studioPort();
 
