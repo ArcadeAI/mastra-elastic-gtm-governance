@@ -127,9 +127,10 @@ describe("the README's users commands", () => {
     expect(coversTheAct(quickstartAdds)).toBe(true);
   });
 
-  test("step 7 says the approver's email is their Slack one, names the Arcade invite, and offers seed-demo", () => {
+  test("step 7 says the approver's email is their Slack one, names the Arcade invite for each Slack route, and offers seed-demo", () => {
     expect(step).toContain("Use the email the approver's Slack account uses");
-    expect(step).toContain("under your project's Members");
+    expect(step).toContain("Using Arcade's built-in Slack app? Invite `<your-email>` to your Arcade project's Members");
+    expect(step).toContain("Using [your own Slack app](https://docs.arcade.dev/en/references/auth-providers/slack)? Skip this.");
     expect(step).toContain("(see [Do my users need Arcade accounts?](#faq))");
     expect(step).toContain("`bun run users seed-demo`");
   });
@@ -159,10 +160,14 @@ describe("the README's users commands", () => {
 describe("the FAQ the docs point at", () => {
   test("the README's FAQ answers it, and DOMAIN-SWAP links to it rather than repeating it", () => {
     const faq = section(README, "FAQ");
-    expect(faq).toContain("**Do my users need Arcade accounts?** Anyone who requests an approval does, and nobody else.");
-    expect(faq).toContain("register your own Slack app as a custom OAuth provider");
+    expect(faq).toContain(
+      "**Do my users need Arcade accounts?** With Arcade's built-in Slack app, the default, anyone who requests an approval does, and nobody else.",
+    );
+    expect(faq).toContain(
+      "register your own Slack app as the Slack auth provider in your Arcade project, as Arcade's [Slack auth provider](https://docs.arcade.dev/en/references/auth-providers/slack) page describes",
+    );
     expect(DOMAIN_SWAP).toContain("[Do my users need Arcade accounts?](../README.md#faq)");
-    expect(DOMAIN_SWAP).not.toContain("Anyone who requests an approval does, and nobody else.");
+    expect(DOMAIN_SWAP).not.toContain("anyone who requests an approval does, and nobody else.");
   });
 });
 
