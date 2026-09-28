@@ -175,21 +175,26 @@ function boldTitles(markdown: string): number[] {
 }
 
 /**
- * The Quickstart's remaining steps, from starting the app, in the one order
- * the dependencies allow (#28, #30): Arcade reads the User Source's issuer
- * through the tunnel, so the form comes after it, and the gateway
- * authenticates through the User Source, so the second `setup-arcade` run that
- * creates it needs the User Source's id. The hooks and the deploys are the
- * first run's, in step 4. `setup-arcade`'s "Then:" list is held to the same
- * order in `app-test/setup-arcade.test.ts`.
+ * The Quickstart's remaining steps, from step 5, in the one order the
+ * dashboard allows (#28, #30, #48): Arcade reads the User Source's issuer
+ * through the tunnel, so the form comes after it; the gateway authenticates
+ * through the User Source, so its form comes next; and its form lists the
+ * Loan and Approvals tools only while the hooks are disabled, so the second
+ * `setup-arcade` run that turns them on comes last. The hooks, created
+ * disabled, and the deploys are the first run's, in step 4. `setup-arcade`'s
+ * "Then:" list is held to the same order in `app-test/setup-arcade.test.ts`.
  */
 const QUICKSTART_ORDER: Array<[string, RegExp]> = [
   ["start the app", /Run `bun run dev`/],
   ["start the tunnel", /`ngrok http --url=/],
   ["the User Source form", /fill in the User Source form/i],
-  ["the gateway, by the second run", /`bun run setup-arcade <APP_PUBLIC_HOST> --user-source <id>`/],
+  ["the gateway form", /fill in the gateway form/i],
+  ["the hooks, by the second run", /Run `bun run setup-arcade <APP_PUBLIC_HOST>` again/],
   ["open the app", /Open `https:\/\/<APP_PUBLIC_HOST>`/],
 ];
+
+/** Where the Quickstart's remainder starts: the step that starts the app, and then fills in both forms. */
+const FORMS_STEP = "5. **Create the User Source and the gateway**";
 
 /**
  * The Arcade CLI's setup under Prerequisites, in the order it has to happen
@@ -231,7 +236,7 @@ function portsTiedToVariables(markdown: string): number[] {
 /** The steps in the order the Quickstart's remainder first names them, or the ones it never does. */
 function quickstartOrder(markdown: string): string[] {
   const quickstart = section(markdown, "Quickstart 🚀");
-  const rest = quickstart.slice(Math.max(0, quickstart.indexOf("5. **Start the app")));
+  const rest = quickstart.slice(Math.max(0, quickstart.indexOf(FORMS_STEP)));
   const found = QUICKSTART_ORDER.map(([name, pattern]) => ({ name, at: rest.search(pattern) }));
   const missing = found.filter(({ at }) => at === -1).map(({ name }) => `missing: ${name}`);
   return missing.length > 0 ? missing : found.sort((a, b) => a.at - b.at).map(({ name }) => name);
@@ -277,7 +282,7 @@ describe("README.md follows Mastra's outline", () => {
     expect(quickstart).not.toContain("git clone");
   });
 
-  test("the Quickstart's last steps run in the order the dependencies allow: tunnel, User Source, the gateway run, the app", () => {
+  test("the Quickstart's last steps run in the order the dashboard allows: tunnel, User Source, gateway, the hooks run, the app", () => {
     expect(quickstartOrder(README)).toEqual(QUICKSTART_ORDER.map(([name]) => name));
   });
 
@@ -289,13 +294,30 @@ describe("README.md follows Mastra's outline", () => {
     expect(quickstart).toContain("`bun run studio`, which listens on `STUDIO_PORT` (4111 when unset");
   });
 
-  test("step 4 is the run that registers the hooks and deploys both toolkits", () => {
+  test("step 4 is the run that registers the hooks disabled and deploys both toolkits, and creates no gateway", () => {
     const quickstart = section(README, "Quickstart 🚀");
-    const register = quickstart.slice(quickstart.indexOf("4. **Register the app with Arcade**"), quickstart.indexOf("5. **Start the app"));
+    const register = quickstart.slice(quickstart.indexOf("4. **Register the app with Arcade**"), quickstart.indexOf(FORMS_STEP));
     expect(register).toContain("the contextual access hooks through Arcade's API");
     expect(register).toContain("it runs `arcade deploy` in `tools/loan` and then in `tools/approvals`");
-    expect(register).toContain("the one form Arcade's API cannot fill, the User Source");
-    expect(quickstart).not.toMatch(/fill in the (gateway|contextual access hooks) form/i);
+    expect(register).toContain("It creates the hooks disabled, and it creates no gateway");
+    expect(register).toContain("printing the User Source form, then the gateway form, then the command for step 6, and a warning that the gateway runs ungoverned until step 6");
+    // The hooks form is the no-login fallback's alone.
+    expect(quickstart).not.toMatch(/fill in the contextual access hooks form/i);
+  });
+
+  test("steps 4 to 6 are the three steps of #48 and nothing more: run 1, both forms, run 2", () => {
+    const quickstart = section(README, "Quickstart 🚀");
+    const titles = [...quickstart.matchAll(/^(\d+)\. \*\*(.+)\*\*$/gm)].map(([, n, title]) => `${n}. ${title}`);
+    expect(titles.slice(3, 6)).toEqual(["4. Register the app with Arcade", "5. Create the User Source and the gateway", "6. Turn the hooks on"]);
+    const forms = quickstart.slice(quickstart.indexOf(FORMS_STEP), quickstart.indexOf("6. **Turn the hooks on**"));
+    expect(forms).toContain("never Arcade Headers");
+    expect(forms).toContain("exactly the four Loan tools and the two Approvals tools");
+    const second = quickstart.slice(quickstart.indexOf("6. **Turn the hooks on**"), quickstart.indexOf("7. **"));
+    expect(second).toContain("turns the hooks on and reads them back, and fails unless Arcade reports them active");
+    expect(second).toContain("leaves the hooks disabled");
+    expect(second).toContain("it says the hooks are already on");
+    // No step asks for a User Source id, which a project key cannot read.
+    expect(quickstart).not.toMatch(/us_|User Source's page|--user-source/);
   });
 
   test("Prerequisites sets up the Arcade CLI in order, each step with its command", () => {
@@ -306,7 +328,7 @@ describe("README.md follows Mastra's outline", () => {
 
   test("the Quickstart warns about ngrok's page on a free domain, once, where the app is first opened", () => {
     const quickstart = section(README, "Quickstart 🚀");
-    const open = quickstart.slice(quickstart.indexOf("9. **Ask for the $95K approval**"));
+    const open = quickstart.slice(quickstart.indexOf("8. **Ask for the $95K approval**"));
     expect(open).toContain("The first time a browser opens a free ngrok domain, ngrok shows its own warning page first: click **Visit Site**.");
     expect(open).toContain("Arcade's own calls to the app never see that page.");
     expect(README.match(/Visit Site/g)).toHaveLength(1);
@@ -397,12 +419,16 @@ describe("each check bites on a planted violation", () => {
     ]);
   });
 
-  test("a Quickstart with the gateway run before the User Source form, or the form before the tunnel, or no form", () => {
+  test("a Quickstart with the hooks run before the gateway form, the gateway before the User Source, or the form before the tunnel, or no form", () => {
     const order = QUICKSTART_ORDER.map(([name]) => name);
-    const gatewayFirst = README.split("\n");
-    const [gateway] = gatewayFirst.splice(gatewayFirst.findIndex((line) => line.includes("--user-source <id>`")), 1);
-    gatewayFirst.splice(gatewayFirst.findIndex((line) => /fill in the User Source form/i.test(line)), 0, gateway!);
-    expect(quickstartOrder(gatewayFirst.join("\n"))).not.toEqual(order);
+    const moveBefore = (moving: RegExp, before: RegExp) => {
+      const lines = README.split("\n");
+      const [line] = lines.splice(lines.findIndex((each) => moving.test(each)), 1);
+      lines.splice(lines.findIndex((each) => before.test(each)), 0, line!);
+      return lines.join("\n");
+    };
+    expect(quickstartOrder(moveBefore(/Run `bun run setup-arcade <APP_PUBLIC_HOST>` again/, /fill in the gateway form/i))).not.toEqual(order);
+    expect(quickstartOrder(moveBefore(/fill in the gateway form/i, /fill in the User Source form/i))).not.toEqual(order);
     const early = README.split("\n");
     const form = early.findIndex((line) => /fill in the User Source form/i.test(line));
     const [moved] = early.splice(form, 1);
