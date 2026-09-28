@@ -1,0 +1,4 @@
+# `bun test` from the repo root. `scripts/test-globals.ts` fails the run when a
+# test file leaves a DOM or a replaced global behind for the files after it (#46).
+[test]
+preload = ["./scripts/test-globals.ts"]
