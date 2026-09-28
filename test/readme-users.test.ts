@@ -26,8 +26,8 @@ const REPO = join(import.meta.dir, "..");
 const README = readFileSync(join(REPO, "README.md"), "utf8");
 const DOMAIN_SWAP = readFileSync(join(REPO, "docs", "DOMAIN-SWAP.md"), "utf8");
 
-const ADD_STEP = "8. **Add yourself and an approver**";
-const ASK_STEP = "9. **Ask for the $95K approval**";
+const ADD_STEP = "7. **Add yourself and an approver**";
+const ASK_STEP = "8. **Ask for the $95K approval**";
 
 const scratch = mkdtempSync(join(tmpdir(), "cg-readme-users-"));
 afterAll(() => rmSync(scratch, { recursive: true, force: true }));
@@ -64,13 +64,13 @@ function flag(argv: string[], name: string): string | undefined {
   return at === -1 ? undefined : argv[at + 1];
 }
 
-/** Whether the loan officer is refused the $95K and the approver may grant it: act 2, as step 8 sets it up. */
+/** Whether the loan officer is refused the $95K and the approver may grant it: act 2, as step 7 sets it up. */
 function coversTheAct(commands: string[][]): boolean {
   const [officer, approver] = commands.map((argv) => Number(flag(argv, "clearance")));
   return officer! < 95_000 && approver! >= 95_000;
 }
 
-/** The README with step 8 moved after step 9, the order in which nobody can sign in. */
+/** The README with step 7 moved after step 8, the order in which nobody can sign in. */
 function addStepAfterAsk(markdown: string): string {
   const start = markdown.indexOf(ADD_STEP);
   const ask = markdown.indexOf(ASK_STEP);
@@ -116,7 +116,7 @@ describe("the README's users commands", () => {
   const quickstartAdds = addCommands(step);
   const tryItOutAdds = addCommands(section(README, "Try it out"));
 
-  test("step 8 adds a loan officer and a VP, right before the app is opened", () => {
+  test("step 7 adds a loan officer and a VP, right before the app is opened", () => {
     expect(step).not.toBe("");
     expect(quickstartAdds.map((argv) => flag(argv, "role"))).toEqual(["loan_officer", "vp_credit"]);
     const quickstart = section(README, "Quickstart 🚀");
@@ -127,7 +127,7 @@ describe("the README's users commands", () => {
     expect(coversTheAct(quickstartAdds)).toBe(true);
   });
 
-  test("step 8 says the approver's email is their Slack one, names the Arcade invite, and offers seed-demo", () => {
+  test("step 7 says the approver's email is their Slack one, names the Arcade invite, and offers seed-demo", () => {
     expect(step).toContain("Use the email the approver's Slack account uses");
     expect(step).toContain("under your project's Members");
     expect(step).toContain("(see [Do my users need Arcade accounts?](#faq))");

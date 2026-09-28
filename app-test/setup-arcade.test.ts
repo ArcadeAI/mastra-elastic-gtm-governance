@@ -1,5 +1,5 @@
 /**
- * `bun run setup-arcade <host>` against a stand-in for Arcade's admin API (#9, #30).
+ * `bun run setup-arcade <host>` against a stand-in for Arcade's admin API (#9, #30, #48).
  *
  * Never the real API, never the real Arcade CLI, never the real `~/.arcade`.
  *
@@ -12,7 +12,8 @@
  *   says POST, and the first live run got that 404 instead. Since #30 it serves
  *   the plugins, hooks and gateways under one org and project, as the live
  *   swagger has them, and still 404s the bare `/v1/plugins` the second live run
- *   was refused.
+ *   was refused. Since #48 it serves only the gateway list: this script never
+ *   writes a gateway, and a test puts one there the way the dashboard would.
  * - **The Arcade CLI** is a shell script first on `PATH` that records where it
  *   was run and with what, so `arcade deploy` is observed and never performed.
  * - **The CLI's context** is a `credentials.yaml` in a throwaway `HOME`, in the
@@ -43,6 +44,7 @@ const CALLBACK = "https://cloud.arcade.dev/api/v1/oauth/stand_in_ap_1/callback";
 const ORG = "org_standin";
 const PROJECT = "prj_standin";
 const SCOPED = `/v1/orgs/${ORG}/projects/${PROJECT}`;
+/** The User Source's id as the dashboard would store it on the gateway. setup-arcade never sees or sends one. */
 const USER_SOURCE = "us_2standinusersource";
 /** What the faked CLI's credentials hold besides the ids: never to be printed. */
 const CLI_TOKENS = ["cli-access-token-must-not-leak", "cli-refresh-token-must-not-leak", "cli-api-key-must-not-leak"];
@@ -93,9 +95,12 @@ class StandIn {
   plugins = new Map<string, Json>();
   /** Hooks, as `schemas.HookResponse`, made from each plugin's endpoints. */
   hooks: Json[] = [];
+  /** Gateways as the dashboard made them (`schemas.GatewayResponse`): this stand-in has no route that writes one. */
   gateways = new Map<string, Json>();
-  /** Slugs another project already holds: a POST for one answers 409. */
-  takenSlugs = new Set<string>();
+  /** When set, a PATCH is stored but its `status` and each endpoint's are not: the plugin reads back as it was. */
+  patchIgnoresStatus = false;
+  /** When set, a plugin read-back leaves `status` out. */
+  omitStatus = false;
   /** When set, the next plugin create answers this instead of creating anything. */
   nextPluginCreate: { status: number; body: Json } | null = null;
   /**
@@ -144,7 +149,7 @@ class StandIn {
       name: stored.name,
       description: stored.description,
       plugin_type: stored.plugin_type,
-      status: stored.status,
+      ...(this.omitStatus ? {} : { status: stored.status }),
       health_status: "unknown",
       webhook_config: {
         ...(health === undefined ? {} : { health_check_path: health }),
@@ -231,7 +236,6 @@ class StandIn {
   private project(method: string, rest: string, query: URLSearchParams, body: Json | undefined): Response {
     const page = (items: Json[]) => Response.json({ items, limit: Number(query.get("limit") ?? 20), offset: 0, total_count: items.length });
     const pluginId = /^\/plugins\/([^/]+)$/.exec(rest)?.[1];
-    const gatewayId = /^\/gateways\/([^/]+)$/.exec(rest)?.[1];
     if (method === "GET" && rest === "/plugins") return page([...this.plugins.values()].map((each) => this.pluginResponse(each)));
     if ((method === "POST" && rest === "/plugins") || (pluginId !== undefined && method === "PATCH")) {
       const health = body?.webhook_config?.health_check_path;
@@ -256,7 +260,14 @@ class StandIn {
       const stored = this.plugins.get(pluginId);
       if (!stored) return Response.json({ name: "not_found", message: "plugin not found" }, { status: 404 });
       if (method === "PATCH") {
-        const merged = { ...stored, ...body, webhook_config: { ...stored.webhook_config, ...body?.webhook_config } };
+        let patch = body;
+        if (this.patchIgnoresStatus) {
+          const endpoints = Object.fromEntries(
+            Object.entries(body?.webhook_config?.endpoints ?? {}).map(([point, each]) => [point, { ...(each as Json), status: stored.webhook_config.endpoints[point]?.status }]),
+          );
+          patch = { ...body, status: stored.status, webhook_config: { ...body?.webhook_config, endpoints } };
+        }
+        const merged = { ...stored, ...patch, webhook_config: { ...stored.webhook_config, ...patch?.webhook_config } };
         this.plugins.set(pluginId, merged);
         if (body?.webhook_config?.endpoints) this.writeHooks(pluginId, merged.webhook_config.endpoints);
         return Response.json(this.pluginResponse(merged));
@@ -276,25 +287,31 @@ class StandIn {
         ? Response.json({ id: worker, enabled: true, managed: true, type: "mcp" })
         : Response.json({ name: "not_found", message: `worker ${worker} not found` }, { status: 404 });
     }
-    if (method === "POST" && rest === "/gateways") {
-      if (!body?.name) return Response.json({ name: "malformed_request", message: "name is required" }, { status: 400 });
-      if (body.auth_type === "user_source" && !/^us_/.test(body.user_source_id ?? "")) {
-        return Response.json({ name: "malformed_request", message: "user_source_id is required and must be a us_-prefixed KSUID" }, { status: 400 });
-      }
-      if ([...this.gateways.values()].some((each) => each.slug === body.slug) || this.takenSlugs.has(body.slug)) {
-        return Response.json({ name: "conflict", message: "slug is already in use" }, { status: 409 });
-      }
-      const id = `gw_${++this.ids}`;
-      const stored = { ...body, id, status: "active" };
-      this.gateways.set(id, stored);
-      return Response.json(stored, { status: 201 });
-    }
-    if (gatewayId !== undefined && method === "GET") {
-      const stored = this.gateways.get(gatewayId);
-      return stored ? Response.json(stored) : Response.json({ name: "not_found", message: "gateway not found" }, { status: 404 });
-    }
     return Response.json(ROUTE_NOT_FOUND, { status: 404 });
   }
+}
+
+/**
+ * The gateway the forker creates in the dashboard from the printed form (#48),
+ * in `schemas.GatewayResponse`'s shape: the slug, the User Source and the six
+ * tools. How a dashboard-made gateway reads back its `tool_filter` is
+ * unmeasured; this is the shape the Arcade CLI sends (`Toolkit.Tool`).
+ */
+function dashboardGateway(overrides: Json = {}): Json {
+  const gateway = {
+    id: `gw_dashboard_${arcade.gateways.size + 1}`,
+    name: "Loan Approval Limits",
+    slug: "loan-approval-limits",
+    status: "active",
+    auth_type: "user_source",
+    user_source_id: USER_SOURCE,
+    tool_filter: {
+      allowed_tools: ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"],
+    },
+    ...overrides,
+  };
+  arcade.gateways.set(gateway.id, gateway);
+  return gateway;
 }
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), "cg-setup-arcade-")));
@@ -468,7 +485,9 @@ const sequence = (requests: Recorded[]) => requests.map((each) => normalise(`${e
 
 /** The key's check, the first call of every run that found a project (#30). */
 const GUARD = `GET ${SCOPED}/plugins?limit=100`;
-/** A fresh project's registrations, after the guard, up to the hooks. */
+/** The gateway check that ends every run with a project (#48): a read, never a write. */
+const GATEWAY_CHECK = `GET ${SCOPED}/gateways?limit=100`;
+/** A fresh project's registrations, after the guard, up to the gateway check. */
 const FIRST_RUN = [
   GUARD,
   "GET /v1/admin/auth_providers/app-identity",
@@ -482,6 +501,7 @@ const FIRST_RUN = [
   `GET ${SCOPED}/hooks?plugin_id={id}`,
   `GET ${SCOPED}/workers/loan`,
   `GET ${SCOPED}/workers/approvals`,
+  GATEWAY_CHECK,
 ];
 /** A rerun's, once everything the first run did is there. */
 const RERUN = [
@@ -494,32 +514,41 @@ const RERUN = [
   `GET ${SCOPED}/hooks?plugin_id={id}`,
   `GET ${SCOPED}/workers/loan`,
   `GET ${SCOPED}/workers/approvals`,
+  GATEWAY_CHECK,
 ];
+/** What the second run adds once the gateway is there (#48): the hooks turned on, and read back. */
+const TURN_ON = [`PATCH ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/hooks?plugin_id={id}`];
 const DEPLOYS = ["tools/loan|deploy", "tools/approvals|deploy"];
 
 /**
  * The hooks as Arcade holds them, field by field: the three URLs on the
- * public host, fail closed, the health path, and `.env`'s bearer, which the
- * stand-in keeps and never returns.
+ * public host, fail closed, the health path, `.env`'s bearer, which the
+ * stand-in keeps and never returns, and `status` on the plugin and on every
+ * endpoint: `inactive` after the first run, `active` after the second (#48).
  */
-function hooksAreRegistered(dir: string): void {
+function hooksAreRegistered(dir: string, status: "inactive" | "active"): void {
   const plugins = [...arcade.plugins.values()];
   expect(plugins.map((each) => each.name)).toEqual(["loan-approval-limits-hooks"]);
   const [plugin] = plugins as [Json];
   expect(plugin.plugin_type).toBe("webhook");
-  expect(plugin.status).toBe("active");
+  expect(plugin.status).toBe(status);
   expect(plugin.webhook_config.health_check_path).toBe(`${ORIGIN}/hooks/health`);
   expect(plugin.webhook_config.auth).toEqual({ type: "bearer", token: envOf(dir).ARCADE_HOOK_SIGNING_SECRET });
   expect(plugin.webhook_config.endpoints).toEqual({
-    access: { url: `${ORIGIN}/hooks/access`, phase: "before", failure_mode: "fail_closed", status: "active" },
-    pre: { url: `${ORIGIN}/hooks/pre`, phase: "before", failure_mode: "fail_closed", status: "active" },
-    post: { url: `${ORIGIN}/hooks/post`, phase: "after", failure_mode: "fail_closed", status: "active" },
+    access: { url: `${ORIGIN}/hooks/access`, phase: "before", failure_mode: "fail_closed", status },
+    pre: { url: `${ORIGIN}/hooks/pre`, phase: "before", failure_mode: "fail_closed", status },
+    post: { url: `${ORIGIN}/hooks/post`, phase: "after", failure_mode: "fail_closed", status },
   });
-  expect(arcade.hooks.map((hook) => `${hook.hook_point} ${hook.phase} ${hook.failure_mode}`).sort()).toEqual([
-    "tool.access before fail_closed",
-    "tool.post after fail_closed",
-    "tool.pre before fail_closed",
+  expect(arcade.hooks.map((hook) => `${hook.hook_point} ${hook.phase} ${hook.failure_mode} ${hook.status}`).sort()).toEqual([
+    `tool.access before fail_closed ${status}`,
+    `tool.post after fail_closed ${status}`,
+    `tool.pre before fail_closed ${status}`,
   ]);
+}
+
+/** No request that writes a gateway, of any method, under any path (#48). */
+function noGatewayWritten(): void {
+  expect(arcade.requests.filter((each) => /\/gateways\b/.test(each.path) && each.method !== "GET").map((each) => `${each.method} ${each.path}`)).toEqual([]);
 }
 
 /**
@@ -555,10 +584,11 @@ function formOrder(stdout: string): string[] {
   );
 }
 
-test("a real run registers every API-able piece, deploys both toolkits, and prints the one form left", async () => {
+test("a first run registers every API-able piece with the hooks disabled, deploys both toolkits, makes no gateway, and prints both forms", async () => {
   const mine = "the-developer-chose-this-session-secret-0123456789";
   const dir = project("full", (env) => env.replace(/^SESSION_SECRET=$/m, `SESSION_SECRET=${mine}`));
   const run = await setupArcade(dir);
+  console.log(`--- setup-arcade ${HOST}, the first run ---\n${run.stdout}${run.stderr}`);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
 
   expect(run.stdout).toContain(`arcade        org ${ORG}, project ${PROJECT} (from the Arcade CLI's active context, `);
@@ -585,9 +615,14 @@ test("a real run registers every API-able piece, deploys both toolkits, and prin
   expect(clients.arcade!.redirectUris).toContain(CALLBACK);
   expect(env.IDP_OAUTH_REDIRECT_URIS_ARCADE).toBe(CALLBACK);
 
-  // The hooks: by API since #30, with the bearer the app checks, which is never printed.
-  hooksAreRegistered(dir);
-  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed (read back)`);
+  // The hooks: by API since #30, with the bearer the app checks, which is never printed,
+  // and disabled since #48: the swagger's inactive value on the plugin and on every endpoint.
+  hooksAreRegistered(dir, "inactive");
+  const created = arcade.requests.find((each) => each.method === "POST" && each.path === `${SCOPED}/plugins`)!.body as Json;
+  expect(created.status).toBe("inactive");
+  expect(Object.values(created.webhook_config.endpoints).map((each) => (each as Json).status)).toEqual(["inactive", "inactive", "inactive"]);
+  expect(run.stdout).toContain("hooks: created loan-approval-limits-hooks, disabled until the gateway exists");
+  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status inactive (read back)`);
   expect(run.stdout).toContain(`hooks: Arcade doesn't echo webhook_config.health_check_path back; it was sent as ${ORIGIN}/hooks/health and can't be verified`);
   expect(`${run.stdout}${run.stderr}`).not.toContain(env.ARCADE_HOOK_SIGNING_SECRET!);
 
@@ -633,33 +668,57 @@ test("a real run registers every API-able piece, deploys both toolkits, and prin
   expect(env.SESSION_SECRET).toBe(mine);
   expect(run.stdout).toMatch(/kept\s+SESSION_SECRET/);
 
-  // No gateway yet: it needs the User Source, whose form is the one left, and the run ends on the command that follows it.
+  // No gateway: it was looked for, never written, and both forms are left, the User Source's first.
   expect(arcade.gateways.size).toBe(0);
-  expect(formOrder(run.stdout)).toEqual(["User Source"]);
+  noGatewayWritten();
+  expect(run.stdout).toContain("gateway: there is no loan-approval-limits in this project yet; it is the dashboard form below");
+  expect(run.stdout).toContain("hooks: left disabled, so the dashboard's gateway form lists the tools");
+  expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
   expect(run.stdout).toContain("User Sources → Create User Source");
   expect(run.stdout).toContain(`Issuer URL      ${ORIGIN}`);
   expect(run.stdout).toContain(`Client ID       ${clients["arcade-user-source"]!.clientId}`);
   expect(run.stdout).toMatch(/Subject Claim\s+email/);
-  expect(run.stdout.trimEnd().split("\n").slice(-2)).toEqual([
-    `  bun run setup-arcade ${HOST} --user-source <id>`,
-    `  (or set ARCADE_USER_SOURCE_ID in .env and run bun run setup-arcade ${HOST})`,
+  gatewayFormIsComplete(run.stdout);
+  // Then the command for the second run, and the warning, last.
+  expect(run.stdout.trimEnd().split("\n").slice(-5)).toEqual([
+    "Once the gateway loan-approval-limits exists, turn the hooks on with the same command:",
+    `  bun run setup-arcade ${HOST}`,
+    "",
+    "warning: until then the gateway runs ungoverned. The hooks are disabled, so Arcade calls none of",
+    `${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, and every tool call runs unchecked.`,
   ]);
   // Nothing printed carries the API key.
   expect(`${run.stdout}${run.stderr}`).not.toContain(KEY);
 }, 60_000);
 
 /**
+ * The gateway form (#48), field by field: the slug, the User Source for its
+ * authentication and never Headers, and exactly the six tools.
+ */
+function gatewayFormIsComplete(stdout: string): void {
+  const start = stdout.indexOf("┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway");
+  expect(start, "no gateway form").toBeGreaterThan(-1);
+  const form = stdout.slice(start, stdout.indexOf("└─", start));
+  expect(form).toMatch(/│ {2}Slug +loan-approval-limits +← \.env's ARCADE_GATEWAY_ID$/m);
+  expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    Loan: SearchLoans, GetLoan, ApproveLoan, DenyLoan\n│                    Approvals: RequestApproval, Decide\n");
+  expect(form).toContain("Non-Arcade Users → User Source\n│                    → Loan Approval Limits (the User Source above). Never Arcade Headers.");
+  expect(form).toContain("lists the Loan and Approvals tools only while the hooks are disabled");
+}
+
+/**
  * What is left after the first run, in the order the README's Quickstart
- * gives it (#11, #30): the app and the tunnel, the User Source form (Arcade
- * reads its issuer through the tunnel), the second run that creates the
- * gateway through it, then the app. Both texts are read here, so the list
- * cannot drift from the README, or the README from the list, without this failing.
+ * gives it (#11, #30, #48): the app and the tunnel, the User Source form
+ * (Arcade reads its issuer through the tunnel), the gateway form through it,
+ * the second run that turns the hooks on, then the app. Both texts are read
+ * here, so the list cannot drift from the README, or the README from the
+ * list, without this failing.
  */
 const NEXT_STEPS: Array<[string, RegExp]> = [
   ["start the app", /`bun run dev`/],
   ["start the tunnel", /ngrok http --url=/],
   ["the User Source form", /fill in the User Source form/i],
-  ["the gateway, by the second run", /setup-arcade \S+ --user-source/],
+  ["the gateway form", /fill in the gateway form/i],
+  ["the hooks, by the second run", /run `?bun run setup-arcade \S+`? again/i],
   ["open the app", /open `?https:\/\//i],
 ];
 
@@ -671,10 +730,10 @@ function stepOrder(text: string): string[] {
   return found.sort((a, b) => a.at - b.at).map(({ name }) => name);
 }
 
-/** From the Quickstart step that starts the app to the end of the Quickstart. */
+/** From the Quickstart step that starts the app and fills in both forms to the end of the Quickstart. */
 function readmeRemainder(): string {
   const readme = readFileSync(join(ROOT, "README.md"), "utf8");
-  const start = readme.indexOf("5. **Start the app");
+  const start = readme.indexOf("5. **Create the User Source and the gateway**");
   const end = readme.indexOf("\n## ", start);
   if (start === -1 || end === -1) throw new Error("README.md's Quickstart has no step 5 to read from");
   return readme.slice(start, end);
@@ -699,17 +758,22 @@ test("the steps it prints after the form are the README's, in the README's order
   expect(stepOrder(readmeRemainder())).toEqual(order);
   expect(printed).toContain(`ngrok http --url=${HOST} `);
   expect(printed).toContain(`Open ${ORIGIN}, never localhost`);
-  expect(printed).toContain(`bun run setup-arcade ${HOST} --user-source <id>, with the id shown on the User Source's page`);
+  expect(printed).toContain(`Turn the hooks on: run bun run setup-arcade ${HOST} again.`);
   startsTheApp(printed);
-  // Nothing about deploying or the hooks is left: this run did both.
-  expect(printed).not.toMatch(/arcade deploy|hooks form|gateway form/);
+  // Nothing about deploying or the hooks form is left: this run deployed, and registered the hooks by API.
+  expect(printed).not.toMatch(/arcade deploy|hooks form/);
 
-  // The check bites: the gateway command ahead of the form it needs fails it,
-  // and so does the User Source form ahead of the tunnel Arcade reads it through.
-  const lines = printed.split("\n");
-  const [gateway] = lines.splice(lines.findIndex((line) => line.includes("--user-source")), 1);
-  lines.splice(lines.findIndex((line) => /User Source form/i.test(line)), 0, gateway!);
-  expect(stepOrder(lines.join("\n"))).not.toEqual(order);
+  // The check bites: the hooks run ahead of the gateway form fails it, so does
+  // the gateway form ahead of the User Source's, and so does the User Source
+  // form ahead of the tunnel Arcade reads it through.
+  const moveBefore = (moving: RegExp, before: RegExp) => {
+    const lines = printed.split("\n");
+    const [line] = lines.splice(lines.findIndex((each) => moving.test(each)), 1);
+    lines.splice(lines.findIndex((each) => before.test(each)), 0, line!);
+    return lines.join("\n");
+  };
+  expect(stepOrder(moveBefore(/Turn the hooks on/, /gateway form/))).not.toEqual(order);
+  expect(stepOrder(moveBefore(/gateway form/, /User Source form/))).not.toEqual(order);
   const early = printed.split("\n");
   const [form] = early.splice(early.findIndex((line) => /User Source form/i.test(line)), 1);
   early.splice(early.findIndex((line) => /ngrok http/.test(line)), 0, form!);
@@ -758,14 +822,19 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   // The hooks: the whole body, with the bearer as a placeholder.
   const plugin = bodyAfter(run.stdout, `  POST ${arcade.url}${SCOPED}/plugins\n`);
   expect(plugin.webhook_config.auth).toEqual({ type: "bearer", token: "<generated ARCADE_HOOK_SIGNING_SECRET>" });
-  expect(plugin.webhook_config.endpoints.pre).toEqual({ url: `${ORIGIN}/hooks/pre`, phase: "before", failure_mode: "fail_closed", status: "active" });
+  expect(plugin.status).toBe("inactive");
+  expect(plugin.webhook_config.endpoints.pre).toEqual({ url: `${ORIGIN}/hooks/pre`, phase: "before", failure_mode: "fail_closed", status: "inactive" });
+  // The gateway: looked for, and the turn-on described, never a write.
+  expect(run.stdout).toContain(`  GET ${arcade.url}${SCOPED}/gateways?limit=100\n`);
+  expect(run.stdout).toContain(`There: the hooks are turned on, PATCH ${SCOPED}/plugins/<plugin_id>\n    with status "active", and read back`);
+  expect(run.stdout).not.toMatch(/^ {2}(POST|PUT|PATCH|DELETE) \S*\/gateways/m);
   expect(run.stdout).toContain(
-    "Deploys, after the hooks and before the gateway, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in tools/loan)\n  arcade deploy   (in tools/approvals)",
+    "Deploys, after the hooks and before the gateway check, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in tools/loan)\n  arcade deploy   (in tools/approvals)",
   );
   expect(run.stdout).not.toContain("POST " + arcade.url + "/v1/admin/secrets");
   expect(run.stdout).toMatch(/would fill .*\bBETTER_AUTH_SECRET\b/);
   expect(run.stdout).not.toContain(KEY);
-  expect(formOrder(run.stdout)).toEqual(["User Source"]);
+  expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
 });
 
 /** The JSON body a dry run prints under a request line. */
@@ -777,92 +846,191 @@ function bodyAfter(stdout: string, line: string): Json {
   return JSON.parse(json) as Json;
 }
 
-test("--user-source creates the gateway through the User Source, with the six tools, and a third run leaves it", async () => {
-  const dir = project("gateway");
+test("the second run finds the gateway, turns the hooks on and reads them back, and a third says they are already on", async () => {
+  const dir = project("second-run");
   expect((await setupArcade(dir)).code).toBe(0);
-  arcade.requests = [];
+  hooksAreRegistered(dir, "inactive");
 
-  const run = await setupArcade(dir, "--user-source", USER_SOURCE);
-  console.log(`--- setup-arcade ${HOST} --user-source ${USER_SOURCE} ---\n${run.stdout}${run.stderr}`);
+  // Step 5 of the Quickstart: the forker creates the gateway in the dashboard.
+  dashboardGateway();
+  arcade.requests = [];
+  const run = await setupArcade(dir);
+  console.log(`--- setup-arcade ${HOST}, the second run, with the gateway made in the dashboard ---\n${run.stdout}${run.stderr}`);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(sequence(arcade.requests)).toEqual([...RERUN, `GET ${SCOPED}/gateways?limit=100`, `POST ${SCOPED}/gateways`, `GET ${SCOPED}/gateways/{id}`]);
-  const [gateway] = [...arcade.gateways.values()] as [Json];
-  expect(gateway).toMatchObject({
-    name: "Loan Approval Limits",
-    slug: "loan-approval-limits",
-    auth_type: "user_source",
-    user_source_id: USER_SOURCE,
-    tool_filter: {
-      allowed_tools: ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"],
-    },
-  });
-  expect(run.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${USER_SOURCE}, with the six tools of Loan and Approvals (read back)`);
-  expect(envOf(dir).ARCADE_USER_SOURCE_ID).toBe(USER_SOURCE);
+  expect(sequence(arcade.requests)).toEqual([...RERUN, ...TURN_ON]);
+  const patch = arcade.requests.find((each) => each.method === "PATCH")!.body as Json;
+  expect(patch.status).toBe("active");
+  expect(Object.values(patch.webhook_config.endpoints).map((each) => (each as Json).status)).toEqual(["active", "active", "active"]);
+  hooksAreRegistered(dir, "active");
+  expect(run.stdout).toContain("gateway: found loan-approval-limits, through a User Source");
+  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
+  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through loan-approval-limits");
+  expect(run.stdout).not.toContain("warning       ");
+  noGatewayWritten();
   // Nothing is left for the dashboard, and the run ends on opening the app.
   expect(formOrder(run.stdout)).toEqual([]);
+  expect(run.stdout).not.toContain("ungoverned");
   expect(thenList(run.stdout).split("\n").slice(1)).toEqual([
     "  1. Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.",
     `  2. Start the tunnel: ngrok http --url=${HOST} 3000`,
     `  3. Open ${ORIGIN}, never localhost, and sign in.`,
   ]);
-  // The deploys ran again, before the gateway.
-  expect(projects.get(dir)!.deploys()).toEqual([...DEPLOYS, ...DEPLOYS]);
 
-  // A third run, the id now in .env: the gateway is found and left.
+  // A third run: a no-op for the hooks, which says they are on.
   arcade.requests = [];
+  const plugin = JSON.stringify([...arcade.plugins.values()]);
   const again = await setupArcade(dir);
   expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
-  expect(sequence(arcade.requests)).toEqual([...RERUN, `GET ${SCOPED}/gateways?limit=100`]);
-  expect(again.stdout).toContain("gateway: loan-approval-limits is already registered and matches; it is left as it is");
-  expect(arcade.gateways.size).toBe(1);
+  expect(sequence(arcade.requests)).toEqual(RERUN);
+  expect(again.stdout).toContain("hooks: loan-approval-limits-hooks is already registered and matches; it is left as it is (status active)");
+  expect(again.stdout).toContain("hooks: already on (status active); nothing to do");
+  expect(JSON.stringify([...arcade.plugins.values()])).toBe(plugin);
 }, 90_000);
 
-test("a gateway under the slug that differs is reported and never edited", async () => {
-  const dir = project("gateway-differs");
-  arcade.gateways.set("gw_theirs", {
-    id: "gw_theirs",
-    slug: "loan-approval-limits",
-    name: "Somebody else's",
-    auth_type: "arcade",
-    tool_filter: { allowed_tools: ["Loan.GetLoan"] },
-  });
-  const run = await setupArcade(dir, "--user-source", USER_SOURCE);
-  expect(run.code).toBe(1);
-  expect(run.stdout).toContain('auth_type: Arcade has "arcade", this app needs "user_source"');
-  expect(run.stdout).toContain(`user_source_id: Arcade has nothing, this app needs "${USER_SOURCE}"`);
-  expect(run.stderr).toContain("never edits an existing gateway");
-  expect(run.stderr).toContain("--gateway <another-slug>");
-  expect(arcade.requests.filter((each) => each.path.includes("/gateways") && each.method !== "GET")).toEqual([]);
+test("with no gateway yet, the second run names the slug, says the form is still to do, and leaves the hooks disabled", async () => {
+  const dir = project("second-run-too-early");
+  expect((await setupArcade(dir)).code).toBe(0);
+  arcade.requests = [];
+  const run = await setupArcade(dir);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(sequence(arcade.requests)).toEqual(RERUN);
+  expect(run.stdout).toContain("gateway: there is no loan-approval-limits in this project yet; it is the dashboard form below");
+  expect(run.stdout).toContain("hooks: left disabled, so the dashboard's gateway form lists the tools");
+  expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
+  expect(run.stdout).toContain("warning: until then the gateway runs ungoverned.");
+  hooksAreRegistered(dir, "inactive");
+}, 90_000);
+
+test("a gateway under another slug does not turn the hooks on", async () => {
+  const dir = project("second-run-other-slug");
+  dashboardGateway({ slug: "somebody-elses-gateway" });
+  expect((await setupArcade(dir)).code).toBe(0);
+  hooksAreRegistered(dir, "inactive");
+  expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
 }, 60_000);
 
-test("a slug Arcade says is taken names the way out", async () => {
-  const dir = project("gateway-taken");
-  arcade.takenSlugs.add("loan-approval-limits");
-  const run = await setupArcade(dir, "--user-source", USER_SOURCE);
-  expect(run.code).toBe(1);
-  expect(run.stderr).toContain("the gateway slug loan-approval-limits is taken");
-  expect(run.stderr).toContain("--gateway <another-slug>");
-}, 60_000);
+test("rerunning the first run after it failed never turns the hooks on ahead of the gateway form", async () => {
+  const dir = project("first-run-again");
+  const failed = await setupArcade(dir, { failDeployIn: "tools/approvals" });
+  expect(failed.code).toBe(1);
+  hooksAreRegistered(dir, "inactive");
+  const again = await setupArcade(dir);
+  expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
+  hooksAreRegistered(dir, "inactive");
+  expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
+  expect(formOrder(again.stdout)).toEqual(["User Source", "gateway"]);
+}, 90_000);
 
-test("--user-source takes only a User Source id", async () => {
-  const run = await setupArcade(project("gateway-bad-id"), "--user-source", "Loan Approval Limits");
+test("a second run whose read-back does not say active fails, and a read-back with no status fails too", async () => {
+  const dir = project("turn-on-not-taken");
+  expect((await setupArcade(dir)).code).toBe(0);
+  dashboardGateway();
+
+  arcade.patchIgnoresStatus = true;
+  const ignored = await setupArcade(dir);
+  expect(ignored.code).toBe(1);
+  expect(ignored.stderr).toContain("the hooks did not turn on: Arcade reads back");
+  expect(ignored.stderr).toContain('  - status: Arcade has "inactive", this app needs "active"');
+  expect(ignored.stderr).toContain('  - tool.pre.status: Arcade has "inactive", this app needs "active"');
+  expect(ignored.stdout).not.toContain("hooks: on.");
+
+  arcade.patchIgnoresStatus = false;
+  arcade.omitStatus = true;
+  const silent = await setupArcade(dir);
+  expect(silent.code).toBe(1);
+  expect(silent.stderr).toContain("the hooks did not turn on: Arcade reads back");
+  expect(silent.stderr).toContain('  - status: Arcade has nothing, this app needs "active"');
+}, 90_000);
+
+test("hooks already on with no gateway are left on, and the run says the gateway form will not list the tools", async () => {
+  const dir = project("on-without-gateway");
+  expect((await setupArcade(dir)).code).toBe(0);
+  dashboardGateway();
+  expect((await setupArcade(dir)).code).toBe(0);
+  hooksAreRegistered(dir, "active");
+  // Somebody deleted the gateway in the dashboard.
+  arcade.gateways.clear();
+  arcade.requests = [];
+  const run = await setupArcade(dir);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(sequence(arcade.requests)).toEqual(RERUN);
+  expect(run.stdout).toContain(
+    "hooks: already on, so the dashboard's gateway form will not list the Loan and Approvals tools. Disable loan-approval-limits-hooks in the dashboard before you fill it in",
+  );
+  hooksAreRegistered(dir, "active");
+}, 90_000);
+
+test("a gateway that does not authenticate through the User Source is refused, and the hooks stay disabled", async () => {
+  const headers = ["arcade", "header"].join("_");
+  for (const authType of ["arcade", headers, undefined]) {
+    // A project and an Arcade of its own each time: the provider names each project's own client.
+    arcade.stop();
+    arcade = new StandIn();
+    const dir = project(`gateway-auth-${authType ?? "absent"}`);
+    expect((await setupArcade(dir)).code).toBe(0);
+    arcade.gateways.clear();
+    dashboardGateway({ auth_type: authType, user_source_id: undefined });
+    arcade.requests = [];
+    const run = await setupArcade(dir);
+    expect(run.code, `${authType}: ${run.stdout}\n${run.stderr}`).toBe(1);
+    expect(run.stderr).toContain("the gateway loan-approval-limits does not authenticate through the User Source:");
+    expect(run.stderr).toContain(`  - auth_type: Arcade has ${JSON.stringify(authType) ?? "nothing"}, this app needs "user_source"`);
+    expect(run.stderr).toContain("The hooks are left disabled.");
+    expect(run.stderr).toContain("this template never runs a gateway on Arcade Headers or on Arcade accounts");
+    expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
+    hooksAreRegistered(dir, "inactive");
+    noGatewayWritten();
+  }
+}, 120_000);
+
+test("a gateway whose tool list is not the six turns the hooks on anyway, with the differences as warnings", async () => {
+  const dir = project("gateway-tools-differ");
+  expect((await setupArcade(dir)).code).toBe(0);
+  dashboardGateway({ tool_filter: { allowed_tools: ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Approvals.RequestApproval", "Approvals.Decide", "Gmail.SendEmail"] } });
+  const run = await setupArcade(dir);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools is missing Loan.DenyLoan");
+  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools also has Gmail.SendEmail, which this app does not use");
+  expect(run.stdout).toContain("the hooks are turned on anyway. To fix the tool list, disable loan-approval-limits-hooks in the dashboard first");
+  hooksAreRegistered(dir, "active");
+  noGatewayWritten();
+}, 90_000);
+
+test("the retired flag is refused as an unknown option, before anything is sent", async () => {
+  const run = await setupArcade(project("retired-flag"), "--user-source", USER_SOURCE);
   expect(run.code).toBe(64);
-  expect(run.stderr).toContain("a User Source id starts with us_");
+  expect(run.stderr).toContain("--user-source: not an option of this command");
+  expect(run.stderr).toContain("usage: bun run setup-arcade <ngrok-host> [--dry-run] [--skip-deploy] [--redeploy] [--gateway <slug>]");
   expect(arcade.requests).toEqual([]);
 });
 
-test("it creates the gateway only through the User Source and never names Arcade Headers mode, in a real run or a dry one", async () => {
-  const real = await setupArcade(project("no-headers"), "--user-source", USER_SOURCE);
-  const dry = await setupArcade(project("no-headers-dry"), "--dry-run", "--user-source", USER_SOURCE);
-  expect(real.code, `${real.stdout}\n${real.stderr}`).toBe(0);
-  expect(dry.code, `${dry.stdout}\n${dry.stderr}`).toBe(0);
-  const everything = [real.stdout, real.stderr, dry.stdout, dry.stderr, JSON.stringify(arcade.requests), readFileSync(join(ROOT, "scripts", "setup-arcade", "arcade.ts"), "utf8")].join("\n");
+test("a leftover ARCADE_USER_SOURCE_ID in .env is ignored with a one-line note, not an error", async () => {
+  const dir = project("leftover-user-source", (env) => `${env}\nARCADE_USER_SOURCE_ID=${USER_SOURCE}\n`);
+  const run = await setupArcade(dir);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  const notes = run.stdout.split("\n").filter((line) => line.includes("ARCADE_USER_SOURCE_ID"));
+  expect(notes).toEqual(["  note          ARCADE_USER_SOURCE_ID is set, and ignored: the gateway is created in the dashboard now, so you can delete it"]);
+  expect(`${run.stdout}${run.stderr}`).not.toContain(USER_SOURCE);
+  expect(sequence(arcade.requests)).toEqual(FIRST_RUN);
+  noGatewayWritten();
+}, 60_000);
+
+test("it never writes a gateway and never names Arcade Headers mode, in either run or a dry one", async () => {
+  const dir = project("no-headers");
+  const first = await setupArcade(dir);
+  dashboardGateway();
+  const second = await setupArcade(dir);
+  const dry = await setupArcade(project("no-headers-dry"), "--dry-run");
+  for (const run of [first, second, dry]) expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  const everything = [first.stdout, first.stderr, second.stdout, second.stderr, dry.stdout, dry.stderr, JSON.stringify(arcade.requests), readFileSync(join(ROOT, "scripts", "setup-arcade", "arcade.ts"), "utf8")].join("\n");
   expect(everything).not.toMatch(/arcade_header/i);
-  const created = arcade.requests.filter((each) => each.method === "POST" && each.path.endsWith("/gateways"));
-  expect(created.map((each) => (each.body as Json).auth_type)).toEqual(["user_source"]);
-  expect(bodyAfter(dry.stdout, `  POST ${arcade.url}${SCOPED}/gateways\n`).auth_type).toBe("user_source");
+  noGatewayWritten();
+  expect(arcade.requests.filter((each) => each.path.includes("/gateways")).map((each) => each.method)).toEqual(["GET", "GET"]);
   // Only ever under the project: the bare route has no gateway either.
   expect(arcade.requests.filter((each) => each.path.startsWith("/v1/gateways"))).toEqual([]);
+  // The check bites: a gateway write in the log is caught.
+  arcade.requests.push({ method: "POST", path: `${SCOPED}/gateways`, authorization: null, body: {} });
+  expect(() => noGatewayWritten()).toThrow();
 }, 90_000);
 
 /** The routes real Arcade does not have (#28): a bare `/v1/plugins`, and a bare `/v1/hooks`. */
@@ -976,7 +1144,7 @@ test("running it again changes nothing that is registered and rotates nothing Ar
 
   expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
   expect(again.stdout).toContain("the provider app-identity is already registered and matches");
-  expect(again.stdout).toContain("hooks: loan-approval-limits-hooks is already registered and matches; it is left as it is");
+  expect(again.stdout).toContain("hooks: loan-approval-limits-hooks is already registered and matches; it is left as it is (status inactive)");
   expect(sequence(arcade.requests)).toEqual(RERUN);
   expect(JSON.stringify(arcade.providers.get("app-identity"))).toBe(providerAfterFirst);
   expect(JSON.stringify([...arcade.plugins.values()])).toBe(pluginAfterFirst);
@@ -985,7 +1153,7 @@ test("running it again changes nothing that is registered and rotates nothing Ar
   expect(again.stdout).toContain("(unchanged, and not shown");
 }, 60_000);
 
-test("hooks that differ are updated, because they are not the access model, and read back", async () => {
+test("hooks that differ are updated, because they are not the access model, and read back, keeping their status", async () => {
   const dir = project("hooks-differ");
   expect((await setupArcade(dir)).code).toBe(0);
   // Somebody set the pre hook to fail open in the dashboard, and pointed post elsewhere.
@@ -1000,13 +1168,15 @@ test("hooks that differ are updated, because they are not the access model, and 
   expect(run.stdout).toContain("hooks: loan-approval-limits-hooks is registered and differs from what this app needs, so it is updated:");
   expect(run.stdout).toContain(`webhook_config.endpoints.post.url: Arcade has "https://old-host.example/hooks/post", this app needs "${ORIGIN}/hooks/post"`);
   expect(run.stdout).toContain('tool.pre.failure_mode: Arcade has "fail_open", this app needs "fail_closed"');
-  expect(sequence(arcade.requests).slice(-6, -2)).toEqual([
+  expect(sequence(arcade.requests).slice(-7, -3)).toEqual([
     `GET ${SCOPED}/hooks?plugin_id={id}`,
     `PATCH ${SCOPED}/plugins/{id}`,
     `GET ${SCOPED}/plugins/{id}`,
     `GET ${SCOPED}/hooks?plugin_id={id}`,
   ]);
-  hooksAreRegistered(dir);
+  // Still disabled: an update is not the second run, and there is no gateway yet.
+  expect((arcade.requests.find((each) => each.method === "PATCH")!.body as Json).status).toBe("inactive");
+  hooksAreRegistered(dir, "inactive");
   expect(arcade.plugins.size).toBe(1);
 }, 60_000);
 
@@ -1140,21 +1310,22 @@ test("a key Arcade does not accept is stopped by the same check", async () => {
 
 // --- The deploys (#30) ------------------------------------------------------
 
-test("a deploy that fails stops the run there: after the hooks, and before the gateway", async () => {
+test("a deploy that fails stops the run there: after the hooks, and before the gateway check", async () => {
   const dir = project("deploy-fails");
-  const run = await setupArcade(dir, "--user-source", USER_SOURCE, { failDeployIn: "tools/approvals" });
+  dashboardGateway();
+  const run = await setupArcade(dir, { failDeployIn: "tools/approvals" });
   expect(run.code).toBe(1);
   expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
   expect(run.stdout).toContain("fake arcade: deploy (in");
   expect(run.stderr).toContain("fake arcade: deploy failed");
   expect(run.stderr).toContain("arcade deploy in tools/approvals exited 3; its output is above, and nothing after it ran.");
   expect(run.stderr).toContain("or pass --skip-deploy");
-  // The hooks were registered first, and the gateway never asked for.
-  hooksAreRegistered(dir);
+  // The hooks were registered first, disabled, and the gateway never asked for, though it is there.
+  hooksAreRegistered(dir, "inactive");
   expect(arcade.requests.filter((each) => each.path.includes("/gateways"))).toEqual([]);
 }, 60_000);
 
-test("--skip-deploy runs no deploy, and the steps left say to deploy before the gateway", async () => {
+test("--skip-deploy runs no deploy, and the steps left say to deploy before the gateway form", async () => {
   const dir = project("skip-deploy");
   const run = await setupArcade(dir, "--skip-deploy");
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
@@ -1162,7 +1333,10 @@ test("--skip-deploy runs no deploy, and the steps left say to deploy before the 
   expect(run.stdout).toContain("Deploys: skipped (--skip-deploy).");
   const steps = thenList(run.stdout);
   expect(steps).toContain("3. Deploy both toolkits (their secrets are set above): arcade deploy, in tools/loan and in tools/approvals.");
-  expect(steps.indexOf("arcade deploy")).toBeLessThan(steps.indexOf("--user-source"));
+  const form = steps.search(/fill in the gateway form/i);
+  expect(form).toBeGreaterThan(-1);
+  expect(steps.indexOf("arcade deploy")).toBeLessThan(form);
+  expect(form).toBeLessThan(steps.indexOf("Turn the hooks on"));
 }, 60_000);
 
 // --- Resuming from the live project -----------------------------------------
@@ -1226,7 +1400,7 @@ test("a rerun resumes from the live project's state after run 1: the provider ma
   // And went on to set the secrets, the verifier and the hooks.
   expect(arcade.secrets.get("APP_PUBLIC_HOST")).toBe(HOST);
   expect(arcade.secrets.get("APPROVALS_STORE_TOKEN")).toBe(envBefore.APPROVALS_STORE_TOKEN);
-  hooksAreRegistered(dir);
+  hooksAreRegistered(dir, "inactive");
   expect(arcade.verifier).toEqual({ verifier_url: `${ORIGIN}/api/arcade/verify`, unsafe_skip_verification: false });
   expect(rerun.stdout).toContain(`custom verifier: ${ORIGIN}/api/arcade/verify (read back)`);
 }, 60_000);
@@ -1269,7 +1443,7 @@ test("a dry run of a fresh project describes the real run that follows it", asyn
  * dry run and the real rerun must agree, and the second invocation must make
  * the gateway (#28, #30).
  */
-test("from the live project's state after run 3, the dry run tells the truth, the rerun adds the hooks, and --user-source the gateway", async () => {
+test("from the live project's state after run 3, the dry run tells the truth, the rerun adds the hooks disabled, and the run after the gateway turns them on", async () => {
   const dir = project("resume-run-3");
   expect((await setupArcade(dir)).code).toBe(0);
   arcade.plugins.clear();
@@ -1303,7 +1477,7 @@ test("from the live project's state after run 3, the dry run tells the truth, th
   expect(dry.stdout).toContain("If Arcade answers 404 instead, a real run mints a new secret for the");
   expect(dry.stdout).toContain("Client Secret   (unchanged, and not shown");
   expect(bodyAfter(dry.stdout, `  POST ${arcade.url}${SCOPED}/plugins\n`).webhook_config.auth.token).toBe("<ARCADE_HOOK_SIGNING_SECRET from .env>");
-  expect(formOrder(dry.stdout)).toEqual(["User Source"]);
+  expect(formOrder(dry.stdout)).toEqual(["User Source", "gateway"]);
   // The check bites: the fresh project's dry run says every one of them.
   const fresh = await setupArcade(project("resume-run-3-fresh"), "--dry-run");
   for (const phrase of FRESH_ONLY) expect(fresh.stdout).toContain(phrase);
@@ -1315,9 +1489,9 @@ test("from the live project's state after run 3, the dry run tells the truth, th
   const called = sequence(arcade.requests);
   expect(called).toEqual(FIRST_RUN.filter((each) => each !== "POST /v1/admin/auth_providers"));
   expect(printedRequests(dry.stdout)).toEqual(called);
-  hooksAreRegistered(dir);
+  hooksAreRegistered(dir, "inactive");
 
-  // In this order: the project, the key's check, provider matches, .env has nothing to fill, both secrets, the verifier, the hooks, the deploys, the form.
+  // In this order: the project, the key's check, provider matches, .env has nothing to fill, both secrets, the verifier, the hooks, the deploys, the gateway check, both forms.
   const at = (text: string) => {
     const index = rerun.stdout.indexOf(text);
     expect(index, `the rerun never printed ${JSON.stringify(text)}`).toBeGreaterThan(-1);
@@ -1334,8 +1508,11 @@ test("from the live project's state after run 3, the dry run tells the truth, th
     at("hooks: created loan-approval-limits-hooks"),
     at("arcade deploy   (in tools/loan):"),
     at("arcade deploy   (in tools/approvals):"),
+    at("gateway: there is no loan-approval-limits in this project yet"),
     at("┌─ Arcade dashboard → your project → User Sources"),
+    at("┌─ Arcade dashboard → your project → MCP Gateways"),
     at("Then:"),
+    at("warning: until then the gateway runs ungoverned."),
   ];
   expect([...marks].sort((a, b) => a - b)).toEqual(marks);
 
@@ -1346,12 +1523,12 @@ test("from the live project's state after run 3, the dry run tells the truth, th
   expect(JSON.stringify(arcade.providers.get("app-identity"))).toBe(provider);
   expect(`${rerun.stdout}${dry.stdout}`).not.toContain(envBefore.ARCADE_HOOK_SIGNING_SECRET!);
 
-  // And the second invocation, once the User Source exists: the gateway.
-  const withUserSource = await setupArcade(dir, "--user-source", USER_SOURCE);
-  expect(withUserSource.code, `${withUserSource.stdout}\n${withUserSource.stderr}`).toBe(0);
-  expect([...arcade.gateways.values()].map((each) => `${each.slug} ${each.auth_type} ${each.user_source_id}`)).toEqual([
-    `loan-approval-limits user_source ${USER_SOURCE}`,
-  ]);
+  // And the second invocation, once the User Source and the gateway exist: the hooks turned on.
+  dashboardGateway();
+  const second = await setupArcade(dir);
+  expect(second.code, `${second.stdout}\n${second.stderr}`).toBe(0);
+  hooksAreRegistered(dir, "active");
+  noGatewayWritten();
 }, 120_000);
 
 // --- What the run is told, and by whom (#30, F6 and F7) ----------------------
@@ -1488,17 +1665,17 @@ test("a read-back without health_check_path is a warning, and a rerun from that 
   const warning = `hooks: Arcade doesn't echo webhook_config.health_check_path back; it was sent as ${ORIGIN}/hooks/health and can't be verified`;
   expect(first.stdout).toContain(warning);
   expect(first.stdout).not.toContain("the hooks did not take");
-  // It carried on: the deploys ran, and the run ended on the User Source form.
+  // It carried on: the deploys ran, and the run ended on both forms.
   expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
-  expect(formOrder(first.stdout)).toEqual(["User Source"]);
+  expect(formOrder(first.stdout)).toEqual(["User Source", "gateway"]);
   // What was sent is what the app needs, whatever the read-back says.
-  hooksAreRegistered(dir);
+  hooksAreRegistered(dir, "inactive");
 
   for (const attempt of [1, 2]) {
     arcade.requests = [];
     const rerun = await setupArcade(dir);
     expect(rerun.code, `rerun ${attempt}: ${rerun.stdout}\n${rerun.stderr}`).toBe(0);
-    expect(rerun.stdout).toContain("hooks: loan-approval-limits-hooks is already registered and matches; it is left as it is");
+    expect(rerun.stdout).toContain("hooks: loan-approval-limits-hooks is already registered and matches; it is left as it is (status inactive)");
     expect(rerun.stdout).toContain(warning);
     // Found by name: no second plugin, and no PATCH for a field it cannot see.
     expect(sequence(arcade.requests)).toEqual(RERUN);
@@ -1521,7 +1698,7 @@ test("a health_check_path Arcade does echo is checked, and the line says so", as
   arcade.healthCheckReadBack = "stored";
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, health check ${ORIGIN}/hooks/health (read back)`);
+  expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, health check ${ORIGIN}/hooks/health, status inactive (read back)`);
   expect(run.stdout).not.toContain("doesn't echo webhook_config.health_check_path");
 }, 60_000);
 
@@ -1589,7 +1766,7 @@ test("a provider recreated with a new callback: the rerun replaces it in .env an
 // --- A rerun does not redeploy what Arcade already runs (#30, run 4) ----------
 
 /**
- * Run 4: finishing with --user-source cost two full deploys of unchanged code.
+ * Run 4: the second run, which then created the gateway, cost two full deploys of unchanged code.
  * Before each deploy the run asks what the Arcade CLI asks
  * (`server_already_exists`, `GET …/workers/<name>`): 404 deploys it, found
  * skips it. Arcade's answer has no version to compare, so --redeploy is the
@@ -1607,15 +1784,17 @@ test("a toolkit Arcade already runs is skipped, and one it does not is deployed"
   expect(sequence(arcade.requests).filter((each) => each.includes("/workers/"))).toEqual([`GET ${SCOPED}/workers/loan`, `GET ${SCOPED}/workers/approvals`]);
 }, 60_000);
 
-test("a rerun with both toolkits on Arcade deploys nothing, and the gateway still follows", async () => {
+test("a second run with both toolkits on Arcade deploys nothing, and the hooks are still turned on after", async () => {
   const dir = project("deploy-skip-both");
+  expect((await setupArcade(dir)).code).toBe(0);
   arcade.workers.add("loan");
   arcade.workers.add("approvals");
-  const run = await setupArcade(dir, "--user-source", USER_SOURCE);
+  dashboardGateway();
+  const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(projects.get(dir)!.deploys()).toEqual([]);
+  expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
   expect(run.stdout).toContain("  tools/approvals: already deployed on Arcade, skipped (pass --redeploy after changing it)");
-  expect(arcade.gateways.size).toBe(1);
+  hooksAreRegistered(dir, "active");
 }, 60_000);
 
 test("--redeploy deploys both whatever Arcade runs, and asks it nothing", async () => {
