@@ -58,19 +58,21 @@ as the wire spells it (#89). No prompt steering is an acceptable fix for either.
 | Area | Decision |
 |---|---|
 | Format | **A Mastra partnership template.** The Mastra site builds the template page from `README.md`, which follows Mastra's outline exactly: title `# Loan Approval Limits with Arcade`, a Demo placeholder until Mastra gives us a Cloudinary URL, and a Quickstart through `npx create-mastra@latest --template`. The aim is for people to work with Arcade as much as possible. |
-| **Shape** | **One TypeScript app: Next.js plus `src/mastra/index.ts`.** Mastra Studio and the web UI run the same agent. The control plane and the loan API are modules of the app, not services. Decided 2026-09-23. |
+| **Shape** | **One TypeScript app: Next.js plus `src/mastra/index.ts`.** Mastra Studio and the web UI run the same agent. The control plane and the loan API are modules of the app, not services. Decided 2026-09-23. Studio's instance also has thread memory in `memory.db`; the chat route's has none, because the browser sends its own history (#36, `lib/agent/memory.ts`). |
 | Topology | **Arcade Cloud reaches the developer's machine through one ngrok host.** Hooks, the loan API and the OAuth endpoints are all on it. The tunnel is a Prerequisite, and a static ngrok domain keeps the host fixed across restarts. This reverses the demo's "no tunnels", on purpose. Decided 2026-09-23. |
 | Integration | Mastra `MCPClient` (`@mastra/mcp` 2) → `https://api.arcade.dev/mcp/{gateway}`, with `protocolVersion: "legacy"` pinned so the handshake stays `initialize` and never probes `server/discover`. Elicitation handlers are passed as `inputRequests` at construction (#187). |
 | Model | Claude Sonnet 5 via `@ai-sdk/anthropic`, temperature 0, model id from env |
 | **Tool layer** | **Both toolkits are Python `arcade-mcp`, shipped with `arcade deploy` into one Arcade project and exposed through one gateway. `arcade-mcp` is the tool-authoring framework; it is Python-only, which is why the TS-everywhere rule does not reach the toolkits. Decided on #32, confirmed in session.** |
 | **Business system** | **The loan module is the bank's system of record: a plain HTTP API under the app, owning `loans.db`. It is not an MCP server and knows nothing about Arcade or governance. `tools/loan` is a stateless client of it, reaching it through `APP_PUBLIC_HOST`.** The demo split this into its own service to make "governance is outside the business system" literal. The template keeps that claim as a **module** boundary enforced by a test (see **Services**), not a process boundary. The bank UI's loan cards and `/loans` board read the loan module directly as the signed-in person, never through the gateway (#157 in the demo), so every MCP call still originates in the chat. |
-| **Identity** | **Every persona is a user of the app's own Better Auth, with a real email, and the web UI signs in against it.** Each persona runs in its own browser profile, so there is no persona switcher (#176 in the demo). `context.user_id` on every hook payload is that email, lowercase. Personas are *not* Arcade project members, unless the members-mode fallback is taken (below), **except requesters: see Slack and Arcade accounts.** |
+| **Identity** | **Every person who uses the app is a user of the app's own Better Auth, with a real email, added from the terminal with `bun run users` (#31). A fresh start seeds nobody, and the demo cast is opt-in with `bun run users seed-demo` (#33).** The web UI signs in against it. Each person runs in their own browser profile, so there is no persona switcher (#176 in the demo). `context.user_id` on every hook payload is that email, lowercase. Users are *not* Arcade project members, unless the members-mode fallback is taken (below), **except requesters: see Slack and Arcade accounts.** |
 | **Two hops, two mechanisms** | **Hop 1, MCP client → gateway: a User Source whose issuer is the app's own Better Auth.** Tried first because it already works in the demo. **The fallback is members mode**, taken only if the live sitting shows the User Source can't be set up easily: then the README asks for two Arcade accounts (Alice and Charlie) whose emails match the app's users. **Arcade Headers mode is ruled out and never proposed.** **Hop 2, tool-level OAuth: the Loan toolkit's `requires_auth` names the app's provider under a fixed generic id**, and a custom user verifier route in the app binds the signed-in email. Neither hop's mechanism moves the other. Decided 2026-09-23. **Amended the same day: build on the User Source without a sitting first, and verify with a real Arcade account once, at the end (#7).** |
-| **Gateway token storage** | **`apps/web` drives the gateway OAuth itself (Mastra's `MCPClient.authenticate()` refuses non-loopback redirects) and hands `MCPClient` a static token. The gateway access + refresh token and the persona email live in a sealed, HTTP-only, per-browser cookie (AES-GCM under `SESSION_SECRET`, chunked when over 4KB). One persona per browser. No fourth database. Refresh is server-side. Decided 2026-09-11.** |
+| **Gateway token storage** | **The app drives the gateway OAuth itself (`lib/identity/gateway.ts`; Mastra's `MCPClient.authenticate()` refuses non-loopback redirects) and hands `MCPClient` a static token. The gateway access + refresh token and the signed-in email live in a sealed, HTTP-only, per-browser cookie (AES-GCM under `SESSION_SECRET`, chunked when over 4KB). One person per browser. No database holds a token. Refresh is server-side. Decided 2026-09-11.** `memory.db` (#36) keeps Studio's conversations, never a credential: every message is written with its secrets withheld (`lib/agent/memory.ts`). |
 | **Arcade config is read-only** | **The auth provider's advanced configuration is never edited; its `client_id`/`client_secret` request parameters stay. The app's Better Auth adapts instead (the demo's #79: Basic header plus identical body credentials accepted). Read provider config back through `GET /v1/admin/auth_providers/<id>`, not off dashboard labels.** |
 | **Authorization** | **The loan tools require OAuth against the app's own provider, so they call the loan module on behalf of the user, not as a service account.** The loan module derives the actor from the token, never from a parameter. OAuth carries *identity*; hooks carry *authority*. **The provider is Better Auth inside the app**, which reverses the demo's #36. See **Identity and OAuth** for the objection that reverses, and what now answers it. |
-| **One identity, not two** | **The Arcade `user_id`, the OAuth subject, and the actor `apps/loan-app` records are the same person, joined on email. If these ever diverge, `governance.db` and `loans.db` describe different people and the audit trail is fiction.** |
+| **One identity, not two** | **The Arcade `user_id`, the OAuth subject, and the actor the loan module records are the same person, joined on email. If these ever diverge, `governance.db` and `loans.db` describe different people and the audit trail is fiction.** |
 | **Slack and Arcade accounts** | **Anyone who requests an approval is a member of the Arcade project, invited under their email. Decided 2026-09-26 (the human, at the gate on #7).** Measured by the human and undocumented by Arcade: Arcade routes its built-in OAuth providers through its own user verifier, which demands a project member, and not through the app's custom verifier, which covers custom providers such as `app-identity` only. `Approvals_RequestApproval` uses the stock Slack provider, so its requester must be a member; approvers and the loan tools need no Arcade account. **The alternative, also measured by the human:** registering your own Slack app as a custom OAuth provider routes Slack through the custom verifier, so nobody needs an Arcade account. It is not the default, because it asks every forker to create a Slack app; it is documented for teams that do not want their users to have Arcade accounts. |
+| **Identity secret** | **`BETTER_AUTH_SECRET` is refused blank on any issuer that is not localhost or 127.0.0.1, because the development secret is published in the repo. `setup-arcade` generates it, and an `idp.db` whose signing key the configured secret cannot open fails closed at boot rather than being re-keyed. Decided on #9 (the human's option 1).** `lib/identity/provider/config.ts` (`publicHostWithoutSecret`), `lib/identity/provider/auth.ts`. |
+| **What the chat withholds** | **Session tokens are read only in `lib/identity/handlers.ts`, the one audited reader of a stored token; the chat gets `sessionSecrets()` to match against and nothing to present. `BETTER_AUTH_SECRET` is withheld by fingerprint (a length and a SHA-256, `lib/secret-fingerprints.ts`) and never read outside `lib/identity/provider/`. Decided on #37.** Held by `app-test/studio-entry.test.ts` ("no module outside the identity module reads a stored gateway bearer"), `app-test/identity/only-identity-mints.test.ts` and `app-test/chat-leak-probes.test.ts`. |
 | Policy source | Policy DB owned by the hook server. Editable live on stage. |
 | HITL | Custom `request_approval` tool posts Block Kit to Slack; approval link carries **no authority** |
 | Approval authz | `approvals.decide` is itself a governed tool call — pre-hook enforces role, limit, and requester ≠ approver |
@@ -78,20 +80,22 @@ as the wire spells it (#89). No prompt steering is an acceptable fix for either.
 | The wait | Agent ends its turn; SSE `approval.granted` event auto-resumes it |
 | Determinism | The **hook** writes the remediation instruction, not the system prompt |
 | **No model-side controls** | **The agent's system prompt and every tool description carry no behavioural instruction in either direction: nothing about confirming, refusing, escalating, retrying, caution or irreversibility. Measured on #14: one "irreversible, no undo" line made Claude ask permission and `/pre` never fired; one "do not ask the person to confirm" line pushed it the other way. Both removed. The prompt states role, tools, how to resolve a loan named by amount, and how to report verbatim. `tools/loan` descriptions follow (#90).** |
-| **Readiness** | **The app answers `/health` with one field per capability and `status: ok|degraded`, HTTP 200 either way, so a human can always read it. The fields are those the four demo services reported, under one response: `signin, gateway, verifier, agent, panel_stream, policy, loans, reset`. A missing capability is named; the home page and panel show it; nothing falls back silently. Decided across #81, #82, #14.** |
+| **Readiness** | **The app answers `/health` with one field per capability and `status: ok|degraded`, HTTP 200 either way, so a human can always read it. The fields are those the four demo services reported, under one response: `signin, gateway, verifier, agent, panel_stream, policy, loans, reset`. A missing capability is named; the home page and panel show it; nothing falls back silently. Decided across #81, #82, #14.** Since the identity fold it also carries `identity`, which answers `no_users` (degraded) until somebody is added, and `user_drift`, which names anyone who can sign in with no subject in `governance.db`, or has a subject and cannot sign in (#33, `app/health/route.ts`, `lib/user-drift.ts`). |
 | Redaction | Declarative per-tool field rules + regex over free text |
-| Database | `bun:sqlite`, three files, each owned by one module: `loans.db` (the loan module), `governance.db` (the control plane), `idp.db` (identity). One process, three owners; no module opens another's file. |
-| Durability | Data persists; resetting is something you deliberately run. The databases sit on local disk and seed from their fixture only when empty. Reset is a script (#23), never a redeploy. Decided on #29. **Consequence measured 2026-09-14 (#106): a fixture change does not reach a live disk, and acts 3 and 4 were not live while `/health` said armed. Amended: `/health` reports `fixture_drift` as degraded whenever on-disk policy differs from the shipped fixture, and a presenter-only Reset control in the panel runs the reset. Policy stays durable; the silence does not.** **Reset contract, ratified at the #23 gate 2026-09-14 (aaccdc0): every database-owning module exposes `POST /admin/reset` behind one shared `RESET_TOKEN` — route absent (404) when the variable is unset, `/health` reports `reset: enabled|disabled`, the response names what was not reset. hooks takes `{policy|demo}`; loan-app reseeds the loan book from the fixture inside the running image; idp clears people, sessions, tokens and consents and re-seeds the four personas but never touches the `oauthClient` row, and fails if the client id moved. The root `bun run reset` is idempotent and exits non-zero on any refusal. The demo's `--target render` goes with Render, at submission cleanup. A redeploy is not a reset; a reset is not a re-registration. **Amended 2026-09-19 (#123, human's decision): the reset is two resets.** The default calls hooks `demo` → loan-app and **leaves idp alone**; `--hard` adds idp and is the list `#174`'s second panel button reuses. The split is argued on stage time rather than safety: a hard reset signs all four personas out, costing four logins plus four authorization cards before the next take. *Not* a reason for the split: the #123 fault it was originally drawn to avoid, which does not reproduce — that was #100's replay revocation killing a fresh grant at `85e96b1`, fixed by `bbfb162` the same day. Measured separately and worth knowing: the hop-2 token is `expires_in` 3600 with no refresh token, so **any rehearsal longer than an hour costs one authorization card per persona regardless of resets**. The rehearsal script is `docs/RUNBOOK.md`.** |
-| Visualization | Hook server → SSE → live three-lane Access/Pre/Post panel at `/panel`, **full-screen and on its own**. The Access lane renders **one card per persona listing** (`tools/list`), naming the tools disabled for that person; grouping is presentation-only in `apps/web` (#156). Amended 2026-09-18 from webinar rehearsal: decisions arriving one card at a time were too fast to narrate. |
+| Database | The app's data is `bun:sqlite`, one file per owning module: `loans.db` (the loan module), `governance.db` (the control plane), `idp.db` (identity). One process, three owners; no module opens another's file. `bun run users` writes two of them, each through its owner's own code (`scripts/identity/people.ts` for `idp.db`, `lib/control-plane/subjects.ts` for `governance.db`), and records every change in `governance.db`'s append-only `subject_changes` (#31). Studio's thread memory is a fourth file, `memory.db`: libsql, because Studio runs under Node, `MemoryLibSQL` only, owned by `lib/agent/memory.ts` and moved by `MEMORY_DB_PATH` (#36). |
+| Durability | Data persists; resetting is something you deliberately run. The databases sit on local disk and seed their fixture's policy and loan book only when empty; no database seeds a person (#33). Reset is a script (#23), never a redeploy. Decided on #29. **Consequence measured 2026-09-14 (#106): a fixture change does not reach a live disk, and acts 3 and 4 were not live while `/health` said armed. Amended: `/health` reports `fixture_drift` as degraded whenever on-disk policy differs from the shipped fixture, and a presenter-only Reset control in the panel runs the reset. Policy stays durable; the silence does not.** **Reset contract, ratified at the #23 gate 2026-09-14 (aaccdc0):** every database-owning module exposes `POST /admin/reset` under its own mount (`/hooks/admin/reset`, `/bank/admin/reset`, `/identity/admin/reset`) behind one shared `RESET_TOKEN` — route absent (404) when the variable is unset, `/health` reports `reset: enabled|disabled`, the response names what was not reset. The control plane takes `{policy|demo}` and puts back only the demo cast's `subjects` rows that are on disk at the fixture's addresses, never adding an absent one and never touching anyone else; the loan module reseeds the loan book from the fixture inside the running image; identity clears sessions, tokens and consents, keeps every account with the password it already had, never touches the `oauthClient` row, and fails if the client id moved (#32, #33; `lib/control-plane/policy-store.ts` `replacePolicy`, `lib/identity/provider/reset.ts`). Neither scope deletes a user. A demo person removed with `bun run users remove` stays removed (#32). The root `bun run reset` is idempotent and exits non-zero on any refusal. It has no `--target`, and refuses the flag by name (#11, `scripts/reset.ts`). A redeploy is not a reset; a reset is not a re-registration. **Amended 2026-09-19 (#123, human's decision): the reset is two resets.** The default calls the control plane's `demo` → the loan module and **leaves identity alone**; `--hard` adds identity and is the list `#174`'s second panel button reuses (`servicesFor` in `scripts/reset.ts`). The split is argued on stage time rather than safety: a hard reset signs everyone out, costing each person a login plus an authorization card before the next take. *Not* a reason for the split: the #123 fault it was originally drawn to avoid, which does not reproduce — that was #100's replay revocation killing a fresh grant at `85e96b1`, fixed by `bbfb162` the same day. Measured separately and worth knowing: the hop-2 token is `expires_in` 3600 with no refresh token, so **any rehearsal longer than an hour costs one authorization card per person regardless of resets**. **Studio's memory (#36):** `bun run reset` also empties `memory.db` in place on both scopes, and `--hard` does nothing more to it. It has no route, because Studio is local only: the script empties it directly and refuses a `MEMORY_DB_PATH` that points at any other database. |
+| Visualization | Hook server → SSE → live three-lane Access/Pre/Post panel at `/panel`, **full-screen and on its own**. The Access lane renders **one card per persona listing** (`tools/list`), naming the tools disabled for that person; grouping is presentation-only in the app (`lib/governance/grouping.ts`, #156). Amended 2026-09-18 from webinar rehearsal: decisions arriving one card at a time were too fast to narrate. |
 | Design | Bank app deliberately boring enterprise UI; control plane unmistakably Arcade. **No split view** (reverses #22, 2026-09-18): the bank app is full-screen at `/`, the control plane full-screen at `/panel`, the loan board full-screen at `/loans`, and the presenter switches between them deliberately. Two panes updating at once could not be narrated on a webinar (#155). The panel visual is cut down for the back of the room (#158). |
-| **Hosting** | **The developer's machine plus ngrok. `arcade deploy` for `tools/loan` and `tools/approvals`.** Whether `render.yaml` survives in the submitted repo is decided at submission cleanup. |
-| **Toolkit configuration** | **One Arcade tool secret, `APP_PUBLIC_HOST`** (the ngrok host), replaces `LOAN_APP_PUBLIC_HOST`, `HOOKS_PUBLIC_HOST` and `WEB_PUBLIC_HOST`. A developer never edits tool code. The auth provider id is not configurable, because `OAuth2(id=...)` is read at import: it is a fixed generic id, and the README says "register the provider under this id". Decided 2026-09-23. |
+| **Hosting** | **The developer's machine plus ngrok. `arcade deploy` for `tools/loan` and `tools/approvals`.** `render.yaml` is gone (#11). What ships for hosting is the root `Dockerfile` and a platform-neutral "Deploying" note in the README; deploying is the forker's job. A deployment is recognised by `NODE_ENV=production` alone (`isDeployed` in `lib/governance/stream-url.ts`). |
+| **Registration** | **`bun run setup-arcade <host>` registers the Arcade side by API, in the org and project of the Arcade CLI's active context (only its `org_id` and `project_id` are read), with `ARCADE_ORG_ID` and `ARCADE_PROJECT_ID` in `.env` overriding it. One read-only call checks that the key belongs to that project, and a mismatch stops the run before any write. Tool secrets are `PUT /v1/admin/secrets/{KEY}`; the hooks are a plugin under `/v1/orgs/{org}/projects/{project}/…`; `setup-arcade` runs `arcade deploy` in both toolkits. The live swagger was wrong about the secrets method, so only live calls count as proof. Decided across #26, #28 and #30** (`scripts/setup-arcade.ts`, `scripts/setup-arcade/context.ts`, `scripts/setup-arcade/arcade.ts`). **The setup order, decided 2026-09-28, landing in #48:** (1) the first run creates the hooks disabled and no gateway, and prints the User Source form and then the Gateway form; (2) the forker creates the User Source and then the Gateway by hand in the dashboard, and the gateway authenticates through that User Source, never Arcade Headers; (3) the second run enables the hooks, and only once it finds a gateway with the printed slug: a wrong tool list is enabled with a warning, and a gateway whose `auth_type` is not `user_source` is refused with the hooks left disabled. Why: a project API key has no route to User Sources (404, measured), and active hooks filter the tool list the dashboard's gateway form shows. **Until #48 merges, main's code still does the old flow:** it creates the hooks in the first run, and the gateway by API through the User Source from `--user-source <id>`. |
+| **Toolkit configuration** | **One Arcade tool secret, `APP_PUBLIC_HOST`** (the ngrok host), replaces `LOAN_APP_PUBLIC_HOST`, `HOOKS_PUBLIC_HOST` and `WEB_PUBLIC_HOST`. A developer never edits tool code. The auth provider id is not configurable, because `OAuth2(id=...)` is read at import: it is a fixed generic id, `app-identity` (`ARCADE_PROVIDER_ID` in `lib/identity/provider/client.ts`), and `setup-arcade` registers the provider under it. Decided 2026-09-23. |
 | **Languages** | **TypeScript for the app and everything under `packages/`. Python for both `arcade-mcp` toolkits. The boundary is *tool authoring*, not *domain*.** |
+| CI | `bun test` runs in four weighted shards, each `bun test --isolate` (#38, `.github/workflows/ci.yml`, `scripts/test-shards.ts`). **#38's criterion 3, one shared Next server per shard, is waived:** it would need a test-only runtime-reconfig path in the production app. Sharding plus `--isolate` ships, and #46 is the follow-up. |
 
 ## Services
 
-**Target shape.** Slices 1 to 3 on issue #1 fold the services in. Until they land, the tree
-still has `apps/hooks`, `apps/loan-app` and `apps/idp` as separate services.
+**The folds have landed.** `apps/` is gone: the control plane is `lib/control-plane/` (#4),
+the loan module `lib/loans/` (#5) and identity `lib/identity/` (#6), all served by the one app.
 
 **The app lives at the repo root** (decided 2026-09-23, #3). The root `package.json` is
 the app, with `src/mastra/` and the Next.js routes at the root, so Mastra's Quickstart and
@@ -114,7 +118,8 @@ extension base URL is `<APP_PUBLIC_HOST>/hooks`, so Arcade calls `/hooks/access`
 
     app (Next.js + src/mastra)
       agent            one Mastra agent, registered in src/mastra/index.ts. The same one
-                       answers in Studio and in the chat route.
+                       answers in Studio and in the chat route. Studio's also remembers
+                       the thread (memory.db, #36).
       control plane    /access /pre /post, policy engine, audit, SSE, /approvals.
                        Owns governance.db.
       loan module      the bank's HTTP API. Owns loans.db. No MCP, no Arcade, no governance.
@@ -147,7 +152,8 @@ failing on a planted violation.
   halves read the same flag, so they cannot drift apart (#33 in the demo).
 - **`governance-core` depends on no app.** `no-app-dependencies.test.ts` holds.
 - **Only the identity module mints tokens.** No other module imports its signing keys or its
-  token issuance. This is new with the fold, and its test is part of slice 3.
+  token issuance, and nothing outside `lib/identity/provider/` reads `BETTER_AUTH_SECRET`.
+  This is new with the fold, and `app-test/identity/only-identity-mints.test.ts` holds it.
 
 Forking means replacing the loan module, `tools/loan` and the seed data, and touching
 nothing under `packages/`.
@@ -185,10 +191,11 @@ cost a day on #75.
             → the loan module validates it, actor = alice@…
         → /post     hooks rewrite the output               ← layer 4
 
-Arcade's default verifier demands an Arcade account that is a project member. For the
-app's own provider, `app-identity`, our personas need no such account, because a persona
-verified against the wrong account binds the grant to the wrong user and the tool
-re-challenges forever (observed 2026-09-11 15:40Z). The custom verifier is what makes the
+Arcade's default verifier demands an Arcade account that is a project member. Left to it, a
+user is verified against whatever Arcade account the browser holds, which binds the grant to
+the wrong user, and the tool re-challenges forever (observed 2026-09-11 15:40Z). For the
+app's own provider, `app-identity`, the custom verifier replaces it, so the app's users need
+no Arcade account for the loan tools. The custom verifier is what makes the
 IdP-asserted email the identity on hop 2, exactly as the User Source makes it the identity
 on hop 1. **It covers custom providers only.** Arcade routes its built-in providers through
 its own verifier, so the stock Slack provider that `Approvals_RequestApproval` uses demands
@@ -219,6 +226,8 @@ module imports its signing keys or issuance (see **Services**). The loan-module 
 unchanged, and the identity module is never folded into the loan module.
 
 A forker who has a real IdP replaces the identity module and points both hops at it.
+`bun run users` keeps its control-plane half there (`lib/control-plane/subjects.ts`) and
+drops its identity half, because the real IdP owns the accounts (`docs/DOMAIN-SWAP.md` §4).
 
 Arcade is an OAuth *client* here: it needs a client id and secret, an authorize URL, a
 token URL, and its own generated redirect URI allowlisted on our side. It does not consume
@@ -226,10 +235,11 @@ OIDC discovery — endpoints are configured explicitly. It extracts the user's i
 `/oauth2/userinfo` via a JSONPath expression, **which is what turns rule 3 from a
 convention into a mechanism**.
 
-⚠️ **Resetting `idp.db` must not rotate the OAuth client credentials. Rotating them and silently breaks the
+⚠️ **Resetting `idp.db` must not rotate the OAuth client credentials. Rotating them silently breaks the
 registration held in Arcade** at the authorize step, which fires no hook,
 so the panel stays dark and nothing on screen explains why. The reset must leave the OAuth
-client alone. Owned by #36, stated in #23's runbook.
+client alone. Owned by the demo's #36. `lib/identity/provider/reset.ts` reads the client ids
+before and after the reset and fails on any difference.
 
 ## Tool surface
 
@@ -255,8 +265,8 @@ project toolkits (`ARCADE_LOAN_TOOLKIT`, `ARCADE_APPROVALS_TOOLKIT`).
 ## Cast
 
 Presentation names are Alice, Bob, Charlie and Michael. The keys `dana`, `sam`, `riley` and
-`morgan` are internal only (fixture keys, `PERSONA_*` variables) and never reach anything a
-reader sees. The local fixture domain is `@bank.example`.
+`morgan` are internal only (the fixture's `persona` keys) and never reach anything a reader
+sees. The local fixture domain is `@bank.example`.
 
 | Persona | Key | Role | Limit | Notes |
 |---|---|---|---:|---|
@@ -265,11 +275,20 @@ reader sees. The local fixture domain is `@bank.example`.
 | Charlie | `riley` | VP Credit | $250,000 | The minimum-sufficient approver for $95K |
 | Michael | `morgan` | Chief Credit Officer | $5,000,000 | Deliberately *not* bothered, which proves routing |
 
-Each persona is a user of the app's Better Auth. A persona who requests an approval (Alice)
-must also be a member of the Arcade project under the same email, because the stock Slack
-provider goes through Arcade's own verifier (2026-09-26); the others need no Arcade account
-unless the members-mode fallback is taken. Each accepts Arcade's gateway consent screen once
-per browser profile per MCP client id.
+**The cast is the demo's, and it is opt-in (#33, the driver's option A).** A fresh start
+seeds no people on either side: `idp.db` gets no accounts and `governance.db` no subjects.
+`bun run users seed-demo` is the only way to get the demo cast. It adds the four with the
+fixture's roles and clearances and a generated password each, printed once. Seeded at the
+fixture's addresses they are the demo cast, which a reset puts back and `fixture_drift`
+compares; seeded under your own (`--alice <email>` and so on) they are real users, which a
+reset keeps as they are. Anyone else is added with `bun run users add`. **A missing demo
+subject is not drift; an identity with no subject, or a subject with no identity, is**
+(`user_drift`, `lib/user-drift.ts`).
+
+A user who requests an approval (Alice) must also be a member of the Arcade project under
+the same email, because the stock Slack provider goes through Arcade's own verifier
+(2026-09-26); the others need no Arcade account unless the members-mode fallback is taken.
+Each accepts Arcade's gateway consent screen once per browser profile per MCP client id.
 
 Seed loan `LN-2291`, Northwind Bakery LLC, $95,000. Carries `bank_account_number` and
 `tax_id` (act 3) and an `underwriter_notes` field containing an injected instruction (act 4).
@@ -330,17 +349,24 @@ What each layer answers, as measured:
 **New with the template.** The slices design against Arcade's public docs, and the human's end-of-line test (#7) measures these with a real account. Every slice lists its assumptions on #7 (decided 2026-09-23):
 
 5. **Studio versus hop 1.** The web UI gets its gateway token from a browser sign-in, and
-   Studio has none. What token does the Studio agent use, without Headers mode?
+   Studio has none. What token does the Studio agent use, without Headers mode? **Answered
+   in code:** Studio runs hop 1 itself as a loopback MCP client (`/arcade/authorize` on
+   `STUDIO_PORT`) and holds one grant per process, in memory (`lib/agent/studio.ts`). Whether
+   Arcade accepts a dynamically registered `http://localhost` redirect is still for #7.
 6. **The rule for hop 1.** A User Source if Arcade's API can create the provider, the User
    Source and the gateway (so one `setup-arcade <ngrok url>` does it), or if a setup page
    can print at most two paste-ready dashboard forms beyond the provider. Members mode
-   otherwise.
+   otherwise. **Settled by the setup order decided 2026-09-28, landing in #48:** Arcade's API
+   cannot reach the User Source, so `setup-arcade` prints two forms, the User Source and the
+   Gateway, and hop 1 stays a User Source (see **Registration** under Decisions).
 7. **The join key**, in members mode only. The pre-hook sees the Arcade account, and the
    loan module sees the app user. Measure what each receives, and write the must-match rule
    into the README.
 8. **Registration by API.** This decides whether the Quickstart is about 5 steps or 8.
+   **Answered:** everything but the User Source and the Gateway is registered by API (#26,
+   #28, #30), and those two are dashboard forms once #48 lands (see **Registration**).
 9. **The chat route on the production image under Turbopack is unverified** (the demo's
-   #190). It needs `bun run --cwd apps/web verify:standalone` with Docker, or the first
+   #190). It needs `bun run verify:standalone` with Docker, or the first
    live run.
 
 ## Sequence
@@ -359,5 +385,11 @@ Tracked on issue #1.
 5. Collapse setup: a minimal `.env.example`, one `dev` command, and `setup-arcade` if risk 8
    allows it.
 6. The README in Mastra's exact outline.
-7. Submission cleanup: `render.yaml`, `docs/spikes`, `docs/evidence`, `.orca/`.
+7. Submission cleanup: what ships. Done by #11 (`render.yaml`, `docs/spikes` and
+   `docs/evidence` removed), except `.orca/` and the harness, which are the last commit
+   before submission, after #7.
 8. The human records the 2 to 3 minute video and sends the repo to Alex Booker.
+
+**Process (the human's rule, 2026-09-25):** fixes for live-test (#7) failures get no agent
+review. The human tests the PR branch live, and it merges on their pass. Feature slices
+keep agent review.
