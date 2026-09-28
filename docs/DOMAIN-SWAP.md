@@ -366,8 +366,8 @@ Two things to align with your domain:
 
 Whoever requests an approval must be a member of your Arcade project, because
 `Approvals_RequestApproval` uses Arcade's stock Slack provider, and Arcade sends that
-through its own verifier rather than your custom one. The README's FAQ,
-[Do my users need Arcade accounts?](../README.md#faq), has the detail and the way out:
+through its own verifier rather than your custom one. The FAQ's
+[Do my users need Arcade accounts?](./faq.md#do-my-users-need-arcade-accounts) has the detail and the way out:
 your own Slack app, registered as a custom OAuth provider.
 
 The approval link **carries no authority** — no token, no signature, no query string —

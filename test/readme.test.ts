@@ -359,6 +359,137 @@ describe("README.md's links and typography", () => {
   });
 });
 
+// --- What moved out of the README (#58) ---------------------------------------
+
+/**
+ * The README is a landing page and a quick start (#58). After Customization it
+ * carries only Further reading, which links each page under `docs/` with one
+ * line on what it answers. Everything that used to follow Customization moved
+ * whole into one of the pages below, and each page is pinned here by its
+ * headings and by the facts a reader would most miss, so an edit cannot drop
+ * one quietly. The first-run sections stay in the README and are pinned above.
+ */
+const CONTRIBUTOR_H2 = ["Further reading"];
+const MOVED: Array<{ page: string; headings: string[]; facts: string[] }> = [
+  {
+    page: "docs/architecture.md",
+    headings: ["How the controls work", "Two OAuth hops, two mechanisms", "Project layout"],
+    facts: [
+      "| 3 | Whether you have the authority for *this* call | identity + policy | `/hooks/pre` → `CHECK_FAILED` |",
+      "Arcade evaluates auth requirements before `/hooks/pre`, so a refusal there fires no hook, writes no audit row and shows nothing on the panel.",
+      "A rule keyed on `get_loan` matches nothing, and a rule that matches nothing is indistinguishable from a rule that permits.",
+      "`app-test/loans/knows-nothing-about-governance.test.ts` fails if governance vocabulary",
+      "`packages/governance-core/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package",
+      "The custom verifier covers custom providers only.",
+      "**Email is the join key.**",
+      "The loan module takes the actor from the token, never from a request parameter",
+      "The toolkits are Python because `arcade-mcp`, the tool-authoring framework, is Python-only.",
+    ],
+  },
+  {
+    page: "docs/configuration.md",
+    headings: ["Configuration and readiness", "Resetting the demo"],
+    facts: [
+      "A fresh clone with nothing filled in answers `degraded` and names `signin`, `gateway`, `verifier` and `agent` as `missing`.",
+      "To use a different project, set `ARCADE_ORG_ID` and `ARCADE_PROJECT_ID` in `.env`.",
+      "**`BETTER_AUTH_SECRET` is written by `setup-arcade`.**",
+      "**Changing `BETTER_AUTH_SECRET` is a rotation.**",
+      "so a taken port is an error rather than a silent move to 3001 that the tunnel would not follow",
+      "**Never drive the demo from an Arcade Org Admin account.**",
+      "`bun run reset --hard` also resets the identity provider's sessions, tokens and consents, and keeps every account.",
+      "Neither deletes a user.",
+      "With it unset, every reset route answers 404 and `/health` reports `reset: disabled`.",
+      "**A reset is not a re-registration.**",
+    ],
+  },
+  {
+    page: "docs/faq.md",
+    headings: [
+      "Why are the limits enforced in hooks rather than in the agent's prompt?",
+      "Do the hooks fire for toolkits shipped with `arcade deploy`?",
+      "Why does the chat show some failed tool calls as a denial and others as a fault?",
+      "Why does the $95K approval depend on stripping the note pasted into `LN-2291`?",
+      "Why does Charlie's Slack DM come from Alice and not from a bot?",
+      "Why two OAuth hops?",
+      "Can the control plane see an OAuth misconfiguration?",
+      "Do my users need Arcade accounts?",
+      "Why does it need a public host when it runs on my machine?",
+      "Why Bun?",
+      "Can I use a model other than Claude Sonnet 5?",
+    ],
+    facts: [
+      "With the note visible, the $95K request reached `/hooks/pre` roughly 5 times in 17; with `/hooks/post` stripping the note first, 5 of 5, and 5 of 5 again on an independent re-measurement.",
+      "`chat:write`, `im:write`, `users:read` and `users:read.email`",
+      "`MODEL_ID` is a bare Anthropic model id, not a `provider/model` string for Mastra's model router",
+      "Read the auth provider's configuration back through Arcade's admin API rather than off the dashboard",
+    ],
+  },
+  {
+    page: "docs/deploying.md",
+    headings: ["Deploying"],
+    facts: [
+      "build the root `Dockerfile`",
+      "without `ARCADE_HOOK_SIGNING_SECRET`, `APPROVALS_STORE_TOKEN` and `BETTER_AUTH_SECRET` the app still starts, but the control plane and the identity provider refuse to",
+      "**One persistent disk holds all three databases.**",
+      "**A redeploy is not a reset.**",
+      "**The disk holds the OAuth clients Arcade is registered against.**",
+    ],
+  },
+];
+
+/** What `page` is missing of what moved into it: a heading, at any level, or a fact. */
+function movedGaps(text: string, entry: (typeof MOVED)[number]): string[] {
+  const titles = new Set(headings(text).map(({ title }) => title));
+  return [
+    ...entry.headings.filter((title) => !titles.has(title)).map((title) => `heading: ${title}`),
+    ...entry.facts.filter((fact) => !text.includes(fact)).map((fact) => `fact: ${fact}`),
+  ];
+}
+
+/** Pages Further reading does not link as its own bullet, with a line on what the page answers. */
+function unlinkedPages(markdown: string, pages: string[]): string[] {
+  const bullets = section(markdown, "Further reading").split("\n");
+  return pages.filter((page) => !bullets.some((line) => line.startsWith(`- [\`${page}\`](./${page})`) && line.length > page.length * 2 + 30));
+}
+
+/** The docs pages that ship: tracked, top-level Markdown under `docs/`. */
+const SHIPPED_DOCS = Bun.spawnSync(["git", "ls-files", "docs"], { cwd: REPO })
+  .stdout.toString()
+  .split("\n")
+  .filter((path) => /^docs\/[^/]+\.md$/.test(path));
+
+const read = (page: string) => readFileSync(join(REPO, page), "utf8");
+
+describe("what moved out of the README lives in docs/ (#58)", () => {
+  test("after Customization the README carries only Further reading, then About Mastra templates", () => {
+    const h2 = headings(README).filter((h) => h.level === 2).map((h) => h.title);
+    expect(h2).toEqual([...REQUIRED_H2, ...CONTRIBUTOR_H2, LAST_H2]);
+  });
+
+  for (const entry of MOVED) {
+    test(`${entry.page} holds its moved sections whole`, () => {
+      expect(existsSync(join(REPO, entry.page))).toBe(true);
+      expect(movedGaps(read(entry.page), entry)).toEqual([]);
+    });
+  }
+
+  test("Further reading links every moved page and every page docs/ ships, each with a line on what it answers", () => {
+    const pages = [...new Set([...MOVED.map(({ page }) => page), ...SHIPPED_DOCS, "DESIGN.md"])];
+    expect(pages.length).toBeGreaterThan(MOVED.length);
+    expect(unlinkedPages(README, pages)).toEqual([]);
+  });
+
+  test("every variable a moved page names is in .env.example", () => {
+    for (const { page } of MOVED) {
+      expect({ page, missing: [...variablesNamed(read(page))].filter((name) => !exampleVariables(ENV_EXAMPLE).has(name)) }).toEqual({ page, missing: [] });
+    }
+  });
+
+  test("every external link in a moved page is one somebody verified", () => {
+    for (const { page } of MOVED) expect({ page, unverified: unverifiedUrls(read(page)) }).toEqual({ page, unverified: [] });
+  });
+});
+
 // --- Each check, shown failing ------------------------------------------------
 
 describe("each check bites on a planted violation", () => {
@@ -459,3 +590,24 @@ describe("each check bites on a planted violation", () => {
   });
 });
 
+describe("the #58 checks bite on a planted violation", () => {
+  test("a moved fact deleted from its page, and a moved heading renamed", () => {
+    const entry = MOVED.find(({ page }) => page === "docs/configuration.md")!;
+    const page = read(entry.page);
+    const withoutFact = page.replace("**A reset is not a re-registration.**", "");
+    expect(movedGaps(withoutFact, entry)).toEqual(["fact: **A reset is not a re-registration.**"]);
+    expect(movedGaps(page.replace("## Resetting the demo", "## Resetting"), entry)).toEqual(["heading: Resetting the demo"]);
+  });
+
+  test("a moved section put back in the README", () => {
+    const planted = README.replace("## Further reading", "## How the controls work\n\nArcade gives every tool call four control points.\n\n## Further reading");
+    const h2 = headings(planted).filter((h) => h.level === 2).map((h) => h.title);
+    expect(h2).not.toEqual([...REQUIRED_H2, ...CONTRIBUTOR_H2, LAST_H2]);
+  });
+
+  test("a page Further reading drops, or links with no line on what it answers", () => {
+    const line = section(README, "Further reading").split("\n").find((each) => each.startsWith("- [`docs/faq.md`]"))!;
+    expect(unlinkedPages(README.replace(`${line}\n`, ""), ["docs/faq.md"])).toEqual(["docs/faq.md"]);
+    expect(unlinkedPages(README.replace(line, "- [`docs/faq.md`](./docs/faq.md)"), ["docs/faq.md"])).toEqual(["docs/faq.md"]);
+  });
+});

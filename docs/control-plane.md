@@ -939,8 +939,8 @@ schema or on the panel should imply otherwise.
 
 ## Not here
 
-- The reset command — #23, `scripts/reset.ts` (`bun run reset`), and the root README's
-  "Resetting the demo".
+- The reset command — #23, `scripts/reset.ts` (`bun run reset`), and
+  [Resetting the demo](./configuration.md#resetting-the-demo) in `docs/configuration.md`.
 - The other half of #20: the agent ending its turn after `request_approval`, and an
   `approval.granted` event resuming it. That is the app's, in `lib/agent/resume.ts` and
   `lib/governance/approval-stream.ts`. This module's half is the stream.
