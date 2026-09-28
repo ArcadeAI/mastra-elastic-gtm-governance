@@ -112,14 +112,16 @@ test("the earlier file's root is no longer running", async () => {
   expect(counter.plantedTicks).toBe(then);
 });
 `,
-  // Keeps starting page timers from a loop outside React for 3s, longer than
-  // the 2s the page gets to go quiet, and then stops, so the next file's page
-  // can go quiet.
+  // Starts a page timer on every turn of the event loop, from outside React,
+  // for 3s: longer than the 2s the page gets to go quiet, so there is always
+  // one pending when happy-dom looks (it looks 1ms after an abort), and then
+  // it stops, so the next file's page can go quiet.
   "never-quiet.test.ts": `import { test } from "bun:test";
 import { installDom } from ${DOM};
 const window = installDom({ url: "http://never-quiet.test/" });
 const until = Date.now() + 3_000;
-void (async () => { while (Date.now() < until) { window.setTimeout(() => {}, 50); await Bun.sleep(5); } })();
+const again = () => { window.setTimeout(() => {}, 50); if (Date.now() < until) setImmediate(again); };
+again();
 test("starts something it does not stop", () => {});
 `,
   "after-never-quiet.test.ts": `import { expect, test } from "bun:test";
@@ -228,9 +230,18 @@ describe("what a DOM file leaves in the window", () => {
  * A static import of React DOM runs before the file's first line, so it is
  * evaluated before any DOM exists (`panel-keyboard`, #46).
  */
+// Code, not a string that quotes it: nothing on the line before the match may
+// open a string, so a file that plants the old way to watch it fail (this one,
+// `test/test-order.test.ts`) is not caught for it.
 const FORBIDDEN: ReadonlyArray<[what: string, pattern: RegExp]> = [
-  ["registers happy-dom itself", /@happy-dom\/global-registrator|new\s+(?:Global)?Window\s*\(/],
-  ["imports react-dom/client, not app-test/dom.ts's createRoot", /^\s*import\s+(?!type\b)[^;]*?from\s+["']react-dom\/client["']|import\(\s*["']react-dom\/client["']\s*\)(?!\s*\.)/m],
+  [
+    "registers happy-dom itself",
+    /^[^\n`"']*(?:from\s*|import\(\s*)["']@happy-dom\/global-registrator["']|^[^\n`"']*\bnew\s+(?:Global)?Window\s*\(/m,
+  ],
+  [
+    "imports react-dom/client, not app-test/dom.ts's createRoot",
+    /^\s*import\s+(?!type\b)[^;]*?from\s+["']react-dom\/client["']|^[^\n`"']*import\(\s*["']react-dom\/client["']\s*\)(?!\s*\.)/m,
+  ],
 ];
 
 test("no test code installs a DOM or imports react-dom/client except through app-test/dom.ts", () => {
@@ -249,8 +260,7 @@ test("no test code installs a DOM or imports react-dom/client except through app
     }
     for (const [what, pattern] of FORBIDDEN) if (pattern.test(source)) found.push(`${file} ${what}`);
   }
-  // This file plants the old way on purpose, as strings, to show it failing.
-  expect(found.filter((line) => !line.startsWith("app-test/dom.test.ts "))).toEqual([]);
+  expect(found).toEqual([]);
 });
 
 test("the rule catches each way main's DOM files did it", () => {
@@ -261,7 +271,11 @@ test("the rule catches each way main's DOM files did it", () => {
     `const { createRoot } = await import("react-dom/client");`,
   ];
   for (const line of main) expect(FORBIDDEN.some(([, pattern]) => pattern.test(line))).toBe(true);
-  for (const line of [`type Root = import("react-dom/client").Root;`, `import type { Root } from "react-dom/client";`]) {
+  for (const line of [
+    `type Root = import("react-dom/client").Root;`,
+    `import type { Root } from "react-dom/client";`,
+    `  "forgets.test.ts": \`import { GlobalRegistrator } from "@happy-dom/global-registrator";\\n\`,`,
+  ]) {
     expect(FORBIDDEN.some(([, pattern]) => pattern.test(line))).toBe(false);
   }
 });
