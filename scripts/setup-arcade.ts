@@ -22,6 +22,10 @@
  *    `SESSION_SECRET`, `BETTER_AUTH_SECRET`, `ARCADE_HOOK_SIGNING_SECRET`, `APPROVALS_STORE_TOKEN`,
  *    `IDP_OAUTH_CLIENTS` and the clients' redirect URIs, `IDP_CLIENT_ID` and
  *    `IDP_CLIENT_SECRET`, `ARCADE_GATEWAY_ID` and `GOVERNANCE_STREAM=hooks`.
+ *    One exception (#54): an `IDP_CLIENT_ID` that is not `idp.db`'s web client,
+ *    as after `idp.db` was deleted, is rewritten with its secret, before step 3's
+ *    comparison can stop the run. That client is the app's own sign-in, and
+ *    nothing in Arcade holds it.
  * 6. **Registers by API**: the provider, the tool secrets `APP_PUBLIC_HOST`
  *    and `APPROVALS_STORE_TOKEN`, the custom verifier, and the contextual
  *    access hooks (#30), each read back. The hooks are created **disabled**
@@ -455,6 +459,13 @@ if (dryRun) {
     `\n.env${envExists ? "" : " (created from .env.example)"}: ` +
       (keys.length > 0 ? `would fill ${keys.join(", ")}` : "nothing to fill: every value is already set, and none is overwritten"),
   );
+  if (fromFile("IDP_CLIENT_ID") !== "") {
+    out(
+      clientsOnDisk
+        ? "  and if idp.db's web client is not IDP_CLIENT_ID, would rewrite IDP_CLIENT_ID and IDP_CLIENT_SECRET to it, with a new secret"
+        : "  and would rewrite IDP_CLIENT_ID and IDP_CLIENT_SECRET: with no idp.db, a real run mints a new web client, and .env follows it",
+    );
+  }
   if (!clientsOnDisk) {
     out(`idp.db: would mint the OAuth clients ${CLIENT_KEYS.join(", ")}`);
     if (callbackRecorded) {
@@ -644,6 +655,31 @@ const client = (key: string) => {
   return found;
 };
 
+// `web`: the app's own sign-in client. Nothing in Arcade holds it, so when
+// .env names another client than idp.db's, .env follows idp.db (#54): its
+// IDP_CLIENT_ID and IDP_CLIENT_SECRET are rewritten, the one exception to
+// blanks-only besides the provider's callback. Until #54 this was a warning
+// and exit 0, and the sign-in failed with invalid_client: the state that
+// deleting idp.db and rerunning this command, as the identity module's own
+// advice says, leaves behind. Before the provider is compared, so a provider
+// that still names the deleted idp.db's arcade client, which stops the run,
+// does not also leave the sign-in broken.
+const staleWebClient = fromFile("IDP_CLIENT_ID") !== "" && fromFile("IDP_CLIENT_ID") !== client("web").client_id;
+if (staleWebClient) {
+  const secret = await secretOf("web", true);
+  if (secret === null) fail("bun run oauth-client --client web --rotate printed no secret");
+  const id = client("web").client_id;
+  envText = replaceValue(replaceValue(envText, "IDP_CLIENT_ID", id), "IDP_CLIENT_SECRET", secret);
+  writeEnvFile(envPath, envText);
+  fileEnv.IDP_CLIENT_ID = process.env.IDP_CLIENT_ID = id;
+  fileEnv.IDP_CLIENT_SECRET = process.env.IDP_CLIENT_SECRET = secret;
+  out(`
+.env:`);
+  out(`  rewrote  IDP_CLIENT_ID, IDP_CLIENT_SECRET  (.env named a web client idp.db does not hold; now idp.db's ${id},`);
+  out(`           with a new secret, not shown. It is the app's own sign-in client, and nothing in Arcade holds it.`);
+  out(`           Restart \`bun run dev\` if it is running.)`);
+}
+
 if (providerExists) {
   const desired = providerBody({ host, origin, arcadeClientId: client("arcade").client_id, arcadeClientSecret: "", approvalsStoreToken: "" });
   const differences = providerDifferences(existingProvider.json, desired);
@@ -651,8 +687,9 @@ if (providerExists) {
     out(`\nThe provider ${PROVIDER_ID} already exists in this Arcade project, and it is not what this app needs:`);
     for (const line of differences) out(`  - ${line}`);
     fail(
-      `nothing was changed in Arcade or in .env. This command never edits an existing provider (DESIGN.md: ` +
-        `Arcade config is read-only). Correct it in the dashboard, or delete it there and run this again.`,
+      `nothing was changed in Arcade${staleWebClient ? "" : " or in .env"}. This command never edits an existing provider (DESIGN.md: ` +
+        `Arcade config is read-only). Correct it in the dashboard, or delete it there and run this again.` +
+        (staleWebClient ? "\n  .env's IDP_CLIENT_ID and IDP_CLIENT_SECRET were rewritten above, so the app's own sign-in works; nothing else in .env changed." : ""),
     );
   }
   out(`  the provider ${PROVIDER_ID} is already registered and matches; it is left as it is`);
@@ -670,10 +707,8 @@ async function secretOf(key: string, rotate: boolean): Promise<string | null> {
 // `arcade`: rotated only when the provider is about to be created with it.
 const arcadeSecret = await secretOf("arcade", !providerExists);
 // `web`: its credentials live in .env, so rotating is safe whenever .env has none.
-const webSecret = webConfigured ? null : await secretOf("web", true);
-if (webConfigured && fromFile("IDP_CLIENT_ID") !== client("web").client_id) {
-  out(`  warning       IDP_CLIENT_ID is ${fromFile("IDP_CLIENT_ID")}, but idp.db's web client is ${client("web").client_id}; sign-in will fail until they match`);
-}
+// Already rewritten above when .env named another client.
+const webSecret = webConfigured || staleWebClient ? null : await secretOf("web", true);
 // `arcade-user-source`: shown when minted now; never rotated behind a User Source that may exist.
 // Rotated only when the Coordinator API shows this project has none for the app, right before one is created with it (#52).
 let userSourceSecret = client("arcade-user-source").client_secret;
