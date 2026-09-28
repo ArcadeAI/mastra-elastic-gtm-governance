@@ -12,7 +12,8 @@
  * clean boot refused it. Nothing said the shell was involved.
  *
  * So each of those commands names, on start, every identity or secret key the
- * shell sets to a value no `.env` file holds, and says the shell's value wins.
+ * shell sets to a value other than the one the `.env` files give, and says the
+ * shell's value wins.
  * Names only, never a value: the warning goes to a terminal, and the values
  * are secrets. `bun run setup-arcade` goes further and refuses to run
  * (`shellConflicts` in `scripts/setup-arcade/env-file.ts`), because it decides
@@ -25,7 +26,6 @@
  * `app-test/identity/only-identity-mints.test.ts`). `scripts/` is not in the image.
  */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
 const LINE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 
@@ -57,16 +57,6 @@ export function readEnvText(path: string): string {
   }
 }
 
-/** The two files the app and Studio load from the project root: `.env`, and `.env.local` over it. */
-export interface EnvFiles {
-  env: Record<string, string>;
-  local: Record<string, string>;
-}
-
-export function readEnvFiles(dir: string): EnvFiles {
-  return { env: parseEnv(readEnvText(join(dir, ".env"))), local: parseEnv(readEnvText(join(dir, ".env.local"))) };
-}
-
 /**
  * The keys a shell override is worth a warning for: every `IDP_*`, and the
  * secrets and host the identity and the Arcade registration are keyed on. The
@@ -88,22 +78,59 @@ export function isOverrideWarned(key: string): boolean {
 }
 
 /**
- * The warned keys whose value in `env` is neither `.env`'s nor `.env.local`'s,
- * sorted. `env` is either the shell's own (`bun --no-env-file`) or a process's
- * that Bun loaded the files into, and the answer is the same: the loaders never
- * override a variable that is already set, so a value no file holds is the
- * shell's.
- * A key no file holds counts as blank in them, so a shell that exports it
- * empty is no override, and one that exports a value is.
+ * What Bun loads for each of `keys` from the `.env` files in `dir`, given `env`
+ * as the environment it starts with: asked of Bun itself, in a child that
+ * prints them and exits (about 20ms). Its rules are not worth copying: it
+ * picks the files by NODE_ENV (`.env.development.local`, `.env.local`,
+ * `.env.development`, `.env`, in that order, when NODE_ENV is unset, and no
+ * `.env.local` under `test`), and it expands `$VAR` and `${VAR}` even in single
+ * quotes, one level deep, from the rest of the environment, shell included.
+ * Next picks the same files in the same order, and never overrides a variable
+ * Bun already set, so for `bun run dev` this is the value the app runs on.
+ *
+ * The values are secrets, so they travel over a pipe and are never printed:
+ * a failure says how the child exited and nothing it wrote.
  */
-export function shellOverrides(env: Record<string, string | undefined>, files: EnvFiles): string[] {
-  return Object.keys(env)
-    .filter(isOverrideWarned)
-    .filter((key) => {
-      const value = env[key]!.trim();
-      const held = [files.env[key], files.local[key]].filter((each) => each !== undefined).map((each) => each.trim());
-      return !(held.length > 0 ? held : [""]).includes(value);
-    })
+function loadedFromFiles(dir: string, env: Record<string, string>, keys: readonly string[]): Record<string, string | undefined> {
+  const child = Bun.spawnSync(
+    [process.execPath, "--eval", `process.stdout.write(JSON.stringify(Object.fromEntries(${JSON.stringify(keys)}.map((key) => [key, process.env[key]]))))`],
+    { cwd: dir, env, stdin: "ignore", stdout: "pipe", stderr: "ignore" },
+  );
+  if (child.exitCode !== 0) throw new Error(`bun could not load the .env files in ${dir} (exit ${child.exitCode})`);
+  return JSON.parse(child.stdout.toString()) as Record<string, string | undefined>;
+}
+
+/**
+ * The warned keys the shell sets to a value other than the one the `.env`
+ * files would give, sorted: the keys where the process environment really
+ * wins over a different value.
+ *
+ * `env` is either the shell's own (`bun --no-env-file`, as `bun run studio`
+ * runs) or a process's that Bun loaded the files into (`bun run dev`), and the
+ * question is the same for both: with the key dropped and everything else as
+ * it is, what would Bun load for it? A key the files set, however it got
+ * there, comes back as it is; a key the shell set comes back as the files'
+ * value instead, or as nothing, which counts as blank, so a shell that
+ * exports a key empty where no file sets it is no override.
+ *
+ * All the keys are dropped at once first, and only the ones that come back
+ * different are asked again one at a time. The second ask is what keeps
+ * `IDP_OAUTH_REDIRECT_URIS_WEB=https://${APP_PUBLIC_HOST}/…` out of the
+ * warning when only APP_PUBLIC_HOST is the shell's: with both dropped the
+ * redirect expands from the file's host, and with only itself dropped, from
+ * the shell's, which is what it holds.
+ */
+export function shellOverrides(env: Record<string, string | undefined>, dir: string): string[] {
+  const defined = Object.fromEntries(Object.entries(env).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  const candidates = Object.keys(defined).filter(isOverrideWarned);
+  if (candidates.length === 0) return [];
+  const without = (dropped: readonly string[]) => Object.fromEntries(Object.entries(defined).filter(([key]) => !dropped.includes(key)));
+  const differs = (key: string, loaded: Record<string, string | undefined>) => defined[key] !== (loaded[key] ?? "");
+
+  const together = loadedFromFiles(dir, without(candidates), candidates);
+  return candidates
+    .filter((key) => differs(key, together))
+    .filter((key) => differs(key, loadedFromFiles(dir, without([key]), [key])))
     .sort();
 }
 
@@ -112,7 +139,7 @@ export function overrideWarning(keys: readonly string[], command: string): strin
   const one = keys.length === 1;
   return (
     `warning: ${keys.join(", ")} ${one ? "is" : "are"} set in this shell to ${one ? "a value" : "values"} ` +
-    `neither .env nor .env.local holds, and the shell's value wins: \`${command}\` runs on ${one ? "it" : "them"}, not on .env. ` +
+    `the .env files do not give, and the shell's value wins: \`${command}\` runs on ${one ? "it" : "them"}, not on .env. ` +
     `A shell that exported an older clone's .env is the usual cause, and sign-in then fails. ` +
     `Open a new terminal, or run: unset ${keys.join(" ")}`
   );
@@ -123,7 +150,7 @@ export function warnShellOverrides(
   command: string,
   { env = process.env, dir = process.cwd(), log = console.warn }: { env?: Record<string, string | undefined>; dir?: string; log?: (line: string) => void } = {},
 ): string[] {
-  const keys = shellOverrides(env, readEnvFiles(dir));
+  const keys = shellOverrides(env, dir);
   if (keys.length > 0) log(overrideWarning(keys, command));
   return keys;
 }

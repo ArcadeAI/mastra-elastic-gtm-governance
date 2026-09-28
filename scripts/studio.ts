@@ -4,9 +4,10 @@
  * `mastra dev` loads `.env`, `.env.local` and `.env.development` itself, and
  * never overrides a variable it inherited, so a shell that still exports an
  * older clone's `.env` runs Studio on that clone's values without a word. This
- * names each identity or secret key it would (`scripts/env-overrides.ts`),
- * names only, then runs `mastra dev` exactly as the package script did before:
- * with the shell's environment and nothing else.
+ * names each identity or secret key it would run on a value other than the
+ * `.env` files' (`scripts/env-overrides.ts`), names only, then runs `mastra
+ * dev` exactly as the package script did before: with the shell's environment
+ * and nothing else.
  *
  * Run with `--no-env-file` (the package script does), for two reasons. This
  * process's environment is then the shell's own, so the comparison needs no
@@ -23,7 +24,12 @@ import { warnShellOverrides } from "./env-overrides.ts";
 
 const root = new URL("..", import.meta.url).pathname;
 
-warnShellOverrides("bun run studio", { dir: root, log: (line) => console.error(`[studio] ${line}\n`) });
+// Advisory, as in `scripts/next.ts`: a check that cannot run says so and Studio starts.
+try {
+  warnShellOverrides("bun run studio", { dir: root, log: (line) => console.error(`[studio] ${line}\n`) });
+} catch (error) {
+  console.error(`[studio] could not compare the shell with .env: ${(error as Error).message}`);
+}
 
 const child = Bun.spawn(["bun", "run", "mastra", "dev", ...process.argv.slice(2)], {
   cwd: root,

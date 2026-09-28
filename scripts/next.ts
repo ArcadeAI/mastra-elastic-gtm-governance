@@ -51,7 +51,8 @@ if (args.length === 0) {
 if (args[0] === "dev") {
   try {
     const { warnShellOverrides } = await import("./env-overrides.ts");
-    // The files Bun loaded into this process, from the directory it ran in.
+    // This process's environment, which Bun loaded the files into, against
+    // what it loads from the same directory without the shell's say.
     warnShellOverrides("bun run dev", { log: (line) => console.error(`[next.ts] ${line}\n`) });
   } catch (error) {
     console.error(`[next.ts] could not compare the shell with .env: ${(error as Error).message}`);
