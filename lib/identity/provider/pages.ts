@@ -185,7 +185,7 @@ const ERROR_HINTS: Record<string, string> = {
   invalid_client:
     "The client_id this request named is not a client of this identity provider. For the app's own sign-in, " +
     "that is IDP_CLIENT_ID: check that the shell does not export an older one (`bun run dev` warns when it " +
-    "does), then run `bun run setup-arcade <APP_PUBLIC_HOST>`, which sets IDP_CLIENT_ID and IDP_CLIENT_SECRET " +
+    "does), then run `bun run setup-arcade <ngrok-host>`, which sets IDP_CLIENT_ID and IDP_CLIENT_SECRET " +
     "in .env to idp.db's web client, and restart `bun run dev`.",
   invalid_redirect:
     "The redirect_uri this request named is not on the client's allowlist in idp.db.",

@@ -50,7 +50,7 @@ if (args.length === 0) {
 // Advisory for the same reason as the URL below.
 if (args[0] === "dev") {
   try {
-    const { warnShellOverrides } = await import("../lib/env-files.ts");
+    const { warnShellOverrides } = await import("./env-overrides.ts");
     // The files Bun loaded into this process, from the directory it ran in.
     warnShellOverrides("bun run dev", { log: (line) => console.error(`[next.ts] ${line}\n`) });
   } catch (error) {

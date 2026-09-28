@@ -8,7 +8,7 @@
  */
 import { writeFileSync } from "node:fs";
 
-import { isOverrideWarned, parseEnv, readEnvText } from "../../lib/env-files.ts";
+import { isOverrideWarned, parseEnv, readEnvText } from "../env-overrides.ts";
 
 export { parseEnv };
 
@@ -85,7 +85,7 @@ export const MANAGED_KEYS: readonly string[] = [...REQUIRED_KEYS, ...WRITTEN_KEY
 /**
  * The variables the shell exports with a value `.env` does not hold, names
  * only, sorted: every managed one, and every identity or secret key the app
- * warns about on start (#54, `isOverrideWarned` in `lib/env-files.ts`), so
+ * warns about on start (#54, `isOverrideWarned` in `scripts/env-overrides.ts`), so
  * `IDP_DB_PATH` or `IDP_SCOPES` left over from an older clone stops this run
  * too. A shell variable equal to `.env`'s value is no conflict; one `.env`
  * leaves blank or out is.

@@ -18,8 +18,11 @@
  * (`shellConflicts` in `scripts/setup-arcade/env-file.ts`), because it decides
  * what to register from `.env` alone.
  *
- * Node-safe on purpose: `src/mastra/index.ts` imports it, and Studio runs
- * under Node (`app-test/studio-entry.test.ts`).
+ * The launchers call it, `scripts/next.ts` and `scripts/studio.ts`, before the
+ * app or Studio starts, and never the app itself: comparing `BETTER_AUTH_SECRET`
+ * means reading it, and no app source outside the identity provider does
+ * (DESIGN.md → "What the chat withholds";
+ * `app-test/identity/only-identity-mints.test.ts`). `scripts/` is not in the image.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -54,7 +57,7 @@ export function readEnvText(path: string): string {
   }
 }
 
-/** The two files every command here loads from the project root: `.env`, and `.env.local` over it. */
+/** The two files the app and Studio load from the project root: `.env`, and `.env.local` over it. */
 export interface EnvFiles {
   env: Record<string, string>;
   local: Record<string, string>;
@@ -85,9 +88,11 @@ export function isOverrideWarned(key: string): boolean {
 }
 
 /**
- * The warned keys whose value in `env`, the running process's, is neither
- * `.env`'s nor `.env.local`'s, sorted: the ones only the shell can have put
- * there, because the loaders never override a variable that is already set.
+ * The warned keys whose value in `env` is neither `.env`'s nor `.env.local`'s,
+ * sorted. `env` is either the shell's own (`bun --no-env-file`) or a process's
+ * that Bun loaded the files into, and the answer is the same: the loaders never
+ * override a variable that is already set, so a value no file holds is the
+ * shell's.
  * A key no file holds counts as blank in them, so a shell that exports it
  * empty is no override, and one that exports a value is.
  */

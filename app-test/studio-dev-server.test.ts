@@ -110,7 +110,8 @@ beforeAll(async () => {
   // fails the wait at once, with its output.
   const booted = await serveOnFreePort(
     (studioPort) =>
-      // `bun run studio`, the command a developer types, which is `mastra dev`.
+      // `bun run studio`, the command a developer types, which is `mastra dev`
+      // through `scripts/studio.ts`.
       spawnChild(["bun", "run", "studio"], {
         cwd: REPO,
         env: {

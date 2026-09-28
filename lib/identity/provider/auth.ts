@@ -151,7 +151,7 @@ export async function signingKeysOpen(db: Database, secret: string): Promise<boo
  * sign-in") runs them. `host` is the issuer's, for the setup-arcade line.
  */
 export function staleSigningKey(dbPath: string, host?: string): string {
-  const publicHost = host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? host : "<APP_PUBLIC_HOST>";
+  const publicHost = host && !/^(localhost|127\.0\.0\.1)(:|$)/.test(host) ? host : "<ngrok-host>";
   return (
     `${dbPath} holds an ID-token signing key encrypted under a different BETTER_AUTH_SECRET, so this ` +
     `secret cannot open it, and nothing was re-keyed. If this shell exports a BETTER_AUTH_SECRET, open a new ` +

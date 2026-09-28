@@ -9,16 +9,16 @@
  * refuses (`setup-arcade.test.ts`), and Studio's warning is measured where
  * Studio boots for real (`studio-dev-server.test.ts`).
  *
- * The first half plants each case against `lib/env-files.ts` directly. The
+ * The first half plants each case against `scripts/env-overrides.ts` directly. The
  * second runs the packaged `dev` script, verbatim, in a throwaway project, the
  * way `dev-port.test.ts` does, because a warning in a function nobody calls is
  * the silent failure this repo keeps shipping.
  */
 import { afterAll, describe, expect, test } from "bun:test";
-import { copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { isOverrideWarned, overrideWarning, shellOverrides, type EnvFiles } from "../lib/env-files.ts";
+import { isOverrideWarned, overrideWarning, shellOverrides, type EnvFiles } from "../scripts/env-overrides.ts";
 import { childEnv } from "./child-env.ts";
 import { spawnChild } from "./child.ts";
 
@@ -96,15 +96,13 @@ const holder = Bun.serve({ port: 0, hostname: "127.0.0.1", fetch: () => new Resp
 afterAll(() => holder.stop(true));
 
 /**
- * A project with the real launcher, the real `dev` script string, the module it
- * warns through, and a `.env` and `.env.local` of its own.
+ * A project with the real launchers, the real `dev` script string, and a `.env`
+ * and `.env.local` of its own.
  */
 async function devProject(dotenv: Record<string, string>): Promise<string> {
   const dir = mkdtempSync(join(fixtures, "env-overrides-"));
   made.push(dir);
   cpSync(join(ROOT, "scripts"), join(dir, "scripts"), { recursive: true });
-  mkdirSync(join(dir, "lib"), { recursive: true });
-  copyFileSync(join(ROOT, "lib", "env-files.ts"), join(dir, "lib", "env-files.ts"));
   const { scripts } = (await Bun.file(join(ROOT, "package.json")).json()) as { scripts: Record<string, string> };
   writeFileSync(join(dir, "package.json"), `${JSON.stringify({ name: "env-overrides-fixture", private: true, scripts: { dev: scripts.dev } }, null, 2)}\n`);
   writeFileSync(join(dir, ".env"), Object.entries(dotenv).map(([key, value]) => `${key}=${value}\n`).join(""));
