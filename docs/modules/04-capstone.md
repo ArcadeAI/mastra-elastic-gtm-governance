@@ -24,4 +24,4 @@ keep the test that fails if the business system learns the word "policy".
 |---|---|
 | `start` | Mateo's template with the deal desk swapped in. Modules 1 and 2 run here. |
 | `module-3-ground` | Plus the Elastic module. |
-| `capstone` | Plus these docs and the walkthrough page. `main`. |
+| `capstone` | Plus these docs and `/walkthrough`. `main`. |
