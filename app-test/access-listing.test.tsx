@@ -7,7 +7,7 @@
  * What this file holds the implementation to:
  *
  * 1. **One card per listing, and it names what was taken away.** The card is
- *    only worth having if `Loan.ApproveLoan` is on it by name with the rule
+ *    only worth having if `Deals.ApproveDiscount` is on it by name with the rule
  *    that hid it; a card that said "6 decisions" would be the fan-out card
  *    with more decisions behind it.
  * 2. **Nothing is lost.** Flattening the rows reproduces the lane exactly, the
@@ -59,7 +59,7 @@ function access(
     execution_id: "",
     hook: "access",
     user_id: overrides.user_id ?? SAM,
-    tool: overrides.tool ?? "Loan.GetLoan",
+    tool: overrides.tool ?? "Deals.GetDeal",
     decision: overrides.decision ?? "allow",
     rule_id: overrides.rule_id ?? null,
   });
@@ -167,15 +167,15 @@ describe("what is not a listing", () => {
     const rows = groupAccessEvents(newestFirst(anAccessFanout()));
 
     expect(rows.map((row) => `${row.event.tool}×${row.events.length}`)).toEqual([
-      "Loan.ApproveLoan×2",
-      "Loan.GetLoan×3",
+      "Deals.ApproveDiscount×2",
+      "Deals.GetDeal×3",
     ]);
     expect(rows.some((row) => row.listing)).toBe(false);
   });
 
   test("two distinct tools in one burst is under the spread, so it is not a listing", () => {
     const rows = groupAccessEvents(
-      newestFirst([access("evt_1", 0), access("evt_2", 20, { tool: "Loan.ApproveLoan" })]),
+      newestFirst([access("evt_1", 0), access("evt_2", 20, { tool: "Deals.ApproveDiscount" })]),
     );
 
     expect(rows.some((row) => row.listing)).toBe(false);
@@ -185,8 +185,8 @@ describe("what is not a listing", () => {
     const rows = groupAccessEvents(
       newestFirst([
         access("evt_1", 0),
-        access("evt_2", 20, { tool: "Loan.ApproveLoan" }),
-        access("evt_3", 40, { tool: "Loan.SearchLoans" }),
+        access("evt_2", 20, { tool: "Deals.ApproveDiscount" }),
+        access("evt_3", 40, { tool: "Deals.SearchDeals" }),
       ]),
     );
 
@@ -206,9 +206,9 @@ describe("what a listing card may state", () => {
 
   test("the tools left visible, in the order the control plane decided them", () => {
     expect(facts.enabled).toEqual([
-      "Loan.SearchLoans",
-      "Loan.GetLoan",
-      "Loan.DenyLoan",
+      "Deals.SearchDeals",
+      "Deals.GetDeal",
+      "Deals.DenyDiscount",
       "Approvals.RequestApproval",
       "Approvals.Decide",
     ]);
@@ -217,7 +217,7 @@ describe("what a listing card may state", () => {
   test("the tool taken away, with the rule that took it", () => {
     expect(facts.hidden).toEqual([
       {
-        tool: "Loan.ApproveLoan",
+        tool: "Deals.ApproveDiscount",
         rule_id: "access.analysts-cannot-see-approve",
         reason: "Credit analysts do not hold approval authority; the tool is hidden from this role.",
       },
@@ -237,7 +237,7 @@ describe("what a listing card may state", () => {
   /**
    * The deployed shape: Arcade answers one `tools/list` with four `/access`
    * calls, so a governed tool is decided more than once in one burst. The card
-   * counts tools, not decisions — six decisions about `Loan.GetLoan` are one
+   * counts tools, not decisions — six decisions about `Deals.GetDeal` are one
    * tool this person can see.
    */
   test("a tool decided by more than one call in the burst is one tool, not several", () => {
@@ -254,16 +254,16 @@ describe("what a listing card may state", () => {
   test("a tool one call allowed and another hid is reported hidden, the louder of the two", () => {
     const rows = groupAccessEvents(
       newestFirst([
-        access("evt_1", 0, { tool: "Loan.SearchLoans" }),
-        access("evt_2", 10, { tool: "Loan.GetLoan" }),
-        access("evt_3", 20, { tool: "Loan.ApproveLoan" }),
-        access("evt_4", 30, { tool: "Loan.ApproveLoan", decision: "deny", rule_id: "access.hide" }),
+        access("evt_1", 0, { tool: "Deals.SearchDeals" }),
+        access("evt_2", 10, { tool: "Deals.GetDeal" }),
+        access("evt_3", 20, { tool: "Deals.ApproveDiscount" }),
+        access("evt_4", 30, { tool: "Deals.ApproveDiscount", decision: "deny", rule_id: "access.hide" }),
       ]),
     );
     const facts = listingFacts(rows[0] as (typeof rows)[number]);
 
-    expect(facts.hidden.map((tool) => tool.tool)).toEqual(["Loan.ApproveLoan"]);
-    expect(facts.enabled).not.toContain("Loan.ApproveLoan");
+    expect(facts.hidden.map((tool) => tool.tool)).toEqual(["Deals.ApproveDiscount"]);
+    expect(facts.enabled).not.toContain("Deals.ApproveDiscount");
   });
 });
 
@@ -316,7 +316,7 @@ describe("the listing card", () => {
   });
 
   test("names the hidden tool on the face of the card", () => {
-    expect(card).toContain('<p class="cg-listing-hidden-tool">Loan.ApproveLoan</p>');
+    expect(card).toContain('<p class="cg-listing-hidden-tool">Deals.ApproveDiscount</p>');
   });
 
   test("carries the rule id that hid it, in the rule chip every other card uses", () => {
@@ -328,7 +328,7 @@ describe("the listing card", () => {
   });
 
   test("the allowed tools are behind a disclosure, by name", () => {
-    for (const tool of ["Loan.SearchLoans", "Loan.GetLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"]) {
+    for (const tool of ["Deals.SearchDeals", "Deals.GetDeal", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"]) {
       expect(card).toContain(`<li>${tool}</li>`);
     }
   });
@@ -442,7 +442,7 @@ describe("?fanout=1 replays both measured shapes", () => {
     expect(cards).toHaveLength(4);
     // Newest first: the listing is the last burst the stream sends.
     expect(cards[0]).toContain("tools/list");
-    expect(cards[0]).toContain("Loan.ApproveLoan");
+    expect(cards[0]).toContain("Deals.ApproveDiscount");
     expect(cards.slice(1).some((drawn) => drawn.includes("tools/list"))).toBe(false);
   });
 });

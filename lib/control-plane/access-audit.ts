@@ -5,7 +5,7 @@
  * asked about **the whole Arcade project catalogue**, and the shape is two
  * measurements, not one:
  *
- * - **Four `/access` calls per `tools/list`** — one scoped to `Loan`, one
+ * - **Four `/access` calls per `tools/list`** — one scoped to `Deals`, one
  *   enumerating every toolkit in the project, ~1.6 MB
  *   (measured against a real Arcade project while the stage demo was built).
  * - **8,278 frames per `tools/list`, on the deployed gateway.** Six `allow` —
@@ -33,7 +33,7 @@
  *
  * **B — one row per `/access` call.** Four rows a listing. Cheap, and it
  * throws away the thing act 1 is: `access.analysts-cannot-see-approve` hiding
- * `Loan.ApproveLoan` from Bob has to be a row that *names that tool*, and the
+ * `Deals.ApproveDiscount` from Bob has to be a row that *names that tool*, and the
  * `allow` rows for the tools it did not hide have to be there too — a rule
  * that matches nothing is otherwise indistinguishable from a rule that
  * permits, which is the failure this whole repo is organised against.

@@ -132,7 +132,7 @@ function plant(path: string, sql: string): void {
 
 describe("users add", () => {
   test("creates the identity and the subject, lowercased, and prints the change row", async () => {
-    const run = await ok(["add", "Dana.Lee@Example.COM", "--name", "Dana Lee", "--role", "loan_officer", "--clearance", "75000"]);
+    const run = await ok(["add", "Dana.Lee@Example.COM", "--name", "Dana Lee", "--role", "account_executive", "--clearance", "75000"]);
 
     const who = person("dana.lee@example.com");
     expect(who).toMatchObject({ name: "Dana Lee", email: "dana.lee@example.com" });
@@ -143,7 +143,7 @@ describe("users add", () => {
     expect(subject("dana.lee@example.com")).toEqual({
       user_id: "dana.lee@example.com",
       display_name: "Dana Lee",
-      role: "loan_officer",
+      role: "account_executive",
       clearance: 75000,
     });
 
@@ -151,7 +151,7 @@ describe("users add", () => {
     expect(row).toMatchObject({
       action: "add",
       role_before: null,
-      role_after: "loan_officer",
+      role_after: "account_executive",
       clearance_before: null,
       clearance_after: 75000,
     });
@@ -160,12 +160,12 @@ describe("users add", () => {
     // The row it wrote is the row it printed.
     expect(run.stdout).toContain(
       `subject_changes #${row!.seq} ${row!.id} at ${row!.ts} by ${row!.actor}: add dana.lee@example.com, ` +
-        `role (none) -> loan_officer, clearance (none) -> 75000`,
+        `role (none) -> account_executive, clearance (none) -> 75000`,
     );
   });
 
   test("a generated password is printed once, verifies against the stored hash, and is nowhere on disk", async () => {
-    const run = await ok(["add", "erin@example.com", "--name", "Erin", "--role", "vp_credit", "--clearance", "250000"]);
+    const run = await ok(["add", "erin@example.com", "--name", "Erin", "--role", "vp_sales", "--clearance", "250000"]);
     const password = printedPassword(run.stdout);
     expect(password).toMatch(/^[A-Za-z0-9]{20}$/);
     expect(run.stdout.split(password)).toHaveLength(2);
@@ -181,7 +181,7 @@ describe("users add", () => {
 
   test("--password is used as given and not echoed", async () => {
     const run = await ok([
-      "add", "finn@example.com", "--name", "Finn", "--role", "loan_officer", "--clearance", "1000", "--password", "correct-horse-battery",
+      "add", "finn@example.com", "--name", "Finn", "--role", "account_executive", "--clearance", "1000", "--password", "correct-horse-battery",
     ]);
     expect(run.stdout).not.toContain("correct-horse-battery");
     expect(run.stdout).not.toMatch(/^ {2}password /m);
@@ -205,7 +205,7 @@ describe("users add", () => {
     const run = await users(["add", "gil@example.com", "--name", "Gil", "--role", "janitor", "--clearance", "5"]);
     expect(run.code).toBe(1);
     expect(run.stderr).toContain(
-      'role "janitor" is not one the policy knows: chief_credit_officer, credit_analyst, loan_officer, vp_credit',
+      'role "janitor" is not one the policy knows: account_executive, cro, sdr, vp_sales',
     );
     expect(counts()).toEqual(before);
   });
@@ -215,24 +215,24 @@ describe("users add", () => {
     plant(
       governancePath(),
       `INSERT INTO policy_rules (id, description, hook, toolkit, tool, subjects, conditions, effect, reason, priority)
-       VALUES ('access.auditors-cannot-see-deny', '', 'access', 'Loan', 'DenyLoan',
+       VALUES ('access.auditors-cannot-see-deny', '', 'access', 'Deals', 'DenyDiscount',
                '{"user_ids":null,"roles":["auditor"],"clearance_below":null,"clearance_at_least":null}',
                '[]', 'deny', 'Auditors do not deny loans.', 20)`,
     );
     await ok(["add", "hana@example.com", "--name", "Hana", "--role", "auditor", "--clearance", "0"]);
     expect(subject("hana@example.com")?.role).toBe("auditor");
 
-    // Every loan officer gone from governance.db: the role is still the fixture's.
-    plant(governancePath(), "DELETE FROM subjects WHERE role = 'loan_officer'");
-    await ok(["add", "ivan@example.com", "--name", "Ivan", "--role", "loan_officer", "--clearance", "10"]);
+    // Every account executive gone from governance.db: the role is still the fixture's.
+    plant(governancePath(), "DELETE FROM subjects WHERE role = 'account_executive'");
+    await ok(["add", "ivan@example.com", "--name", "Ivan", "--role", "account_executive", "--clearance", "10"]);
   });
 
-  test("--clearance defaults to 0 for credit_analyst only, and must be a non-negative whole number", async () => {
-    const analyst = await ok(["add", "jo@example.com", "--name", "Jo", "--role", "credit_analyst"]);
+  test("--clearance defaults to 0 for sdr only, and must be a non-negative whole number", async () => {
+    const analyst = await ok(["add", "jo@example.com", "--name", "Jo", "--role", "sdr"]);
     expect(analyst.stdout).toContain("clearance 0");
     expect(subject("jo@example.com")?.clearance).toBe(0);
 
-    for (const role of ["loan_officer", "vp_credit", "chief_credit_officer"]) {
+    for (const role of ["account_executive", "vp_sales", "cro"]) {
       const run = await users(["add", `k.${role}@example.com`, "--name", "K", "--role", role]);
       expect(run.code).toBe(2);
       expect(run.stderr).toContain(`--clearance is required for role ${role}`);
@@ -240,30 +240,30 @@ describe("users add", () => {
     }
 
     for (const clearance of ["-1", "1.5", "50k", ""]) {
-      const run = await users(["add", "lee@example.com", "--name", "Lee", "--role", "loan_officer", `--clearance=${clearance}`]);
+      const run = await users(["add", "lee@example.com", "--name", "Lee", "--role", "account_executive", `--clearance=${clearance}`]);
       expect(run.code).toBe(2);
       expect(run.stderr).toContain("is not a non-negative whole number");
     }
     expect(person("lee@example.com")).toBeUndefined();
   });
 
-  test("the implied 0 is the policy's: without the access rule, credit_analyst needs --clearance too", async () => {
+  test("the implied 0 is the policy's: without the access rule, sdr needs --clearance too", async () => {
     await bootstrap();
     plant(governancePath(), "UPDATE policy_rules SET enabled = 0 WHERE id = 'access.analysts-cannot-see-approve'");
-    const run = await users(["add", "mo@example.com", "--name", "Mo", "--role", "credit_analyst"]);
+    const run = await users(["add", "mo@example.com", "--name", "Mo", "--role", "sdr"]);
     expect(run.code).toBe(2);
-    expect(run.stderr).toContain("--clearance is required for role credit_analyst");
+    expect(run.stderr).toContain("--clearance is required for role sdr");
   });
 
   test("an address either half already holds is refused, and nothing changes", async () => {
-    await ok(["add", "nia@example.com", "--name", "Nia", "--role", "loan_officer", "--clearance", "1"]);
+    await ok(["add", "nia@example.com", "--name", "Nia", "--role", "account_executive", "--clearance", "1"]);
     const before = counts();
-    const again = await users(["add", "NIA@example.com", "--name", "Nia", "--role", "vp_credit", "--clearance", "2"]);
+    const again = await users(["add", "NIA@example.com", "--name", "Nia", "--role", "vp_sales", "--clearance", "2"]);
     expect(again.code).toBe(1);
     expect(again.stderr).toContain("nia@example.com already exists");
 
     plant(governancePath(), "DELETE FROM subjects WHERE user_id = 'nia@example.com'");
-    const half = await users(["add", "nia@example.com", "--name", "Nia", "--role", "vp_credit", "--clearance", "2"]);
+    const half = await users(["add", "nia@example.com", "--name", "Nia", "--role", "vp_sales", "--clearance", "2"]);
     expect(half.code).toBe(1);
     expect(half.stderr).toContain("half there: an identity in idp.db but no subject");
     expect(counts()).toEqual({ ...before, subjects: before.subjects - 1 });
@@ -276,7 +276,7 @@ describe("users add", () => {
       "CREATE TRIGGER planted_refusal BEFORE INSERT ON subjects BEGIN SELECT RAISE(ABORT, 'planted refusal'); END;",
     );
     const before = counts();
-    const run = await users(["add", "omar@example.com", "--name", "Omar", "--role", "loan_officer", "--clearance", "1"]);
+    const run = await users(["add", "omar@example.com", "--name", "Omar", "--role", "account_executive", "--clearance", "1"]);
     expect(run.code).toBe(1);
     expect(run.stderr).toContain("planted refusal");
     expect(run.stderr).toContain("the identity was removed again and nothing was added");
@@ -289,7 +289,7 @@ describe("users add", () => {
 
 describe("the Arcade invite reminder", () => {
   test("names the email for every role that can request an approval", async () => {
-    const roles = { loan_officer: "5", credit_analyst: "0", vp_credit: "5", chief_credit_officer: "5" };
+    const roles = { account_executive: "5", sdr: "0", vp_sales: "5", cro: "5" };
     for (const [role, clearance] of Object.entries(roles)) {
       const email = `req.${role}@example.com`;
       const run = await ok(["add", email, "--name", "R", "--role", role, "--clearance", clearance]);
@@ -304,43 +304,43 @@ describe("the Arcade invite reminder", () => {
       governancePath(),
       `INSERT INTO policy_rules (id, description, hook, toolkit, tool, subjects, conditions, effect, reason, priority)
        VALUES ('access.analysts-cannot-request', '', 'access', 'Approvals', 'RequestApproval',
-               '{"user_ids":null,"roles":["credit_analyst"],"clearance_below":null,"clearance_at_least":null}',
+               '{"user_ids":null,"roles":["sdr"],"clearance_below":null,"clearance_at_least":null}',
                '[]', 'deny', 'Analysts do not request approvals.', 11)`,
     );
-    const analyst = await ok(["add", "pat@example.com", "--name", "Pat", "--role", "credit_analyst"]);
+    const analyst = await ok(["add", "pat@example.com", "--name", "Pat", "--role", "sdr"]);
     expect(analyst.stdout).not.toContain(INVITE);
-    const officer = await ok(["add", "quinn@example.com", "--name", "Quinn", "--role", "loan_officer", "--clearance", "5"]);
+    const officer = await ok(["add", "quinn@example.com", "--name", "Quinn", "--role", "account_executive", "--clearance", "5"]);
     expect(officer.stdout).toContain(`${INVITE} quinn@example.com`);
   });
 });
 
 describe("set-role and set-clearance", () => {
   test("each change writes a row, with before and after", async () => {
-    await ok(["add", "rae@example.com", "--name", "Rae", "--role", "loan_officer", "--clearance", "50000"]);
+    await ok(["add", "rae@example.com", "--name", "Rae", "--role", "account_executive", "--clearance", "50000"]);
 
     const clearance = await ok(["set-clearance", "Rae@Example.com", "75000"]);
     expect(subject("rae@example.com")?.clearance).toBe(75000);
-    const role = await ok(["set-role", "rae@example.com", "vp_credit"]);
-    expect(subject("rae@example.com")?.role).toBe("vp_credit");
+    const role = await ok(["set-role", "rae@example.com", "vp_sales"]);
+    expect(subject("rae@example.com")?.role).toBe("vp_sales");
 
     const rows = changes("rae@example.com");
     expect(rows.map((row) => row.action)).toEqual(["add", "set-clearance", "set-role"]);
-    expect(rows[1]).toMatchObject({ role_before: "loan_officer", role_after: "loan_officer", clearance_before: 50000, clearance_after: 75000 });
-    expect(rows[2]).toMatchObject({ role_before: "loan_officer", role_after: "vp_credit", clearance_before: 75000, clearance_after: 75000 });
+    expect(rows[1]).toMatchObject({ role_before: "account_executive", role_after: "account_executive", clearance_before: 50000, clearance_after: 75000 });
+    expect(rows[2]).toMatchObject({ role_before: "account_executive", role_after: "vp_sales", clearance_before: 75000, clearance_after: 75000 });
     expect(clearance.stdout).toContain(`subject_changes #${rows[1]!.seq} ${rows[1]!.id}`);
     expect(role.stdout).toContain(`subject_changes #${rows[2]!.seq} ${rows[2]!.id}`);
   });
 
   test("no change, no row", async () => {
-    await ok(["add", "sol@example.com", "--name", "Sol", "--role", "loan_officer", "--clearance", "10"]);
+    await ok(["add", "sol@example.com", "--name", "Sol", "--role", "account_executive", "--clearance", "10"]);
     const before = counts();
     expect((await ok(["set-clearance", "sol@example.com", "10"])).stdout).toContain("nothing recorded");
-    expect((await ok(["set-role", "sol@example.com", "loan_officer"])).stdout).toContain("nothing recorded");
+    expect((await ok(["set-role", "sol@example.com", "account_executive"])).stdout).toContain("nothing recorded");
     expect(counts()).toEqual(before);
   });
 
   test("refuses an unknown role, a bad clearance and an unknown user, writing nothing", async () => {
-    await ok(["add", "tao@example.com", "--name", "Tao", "--role", "loan_officer", "--clearance", "10"]);
+    await ok(["add", "tao@example.com", "--name", "Tao", "--role", "account_executive", "--clearance", "10"]);
     const before = counts();
     expect((await users(["set-role", "tao@example.com", "janitor"])).code).toBe(1);
     expect((await users(["set-clearance", "tao@example.com", "-3"])).code).toBe(2);
@@ -348,11 +348,11 @@ describe("set-role and set-clearance", () => {
     expect(nobody.code).toBe(1);
     expect(nobody.stderr).toContain("nobody@example.com has no subject");
     expect(counts()).toEqual(before);
-    expect(subject("tao@example.com")).toMatchObject({ role: "loan_officer", clearance: 10 });
+    expect(subject("tao@example.com")).toMatchObject({ role: "account_executive", clearance: 10 });
   });
 
   test("subject_changes is append-only", async () => {
-    await ok(["add", "uma@example.com", "--name", "Uma", "--role", "loan_officer", "--clearance", "10"]);
+    await ok(["add", "uma@example.com", "--name", "Uma", "--role", "account_executive", "--clearance", "10"]);
     expect(() => plant(governancePath(), "UPDATE subject_changes SET clearance_after = 999")).toThrow(/append-only/);
     expect(() => plant(governancePath(), "DELETE FROM subject_changes")).toThrow(/append-only/);
     expect(changes("uma@example.com")).toHaveLength(1);
@@ -361,7 +361,7 @@ describe("set-role and set-clearance", () => {
 
 describe("users remove", () => {
   test("deletes both halves and revokes every session and token", async () => {
-    await ok(["add", "vic@example.com", "--name", "Vic", "--role", "loan_officer", "--clearance", "10"]);
+    await ok(["add", "vic@example.com", "--name", "Vic", "--role", "account_executive", "--clearance", "10"]);
     const { id } = person("vic@example.com")!;
     const clientId = query<{ clientId: string }>(idpPath(), 'SELECT clientId FROM "oauthClient" LIMIT 1')[0]?.clientId;
     const now = new Date().toISOString();
@@ -392,12 +392,12 @@ describe("users remove", () => {
     expect(query<{ n: number }>(idpPath(), 'SELECT COUNT(*) AS n FROM "oauthClient"')[0]!.n).toBe(clientsBefore);
 
     const last = changes("vic@example.com").at(-1);
-    expect(last).toMatchObject({ action: "remove", role_before: "loan_officer", role_after: null, clearance_before: 10, clearance_after: null });
+    expect(last).toMatchObject({ action: "remove", role_before: "account_executive", role_after: null, clearance_before: 10, clearance_after: null });
     expect(run.stdout).toContain(`subject_changes #${last!.seq} ${last!.id}`);
   });
 
   test("removes whichever half is there, and refuses an address with neither", async () => {
-    await ok(["add", "wen@example.com", "--name", "Wen", "--role", "loan_officer", "--clearance", "10"]);
+    await ok(["add", "wen@example.com", "--name", "Wen", "--role", "account_executive", "--clearance", "10"]);
     plant(governancePath(), "DELETE FROM subjects WHERE user_id = 'wen@example.com'");
     const half = await ok(["remove", "wen@example.com"]);
     expect(half.stdout).toContain("subject    none in governance.db");
@@ -419,11 +419,11 @@ describe("a first boot (#33)", () => {
 
 describe("users list", () => {
   test("shows both halves side by side, and says what a half-present user cannot do", async () => {
-    await ok(["add", "xan@example.com", "--name", "Xan", "--role", "vp_credit", "--clearance", "250000"]);
-    await ok(["add", "yui@example.com", "--name", "Yui", "--role", "loan_officer", "--clearance", "5"]);
+    await ok(["add", "xan@example.com", "--name", "Xan", "--role", "vp_sales", "--clearance", "250000"]);
+    await ok(["add", "yui@example.com", "--name", "Yui", "--role", "account_executive", "--clearance", "5"]);
     plant(governancePath(), "DELETE FROM subjects WHERE user_id = 'yui@example.com'");
     const { stdout } = await ok(["list"]);
-    expect(stdout).toMatch(/^xan@example\.com\s+Xan\s+vp_credit\s+250000\s+yes\s+yes$/m);
+    expect(stdout).toMatch(/^xan@example\.com\s+Xan\s+vp_sales\s+250000\s+yes\s+yes$/m);
     expect(stdout).toMatch(/^yui@example\.com\s+Yui\s+-\s+-\s+yes\s+no\s+can sign in, but has no subject: denied at every hook$/m);
   });
 });
@@ -431,10 +431,10 @@ describe("users list", () => {
 describe("users seed-demo", () => {
   const FLAGS = ["--alice", "al@demo.test", "--bob", "bo@demo.test", "--charlie", "ch@demo.test", "--michael", "mi@demo.test"];
   const CAST = [
-    ["al@demo.test", "Alice", "loan_officer", 50_000],
-    ["bo@demo.test", "Bob", "credit_analyst", 0],
-    ["ch@demo.test", "Charlie", "vp_credit", 250_000],
-    ["mi@demo.test", "Michael", "chief_credit_officer", 5_000_000],
+    ["al@demo.test", "Alice", "account_executive", 50_000],
+    ["bo@demo.test", "Bob", "sdr", 0],
+    ["ch@demo.test", "Charlie", "vp_sales", 250_000],
+    ["mi@demo.test", "Michael", "cro", 5_000_000],
   ] as const;
 
   test("adds the four with today's roles and limits, each with a password and the invite reminder", async () => {
@@ -462,7 +462,7 @@ describe("users seed-demo", () => {
 
   test("asks for the emails it was not given", async () => {
     const run = await ok(["seed-demo", "--bob", "bo@demo.test"], "al@demo.test\nch@demo.test\nmi@demo.test\n");
-    expect(run.stderr).toContain("Alice's email (loan_officer, clearance 50000): ");
+    expect(run.stderr).toContain("Alice's email (account_executive, clearance 50000): ");
     expect(run.stderr).not.toContain("Bob's email");
     for (const [email, , role] of CAST) expect(subject(email)?.role).toBe(role);
   });

@@ -6,7 +6,7 @@
  * the ones the beat's credibility rests on:
  *
  * - the tool that was hidden is **absent**, not rendered as struck-through or
- *   greyed out. A crossed-out `ApproveLoan` would be a picture of a control that
+ *   greyed out. A crossed-out `ApproveDiscount` would be a picture of a control that
  *   does nothing, and it is the single most tempting thing to add to this
  *   screen.
  * - the built-ins that were filtered are **named**, because "eight became six"
@@ -36,10 +36,10 @@ const SAM = "bob@bank.example";
 
 /** What `GET /api/approvals/roster` answers on a freshly seeded `governance.db`, as far as the card reads it. */
 const ROSTER: RosterEntry[] = [
-  { user_id: DANA, display_name: "Alice", role: "loan_officer", clearance: 50_000 },
-  { user_id: SAM, display_name: "Bob", role: "credit_analyst", clearance: 0 },
-  { user_id: "charlie@bank.example", display_name: "Charlie", role: "vp_credit", clearance: 250_000 },
-  { user_id: "michael@bank.example", display_name: "Michael", role: "chief_credit_officer", clearance: 5_000_000 },
+  { user_id: DANA, display_name: "Alice", role: "account_executive", clearance: 50_000 },
+  { user_id: SAM, display_name: "Bob", role: "sdr", clearance: 0 },
+  { user_id: "charlie@bank.example", display_name: "Charlie", role: "vp_sales", clearance: 250_000 },
+  { user_id: "michael@bank.example", display_name: "Michael", role: "cro", clearance: 5_000_000 },
 ];
 
 function lookup(session: Session | null): PersonLookup {
@@ -55,9 +55,9 @@ function session(email: string): Session {
 const SAM_TOOLS: SessionTools = {
   ok: true,
   tools: [
-    { name: "Loan_SearchLoans", description: "Find loan applications in the loan book." },
-    { name: "Loan_GetLoan", description: "Read one loan application's complete file by ID." },
-    { name: "Loan_DenyLoan", description: "Decline a loan application with a stated reason." },
+    { name: "Deals_SearchDeals", description: "Find discount requests in the deal book." },
+    { name: "Deals_GetDeal", description: "Read one discount requests's complete file by ID." },
+    { name: "Deals_DenyDiscount", description: "Decline a discount requests with a stated reason." },
   ],
   filtered: ["System_ManageAuthorization", "Arcade_ListApps"],
 };
@@ -66,7 +66,7 @@ const DANA_TOOLS: SessionTools = {
   ok: true,
   tools: [
     ...SAM_TOOLS.ok ? SAM_TOOLS.tools : [],
-    { name: "Loan_ApproveLoan", description: "Approve a loan application for a given dollar amount." },
+    { name: "Deals_ApproveDiscount", description: "Approve a discount requests for a given dollar amount." },
   ],
   filtered: ["System_ManageAuthorization", "Arcade_ListApps"],
 };
@@ -79,10 +79,10 @@ describe("the persona, with role and authority", () => {
     const markup = render({ session: session(DANA), tools: DANA_TOOLS });
 
     expect(markup).toContain("Alice");
-    expect(markup).toContain("Loan Officer");
+    expect(markup).toContain("Account Executive");
     expect(markup).toContain("$50,000");
     // The address, always: it is the string Arcade sees as `user_id` and the
-    // loan book records as the actor, and a screen about who the agent acts as
+    // deal book records as the actor, and a screen about who the agent acts as
     // that shows only a friendly name is showing the label and hiding the fact.
     expect(markup).toContain(DANA);
   });
@@ -91,7 +91,7 @@ describe("the persona, with role and authority", () => {
     const markup = render({ session: session(SAM), tools: SAM_TOOLS });
 
     expect(markup).toContain("Bob");
-    expect(markup).toContain("Credit Analyst");
+    expect(markup).toContain("SDR");
     expect(markup).toContain("$0");
   });
 
@@ -109,7 +109,7 @@ describe("the persona, with role and authority", () => {
     expect(markup).toContain("Not in this deployment’s cast");
     expect(markup).toContain("has no subject at that address");
     // No borrowed role and no borrowed figure.
-    expect(markup).not.toContain("Loan Officer");
+    expect(markup).not.toContain("Account Executive");
     expect(markup).not.toContain("$50,000");
   });
 
@@ -152,17 +152,17 @@ describe("the tool list", () => {
   test("as Bob the approval tool is absent — not struck through, not greyed out, absent", () => {
     const markup = render({ session: session(SAM), tools: SAM_TOOLS });
 
-    expect(markup).toContain("Loan_SearchLoans");
-    expect(markup).toContain("Loan_GetLoan");
-    expect(markup).toContain("Loan_DenyLoan");
+    expect(markup).toContain("Deals_SearchDeals");
+    expect(markup).toContain("Deals_GetDeal");
+    expect(markup).toContain("Deals_DenyDiscount");
     // The assertion the whole act rests on. There is nothing on this screen for
     // anyone to point at and ask "why is it still there?"
-    expect(markup).not.toContain("ApproveLoan");
-    expect(markup).not.toContain("approve_loan");
+    expect(markup).not.toContain("ApproveDiscount");
+    expect(markup).not.toContain("approve_discount");
   });
 
   test("as Alice it is there", () => {
-    expect(render({ session: session(DANA), tools: DANA_TOOLS })).toContain("Loan_ApproveLoan");
+    expect(render({ session: session(DANA), tools: DANA_TOOLS })).toContain("Deals_ApproveDiscount");
   });
 
   test("the page says where the list came from, and that it was not filtered here", () => {

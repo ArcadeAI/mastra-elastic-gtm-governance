@@ -1,5 +1,5 @@
 /**
- * The loan book itself: seeding, filtering, and the decision history.
+ * The deal book itself: seeding, filtering, and the decision history.
  */
 import { describe, expect, test } from "bun:test";
 import { rmSync } from "node:fs";
@@ -19,18 +19,18 @@ import {
 } from "../../lib/loans/db.ts";
 
 const ONE_LOAN: LoanSeed = {
-  loan_id: "LN-9001",
-  borrower_name: "Placeholder Co",
+  deal_id: "DL-9001",
+  account_name: "Placeholder Co",
   amount: 1_000,
   status: "pending",
   purpose: "Working capital",
-  submitted_at: "2026-01-01",
+  requested_at: "2026-01-01",
   credit_score: 700,
-  annual_revenue: 100_000,
-  years_in_business: 1,
+  arr: 100_000,
+  years_as_customer: 1,
   bank_account_number: "0000000000000000",
   tax_id: "00-0000000",
-  underwriter_notes: "None.",
+  crm_notes: "None.",
   decisions: [],
 };
 
@@ -43,25 +43,25 @@ describe("seeding", () => {
     const db = freshBook();
 
     expect(countLoans(db)).toBeGreaterThan(1);
-    expect(getLoan(db, "LN-2291")).not.toBeNull();
+    expect(getLoan(db, "DL-2291")).not.toBeNull();
   });
 
-  test("seeds LN-2291 with the fields the demo turns on", () => {
-    const loan = getLoan(freshBook(), "LN-2291");
+  test("seeds DL-2291 with the fields the demo turns on", () => {
+    const loan = getLoan(freshBook(), "DL-2291");
 
     expect(loan).toMatchObject({
-      loan_id: "LN-2291",
-      borrower_name: "Northwind Bakery LLC",
+      deal_id: "DL-2291",
+      account_name: "Northwind Robotics",
       amount: 95_000,
       status: "pending",
     });
 
-    // Act 3 redacts these downstream; the loan book must actually hand them out.
+    // Act 3 redacts these downstream; the deal book must actually hand them out.
     expect(loan?.bank_account_number).toMatch(/^\d{16}$/);
     expect(loan?.tax_id).toMatch(/^\d{2}-\d{7}$/);
 
     // Act 4 strips this downstream. It has to be there to be stripped.
-    expect(loan?.underwriter_notes).toMatch(/approve_loan/);
+    expect(loan?.crm_notes).toMatch(/approve_discount/);
   });
 
   test("a seed that fails leaves no schema, so the next boot retries", () => {
@@ -86,7 +86,7 @@ describe("seeding", () => {
 
     const first = openLoanBook(path);
     recordDecision(first, {
-      loan_id: "LN-2291",
+      deal_id: "DL-2291",
       decision: "approved",
       amount: 95_000,
       reason: null,
@@ -94,7 +94,7 @@ describe("seeding", () => {
     first.close();
 
     const second = openLoanBook(path);
-    const loan = getLoan(second, "LN-2291");
+    const loan = getLoan(second, "DL-2291");
     second.close();
     rmSync(dirname(path), { recursive: true, force: true });
 
@@ -119,30 +119,30 @@ describe("searchLoans", () => {
   test("filters by amount range, inclusive at both ends", () => {
     const results = searchLoans(freshBook(), { min_amount: 95_000, max_amount: 95_000 });
 
-    expect(results.map((loan) => loan.loan_id)).toEqual(["LN-2291"]);
+    expect(results.map((loan) => loan.deal_id)).toEqual(["DL-2291"]);
   });
 
   test("combines filters", () => {
     const results = searchLoans(freshBook(), { status: "pending", min_amount: 90_000 });
 
-    expect(results.map((loan) => loan.loan_id).sort()).toEqual(["LN-2290", "LN-2291", "LN-2295"]);
+    expect(results.map((loan) => loan.deal_id).sort()).toEqual(["DL-2290", "DL-2291", "DL-2295"]);
   });
 
-  test("returns list-view fields only — the detail view is get_loan", () => {
+  test("returns list-view fields only — the detail view is get_deal", () => {
     const [first] = searchLoans(freshBook(), { status: "pending" });
 
     expect(Object.keys(first ?? {}).sort()).toEqual([
+      "account_name",
       "amount",
-      "borrower_name",
-      "loan_id",
+      "deal_id",
       "purpose",
+      "requested_at",
       "status",
-      "submitted_at",
     ]);
   });
 
   test("is newest submission first", () => {
-    const dates = searchLoans(freshBook(), {}).map((loan) => loan.submitted_at);
+    const dates = searchLoans(freshBook(), {}).map((loan) => loan.requested_at);
 
     expect(dates).toEqual([...dates].sort().reverse());
   });
@@ -152,7 +152,7 @@ describe("recordDecision", () => {
   test("appends the approval and moves the status", () => {
     const db = freshBook();
     const loan = recordDecision(db, {
-      loan_id: "LN-2291",
+      deal_id: "DL-2291",
       decision: "approved",
       amount: 95_000,
       reason: null,
@@ -171,13 +171,13 @@ describe("recordDecision", () => {
     const db = freshBook();
 
     recordDecision(db, {
-      loan_id: "LN-2291",
+      deal_id: "DL-2291",
       decision: "approved",
       amount: 95_000,
       reason: null,
     });
     const second = recordDecision(db, {
-      loan_id: "LN-2291",
+      deal_id: "DL-2291",
       decision: "approved",
       amount: 50_000,
       reason: null,
@@ -191,13 +191,13 @@ describe("recordDecision", () => {
     const db = freshBook();
 
     recordDecision(db, {
-      loan_id: "LN-2292",
+      deal_id: "DL-2292",
       decision: "denied",
       amount: null,
       reason: "Interim statements outstanding.",
     });
     const approved = recordDecision(db, {
-      loan_id: "LN-2292",
+      deal_id: "DL-2292",
       decision: "approved",
       amount: 15_500,
       reason: null,
@@ -210,10 +210,10 @@ describe("recordDecision", () => {
   test("preserves a decision history that came in with the seed", () => {
     const db = freshBook();
 
-    expect(getLoan(db, "LN-2288")?.decisions).toHaveLength(1);
+    expect(getLoan(db, "DL-2288")?.decisions).toHaveLength(1);
 
     const after = recordDecision(db, {
-      loan_id: "LN-2288",
+      deal_id: "DL-2288",
       decision: "approved",
       amount: 38_000,
       reason: null,
@@ -228,7 +228,7 @@ describe("recordDecision", () => {
 
     expect(
       recordDecision(db, {
-        loan_id: "LN-0000",
+        deal_id: "DL-0000",
         decision: "approved",
         amount: 1,
         reason: null,
@@ -241,6 +241,6 @@ describe("recordDecision", () => {
 
 describe("getLoan", () => {
   test("returns null for an unknown ID", () => {
-    expect(getLoan(freshBook(), "LN-0000")).toBeNull();
+    expect(getLoan(freshBook(), "DL-0000")).toBeNull();
   });
 });

@@ -91,7 +91,7 @@ export function StatusChip({ status }: { status: ApprovalRecord["status"] }) {
  * Everything the request says, from the one read the link's id allows.
  *
  * Including who was *not* asked: routing chose the lowest sufficient approver
- * and left the chief credit officer alone, and that choice is only visible if
+ * and left the chief revenue officer alone, and that choice is only visible if
  * the page says so.
  */
 export function RequestDetails({ request }: { request: ApprovalRecord }) {

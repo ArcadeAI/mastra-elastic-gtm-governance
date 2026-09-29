@@ -1,9 +1,9 @@
 /**
  * Resolving a bare action name to the call a grant will authorise.
  *
- * `POST /approvals` carries `action: "approve_loan"`, and deliberately not a
+ * `POST /approvals` carries `action: "approve_discount"`, and deliberately not a
  * fully-qualified tool: `tools/approvals` has no catalogue, so it cannot know
- * that the action is served by `Loan.ApproveLoan`, that `loan_id` is the
+ * that the action is served by `Deals.ApproveDiscount`, that `deal_id` is the
  * argument naming the resource, or that `amount` is the one the approver's
  * clearance bounds. The control plane has all three, and this module is where
  * it works them out.
@@ -12,8 +12,8 @@
  * and each refusing rather than guessing:
  *
  * 1. **Which tool?** `arcade-mcp` PascalCases tool names unconditionally
- *    (measured on #35: `get_loan` deploys as `Loan.GetLoan`), so the action
- *    `approve_loan` is the tool `ApproveLoan`. Exactly one catalogued toolkit
+ *    (measured on #35: `get_deal` deploys as `Deals.GetDeal`), so the action
+ *    `approve_discount` is the tool `ApproveDiscount`. Exactly one catalogued toolkit
  *    must serve it. None, or more than one, is unresolvable.
  * 2. **Which argument carries the amount?** The one a `pre` rule already
  *    bounds with `exceeds_clearance`. That is the definition of "the input
@@ -52,7 +52,7 @@ export type ActionResolution =
   | { readonly outcome: "unresolvable"; readonly problem: string };
 
 /**
- * `approve_loan` → `ApproveLoan`. The rule `arcade-mcp` applies to every tool
+ * `approve_discount` → `ApproveDiscount`. The rule `arcade-mcp` applies to every tool
  * it deploys, applied here so the action name a refused call escalated under
  * lands on the tool Arcade will actually call on the retry.
  */

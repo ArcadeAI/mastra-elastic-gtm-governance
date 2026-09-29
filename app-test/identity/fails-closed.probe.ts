@@ -3,7 +3,7 @@
  * criterion 5 and the Q7 condition). Not a `*.test.ts`, so the root `bun test`
  * never collects it: it sets `NODE_ENV=production` and, in one of its two
  * modes, leaves the identity provider unable to boot — and the provider, like
- * the loan book and the control plane, is one per process and remembers.
+ * the deal book and the control plane, is one per process and remembers.
  *
  * `CG_PROBE_EXPECT` says which world this run is in:
  *
@@ -56,7 +56,7 @@ if (!FAILED) {
   const { seedDemoIdentity, seedDemoSubjects } = await import("../demo-cast.ts");
   const { openGovernance } = await import("../../lib/control-plane/policy-store.ts");
   await seedDemoIdentity(process.env.IDP_DB_PATH!);
-  const governance = openGovernance(process.env.GOVERNANCE_DB_PATH!, { loanToolkit: "Loan", approvalsToolkit: "Approvals" });
+  const governance = openGovernance(process.env.GOVERNANCE_DB_PATH!, { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
   seedDemoSubjects(governance);
   governance.close();
 }

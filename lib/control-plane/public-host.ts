@@ -14,7 +14,7 @@
  * here, because nothing here reads through it. Checking it at boot is the
  * point: the value is wrong from the moment it is set, and the only honest
  * place to say so is startup rather than the first redaction pass that needs
- * the loan book.
+ * the deal book.
  *
  * The addresses are typed in by hand per environment now, which means a human can type a bare name too.
  *

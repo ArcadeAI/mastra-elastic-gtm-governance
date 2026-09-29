@@ -18,8 +18,8 @@
  *
  * **Nothing here is a governance surface.** No hook runs on this path, so this
  * component has no `denied` state and must never grow one: the words it can put
- * on screen are the loan book's own, a request to sign in again, and an
- * admission that the loan book did not answer.
+ * on screen are the deal book's own, a request to sign in again, and an
+ * admission that the deal book did not answer.
  */
 import { DEMO_LOAN_IDS, type LoanBookState } from "../../lib/loan-context/loans.ts";
 import { LoanFileCard } from "./LoanFileCard.tsx";
@@ -41,14 +41,14 @@ export const SIGN_IN = { href: "/api/auth/signin", label: "Sign in" } as const;
 
 export function LoanFilesView({ state }: { state: LoanBookState }) {
   return (
-    <section className="bank-panel" aria-label="Applications under review">
-      <h2 className="bank-panel-title">Applications under review</h2>
+    <section className="bank-panel" aria-label="Discount requests under review">
+      <h2 className="bank-panel-title">Discount requests under review</h2>
       <div className="bank-panel-body">
         {state.status === "loaded" ? (
           <>
             <div className="bank-files">
               {shown(state).map((loan) => (
-                <LoanFileCard key={loan.loan_id} loan={loan} />
+                <LoanFileCard key={loan.deal_id} loan={loan} />
               ))}
             </div>
             {/* Who the screen is reading as. The same question the panel
@@ -75,7 +75,7 @@ export function LoanFilesView({ state }: { state: LoanBookState }) {
  * simply absent rather than drawn as an empty card.
  */
 function shown(state: Extract<LoanBookState, { status: "loaded" }>) {
-  return DEMO_LOAN_IDS.map((id) => state.loans.find((loan) => loan.loan_id === id)).filter(
+  return DEMO_LOAN_IDS.map((id) => state.loans.find((loan) => loan.deal_id === id)).filter(
     (loan): loan is NonNullable<typeof loan> => loan !== undefined,
   );
 }

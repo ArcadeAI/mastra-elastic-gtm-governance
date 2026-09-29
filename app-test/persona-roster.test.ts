@@ -57,10 +57,10 @@ describe("the role/limit table matches what apps/hooks seeds", () => {
     // Written out rather than derived, so an edit to both the fixture and the
     // table still has to be a deliberate edit to `DESIGN.md` → Cast as well.
     expect(PERSONAS.map((persona) => [persona.name, persona.role, persona.clearance])).toEqual([
-      ["Alice", "Loan Officer", 50_000],
-      ["Bob", "Credit Analyst", 0],
-      ["Charlie", "VP Credit", 250_000],
-      ["Michael", "Chief Credit Officer", 5_000_000],
+      ["Alice", "Account Executive", 50_000],
+      ["Bob", "SDR", 0],
+      ["Charlie", "VP Sales", 250_000],
+      ["Michael", "Chief Revenue Officer", 5_000_000],
     ]);
   });
 
@@ -76,7 +76,7 @@ describe("looking a person up from the address the IdP asserted", () => {
   // What `GET /api/approvals/roster` answers, as far as the lookup reads it.
   // `roster-from-database.test.tsx` makes it come from a real governance.db.
   const subjects = [
-    { user_id: "alice@example.test", display_name: "Alice", role: "loan_officer", clearance: 50_000 },
+    { user_id: "alice@example.test", display_name: "Alice", role: "account_executive", clearance: 50_000 },
     { user_id: "priya@company.test", display_name: "Priya", role: "regional_credit_head", clearance: 400_000 },
   ];
 
@@ -109,10 +109,10 @@ describe("looking a person up from the address the IdP asserted", () => {
 
   test("the demo roles read as DESIGN.md writes them, any other as title-cased words", () => {
     expect(PERSONAS.map((persona) => roleLabel(persona.roleKey))).toEqual([
-      "Loan Officer",
-      "Credit Analyst",
-      "VP Credit",
-      "Chief Credit Officer",
+      "Account Executive",
+      "SDR",
+      "VP Sales",
+      "Chief Revenue Officer",
     ]);
     expect(roleLabel("regional_credit_head")).toBe("Regional Credit Head");
   });

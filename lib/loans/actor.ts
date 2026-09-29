@@ -125,7 +125,7 @@ function baseUrl(host: string): string {
  *     the first write after a revocation both fails and clears the reads.
  *
  * This is memoisation, not a session: nothing here decides anything, and the
- * worst it can do is attribute a read of the loan book to the person who was
+ * worst it can do is attribute a read of the deal book to the person who was
  * holding that exact token up to a minute ago.
  */
 export const RESOLUTION_TTL_MS = 60_000;
@@ -222,7 +222,7 @@ export async function actorFromRequest(
   if (match === null) throw new ActorError("A bearer token is required.");
 
   const key = tokenFingerprint(match[1]!);
-  // A request that changes the loan book is resolved against the provider
+  // A request that changes the deal book is resolved against the provider
   // every time. Reads are what the bank's screens poll, so they are where all
   // the traffic is, and a read is also the only thing a minute-old answer can
   // get wrong cheaply.

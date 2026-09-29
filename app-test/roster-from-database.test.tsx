@@ -7,10 +7,10 @@
  * there. Here the control plane is real — its own server on a port the OS
  * handed out, over a `governance.db` seeded from the shipped fixture — and a
  * user is added the way `bun run users add` adds one, as a `subjects` row. The
- * card and the loan book then read it through `GET /api/approvals/roster`, the
+ * card and the deal book then read it through `GET /api/approvals/roster`, the
  * route the app's pages read at `CONTROL_PLANE_HOST`.
  *
- * The one stand-in is the loan book `readLoanBook` is handed: the claim is
+ * The one stand-in is the deal book `readLoanBook` is handed: the claim is
  * about whose name goes on a decision, not about the bank, whose own reads are
  * `api-loans.test.ts`'s.
  */
@@ -34,14 +34,14 @@ import { readLoanBook } from "../lib/loan-context/read.ts";
 
 const STORE_TOKEN = "roster-test-store-token";
 const POLL_MS = 10;
-const PRIYA = { user_id: "priya@company.test", display_name: "Priya", role: "vp_credit", clearance: 400_000 };
+const PRIYA = { user_id: "priya@company.test", display_name: "Priya", role: "vp_sales", clearance: 400_000 };
 
 const config: HooksConfig = {
   port: 0,
   dbPath: ":memory:",
   signingSecret: "roster-test-hook-secret",
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: POLL_MS,
@@ -129,12 +129,12 @@ describe("the signed-in card reads the subjects table", () => {
     const person = await lookupPerson("Priya@Company.Test", plane.roster);
     expect(person).toEqual({
       status: "found",
-      person: { email: PRIYA.user_id, name: "Priya", role: "VP Credit", roleKey: "vp_credit", clearance: 400_000 },
+      person: { email: PRIYA.user_id, name: "Priya", role: "VP Sales", roleKey: "vp_sales", clearance: 400_000 },
     });
 
     const markup = card(PRIYA.user_id, person);
     expect(markup).toContain("<strong>Priya</strong>");
-    expect(markup).toContain("VP Credit");
+    expect(markup).toContain("VP Sales");
     expect(markup).toContain("$400,000");
     expect(markup).not.toContain("Not in this deployment");
   });
@@ -144,7 +144,7 @@ describe("the signed-in card reads the subjects table", () => {
     const alice = await lookupPerson("alice@bank.example", plane.roster);
     expect(alice.status === "found" && [alice.person.name, alice.person.role, alice.person.clearance]).toEqual([
       "Alice",
-      "Loan Officer",
+      "Account Executive",
       50_000,
     ]);
 
@@ -193,12 +193,12 @@ describe("decided_by_name reads the subjects table", () => {
   const loanBook = {
     async fetch(request: Request): Promise<Response> {
       const path = new URL(request.url).pathname;
-      if (path === "/loans") return Response.json({ count: 2, loans: [{ loan_id: "LN-1" }, { loan_id: "LN-2" }] });
+      if (path === "/loans") return Response.json({ count: 2, loans: [{ deal_id: "DL-1" }, { deal_id: "DL-2" }] });
       const id = path.split("/").pop();
-      const decided_by = id === "LN-1" ? PRIYA.user_id : "gone@company.test";
+      const decided_by = id === "DL-1" ? PRIYA.user_id : "gone@company.test";
       return Response.json({
-        loan_id: id,
-        borrower_name: "Northwind Bakery LLC",
+        deal_id: id,
+        account_name: "Northwind Robotics",
         amount: 95_000,
         status: "approved",
         decisions: [{ decided_by, decided_at: "2026-09-26T10:00:00Z" }],
@@ -220,10 +220,10 @@ describe("decided_by_name reads the subjects table", () => {
     const book = await readLoanBook(session, { loans: loanBook, roster: plane.roster });
     expect(book.status).toBe("loaded");
     const cards = book.status === "loaded" ? book.loans : [];
-    expect(cards.map((each) => [each.loan_id, each.decided_by, each.decided_by_name])).toEqual([
-      ["LN-1", PRIYA.user_id, "Priya"],
+    expect(cards.map((each) => [each.deal_id, each.decided_by, each.decided_by_name])).toEqual([
+      ["DL-1", PRIYA.user_id, "Priya"],
       // Nobody at that address: no name, and the card shows the address.
-      ["LN-2", "gone@company.test", null],
+      ["DL-2", "gone@company.test", null],
     ]);
   });
 

@@ -63,8 +63,8 @@ const paceMs = Number(flag("pace-ms", "450"));
 const VIEWPORT = { width: 1440, height: 900 } as const;
 const REPO = resolve(import.meta.dir, "..");
 const DEMO_PROMPT = "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
-const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveLoan`;
-const GET_LOAN = `${LOAN_TOOLKIT}_GetLoan`;
+const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveDiscount`;
+const GET_LOAN = `${LOAN_TOOLKIT}_GetDeal`;
 
 mkdirSync(outDir, { recursive: true });
 
@@ -73,14 +73,14 @@ if (chrome === null) throw new Error("no Chrome on this machine; set CG_CHROME_B
 
 /** One script per POST to the chat route, in the order the page makes them. */
 const scripts: Array<readonly Turn[]> = [
-  // 1. Alice reads the file; Arcade wants her to authorize the loan tools first.
-  [{ call: GET_LOAN, input: { loan_id: OVER_LIMIT_LOAN } }],
+  // 1. Alice reads the file; Arcade wants her to authorize the deal tools first.
+  [{ call: GET_LOAN, input: { deal_id: OVER_LIMIT_LOAN } }],
   // 2. She types "done", which resumes that turn exactly as Continue would.
   [
-    { call: GET_LOAN, input: { loan_id: OVER_LIMIT_LOAN } },
+    { call: GET_LOAN, input: { deal_id: OVER_LIMIT_LOAN } },
     {
       say: [
-        "Northwind Bakery LLC is asking for ",
+        "Northwind Robotics is asking for ",
         "$95,000 for a second location build-out. ",
         "The file is pending; ",
         "the bank account number and tax ID came back as [REDACTED].",
@@ -89,12 +89,12 @@ const scripts: Array<readonly Turn[]> = [
   ],
   // 3. The $95K prompt: found, refused by /pre, escalated.
   [
-    { call: `${LOAN_TOOLKIT}_SearchLoans`, input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
-    { call: APPROVE_LOAN, input: { loan_id: OVER_LIMIT_LOAN, amount: 95000 } },
+    { call: `${LOAN_TOOLKIT}_SearchDeals`, input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
+    { call: APPROVE_LOAN, input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
     {
       call: `${APPROVALS_TOOLKIT}_RequestApproval`,
       input: {
-        action: "approve_loan",
+        action: "approve_discount",
         resource_id: OVER_LIMIT_LOAN,
         amount: 95000,
         justification: "Eight years in business, 712 credit score, debt service coverage 1.4x.",
@@ -102,7 +102,7 @@ const scripts: Array<readonly Turn[]> = [
     },
     {
       say: [
-        "I could not approve LN-2291 myself: ",
+        "I could not approve DL-2291 myself: ",
         "the control plane refused it as over my authority. ",
         "I have requested approval from Charlie. ",
         "Waiting for their decision.",
@@ -111,8 +111,8 @@ const scripts: Array<readonly Turn[]> = [
   ],
   // 4. The resume, after Charlie approves.
   [
-    { call: APPROVE_LOAN, input: { loan_id: OVER_LIMIT_LOAN, amount: 95000 } },
-    { say: ["Approved: ", "LN-2291 for $95,000, ", "on Charlie's approval."] },
+    { call: APPROVE_LOAN, input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
+    { say: ["Approved: ", "DL-2291 for $95,000, ", "on Charlie's approval."] },
   ],
 ];
 
@@ -297,7 +297,7 @@ try {
   };
 
   // 1. The read, challenged at layer 2.
-  await type(`Read ${OVER_LIMIT_LOAN} and tell me about the borrower.`);
+  await type(`Read ${OVER_LIMIT_LOAN} and tell me about the customer.`);
   await send();
   await waitFor("Thinking… or Calling…", async () => ((await status()) ?? "").length > 0);
   await waitFor("the first turn to end", idle, 60_000);
@@ -320,12 +320,12 @@ try {
     })()`,
   );
   await Bun.sleep(200);
-  await shoot("02-typed-done-tool-json", "typed 'done' resumed the read; Loan_GetLoan row expanded to its arguments and post-hook result");
+  await shoot("02-typed-done-tool-json", "typed 'done' resumed the read; Deals_GetDeal row expanded to its arguments and post-hook result");
 
   // 3. The $95K approval, mid-turn.
   await type(DEMO_PROMPT);
   await send();
-  await waitFor("Calling Loan_ApproveLoan…", async () => (await status()) === `Calling ${APPROVE_LOAN}…`, 60_000);
+  await waitFor("Calling Deals_ApproveDiscount…", async () => (await status()) === `Calling ${APPROVE_LOAN}…`, 60_000);
   await toBottom();
   await shoot("03-calling-approve", `status line: ${await status()}`);
 

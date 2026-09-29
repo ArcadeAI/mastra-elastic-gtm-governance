@@ -1,23 +1,23 @@
 /**
- * One loan application, as the bank's own screen shows it.
+ * One discount requests, as the bank's own screen shows it.
  *
  * A pure function of one {@link LoanCard}, so everything worth asserting about
- * it — that the decision line names who decided and when, that no borrower's
+ * it — that the decision line names who decided and when, that no customer's
  * account number is on the page — is checkable without a socket or a browser.
  *
  * ## What it does not show
  *
- * `bank_account_number`, `tax_id` and `underwriter_notes`. The first two are
+ * `bank_account_number`, `tax_id` and `crm_notes`. The first two are
  * act 3's subject and the third is act 4's; the chat and the panel are where
  * the audience watches them being redacted and stripped, and there is no reason
- * for a projector to carry a borrower's account number for forty minutes. They
+ * for a projector to carry a customer's account number for forty minutes. They
  * are absent because `GET /api/loans` never sends them — an allow-list in
  * `lib/loan-context/read.ts`, not a field this component declines to render.
  *
  * ## The decision line
  *
  * The one thing on this card that moves during the demo. `approved · Charlie ·
- * <time>` the moment the approval lands in the loan book, wherever it was made:
+ * <time>` the moment the approval lands in the deal book, wherever it was made:
  * by the agent through the gateway, or by Charlie on the approval page. Since
  * #155 the control plane is a page away rather than a pane away, so this line
  * is what the room watches instead — the business effect, on the business
@@ -29,23 +29,23 @@ import { count, dollars, statusKey, text, timestamp } from "./format.ts";
 
 export function LoanFileCard({ loan }: { loan: LoanCard }) {
   return (
-    <article className="bank-file" data-outcome="read" data-loan={loan.loan_id}>
+    <article className="bank-file" data-outcome="read" data-loan={loan.deal_id}>
       <header className="bank-file-head">
-        <span className="bank-file-id">{loan.loan_id}</span>
+        <span className="bank-file-id">{loan.deal_id}</span>
         <span className="bank-status" data-status={statusKey(loan.status)}>
           {text(loan.status)}
         </span>
       </header>
 
-      <h3 className="bank-file-borrower">{text(loan.borrower_name)}</h3>
+      <h3 className="bank-file-customer">{text(loan.account_name)}</h3>
       <p className="bank-file-amount">{dollars(loan.amount)}</p>
       <p className="bank-file-purpose">{text(loan.purpose)}</p>
 
       <div className="bank-fields">
-        <Field label="Submitted" value={text(loan.submitted_at)} />
+        <Field label="Requested" value={text(loan.requested_at)} />
         <Field label="Credit score" value={count(loan.credit_score)} />
-        <Field label="Annual revenue" value={dollars(loan.annual_revenue)} />
-        <Field label="Years trading" value={count(loan.years_in_business)} />
+        <Field label="ARR" value={dollars(loan.arr)} />
+        <Field label="Years as customer" value={count(loan.years_as_customer)} />
       </div>
 
       <LoanDecision loan={loan} />
@@ -54,7 +54,7 @@ export function LoanFileCard({ loan }: { loan: LoanCard }) {
 }
 
 /**
- * What the loan book records about the decision that stands, or plainly that
+ * What the deal book records about the decision that stands, or plainly that
  * there is none.
  *
  * A pending application says so rather than leaving the line off: a card whose

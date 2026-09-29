@@ -105,7 +105,7 @@ export function createPreStore(db: Database): PreStore {
  * `decided_by_requester` is derived here rather than by a rule because no
  * condition operator compares an input to `subject.user_id`; the comparison is
  * case-insensitive for the same reason `findSubject` is — Arcade, the OAuth
- * provider and the loan book do not all promise the same casing of an email,
+ * provider and the deal book do not all promise the same casing of an email,
  * and a case difference must not read as two different people.
  */
 export interface ApprovalFacts extends Record<string, unknown> {

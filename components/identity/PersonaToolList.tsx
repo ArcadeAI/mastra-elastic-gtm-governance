@@ -11,7 +11,7 @@
  * ## What this component deliberately cannot do
  *
  * It has no idea which tools exist. There is no catalogue in this file, no
- * `ApproveLoan` literal, and nothing that could render a tool as hidden — so
+ * `ApproveDiscount` literal, and nothing that could render a tool as hidden — so
  * there is no version of this component that shows Bob a crossed-out approval
  * tool, which would be the picture of a control that does nothing. It renders
  * the list it is handed and says where the list came from.

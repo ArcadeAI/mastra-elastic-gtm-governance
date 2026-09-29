@@ -20,7 +20,7 @@ What the app reads from `.env`, how it tells you what is missing, and how to put
 
 The three databases are SQLite files on disk, gitignored, and seeded from their fixtures only when empty. Data persists across restarts on purpose: a policy row edited during one act has to still be there in the next.
 
-- `bun run reset` puts the control plane's policy and audit log and the loan book back, in seconds. It is idempotent.
+- `bun run reset` puts the control plane's policy and audit log and the deal book back, in seconds. It is idempotent.
 - `bun run reset --hard` also resets the identity provider's sessions, tokens and consents, and keeps every account. That signs everyone out, so each one needs a sign-in and an authorization card before their next governed call.
 - Both empty Mastra Studio's thread memory, `memory.db`, in place. `--hard` does nothing more to it. See [`docs/studio-memory.md`](./studio-memory.md).
 - Neither deletes a user. Everyone you added with `bun run users` under an address of your own keeps their account, role and clearance through both, and a clearance you changed with `set-clearance` stays changed. Each reset's output names who it kept.

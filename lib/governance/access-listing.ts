@@ -8,9 +8,9 @@
  * calls and the rows arrive as one burst; here they are one call's worth,
  * which is the same burst with less repetition and the same card.
  *
- * The persona is Sam, the credit analyst (`bob@bank.example` in the fixture
+ * The persona is Sam, the SDR (`bob@bank.example` in the fixture
  * subjects), because act 1 is the only thing a listing card is *for*:
- * `Loan.ApproveLoan` is absent from what he can see, hidden by
+ * `Deals.ApproveDiscount` is absent from what he can see, hidden by
  * `access.analysts-cannot-see-approve`, and the five tools he keeps are there
  * to prove the rule matched one thing rather than everything. A fixture where
  * nothing was hidden would exercise the card and demonstrate nothing.
@@ -25,7 +25,7 @@
 import type { GovernanceEvent } from "@cg/policy-schema";
 import { aGovernanceEvent, FIXTURE_EPOCH } from "@cg/policy-schema";
 
-/** Sam, the credit analyst — the address `governance.json` seeds for him. */
+/** Sam, the SDR — the address `governance.json` seeds for him. */
 const SAM = "bob@bank.example";
 
 /** Act 1's rule, id and words as `lib/control-plane/fixtures/governance.json` has them. */
@@ -49,10 +49,10 @@ const APART_MS = 3;
 
 /** The six tools both project toolkits advertise, in catalogue order. */
 const GOVERNED: ReadonlyArray<{ tool: string; hidden: boolean }> = [
-  { tool: "Loan.SearchLoans", hidden: false },
-  { tool: "Loan.GetLoan", hidden: false },
-  { tool: "Loan.ApproveLoan", hidden: true },
-  { tool: "Loan.DenyLoan", hidden: false },
+  { tool: "Deals.SearchDeals", hidden: false },
+  { tool: "Deals.GetDeal", hidden: false },
+  { tool: "Deals.ApproveDiscount", hidden: true },
+  { tool: "Deals.DenyDiscount", hidden: false },
   { tool: "Approvals.RequestApproval", hidden: false },
   { tool: "Approvals.Decide", hidden: false },
 ];
@@ -73,7 +73,7 @@ const GOVERNED: ReadonlyArray<{ tool: string; hidden: boolean }> = [
 const SUMMARY_REASON =
   "SUMMARY: 8272 tools outside this control plane's catalogue were decided in this call " +
   "and are recorded as this one row — 8272 hidden, 0 allowed. Tools in the governed " +
-  "toolkits (Approvals, Loan) are recorded one row each, above.";
+  "toolkits (Approvals, Deals) are recorded one row each, above.";
 
 /**
  * Seven access events, oldest first: six governed tools decided for Sam, one

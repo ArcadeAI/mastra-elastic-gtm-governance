@@ -39,7 +39,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 250,
@@ -96,8 +96,8 @@ const denyDana = (executionId: string) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-2291", amount: 95_000 },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),
   });
@@ -130,7 +130,7 @@ function seed(count: number, tag: string, options: SeedOptions = {}): string[] {
       execution_id: `${tag}_${index}`,
       hook: "access",
       user_id: DANA,
-      tool: "Loan.GetLoan",
+      tool: "Deals.GetDeal",
       decision: "allow",
       reason: `seeded ${filler}`,
       rule_id: null,
@@ -182,7 +182,7 @@ describe("the frame layout #21's adapter reads", () => {
       hook: "pre",
       execution_id: "tc_live_1",
       user_id: DANA,
-      tool: "Loan.ApproveLoan",
+      tool: "Deals.ApproveDiscount",
       decision: "deny",
       rule_id: "pre.approve-within-clearance",
     });
@@ -241,7 +241,7 @@ describe("the seam is the audit write", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
       body: JSON.stringify({
         user_id: SAM,
-        toolkits: { Loan: { tools: { SearchLoans: V, GetLoan: V, ApproveLoan: V, DenyLoan: V } } },
+        toolkits: { Deals: { tools: { SearchDeals: V, GetDeal: V, ApproveDiscount: V, DenyDiscount: V } } },
       }),
     });
     expect(access.status).toBe(200);
@@ -253,9 +253,9 @@ describe("the seam is the audit write", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
       body: JSON.stringify({
         execution_id: "tc_every_post",
-        tool: { name: "GetLoan", toolkit: "Loan", version: "1.0.0" },
-        inputs: { loan_id: "LN-2291" },
-        output: { value: { loan_id: "LN-2291" } },
+        tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+        inputs: { deal_id: "DL-2291" },
+        output: { value: { deal_id: "DL-2291" } },
         context: { authorization: [{}], user_id: DANA },
       }),
     });
@@ -312,7 +312,7 @@ describe("the seam is the audit write", () => {
       execution_id: "tc_rollback",
       hook: "pre",
       user_id: DANA,
-      tool: "Loan.ApproveLoan",
+      tool: "Deals.ApproveDiscount",
       decision: "deny",
       reason: "would be rolled back",
       rule_id: null,

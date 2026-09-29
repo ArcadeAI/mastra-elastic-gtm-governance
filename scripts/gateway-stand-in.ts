@@ -149,7 +149,7 @@ interface BaseToolSpec {
 
 interface LoanToolSpec extends BaseToolSpec {
   target: "loan-app";
-  /** `GET /loans`, `GET /loans/{loan_id}`, … — how this stand-in runs the tool. */
+  /** `GET /loans`, `GET /loans/{deal_id}`, … — how this stand-in runs the tool. */
   run: (inputs: Record<string, unknown>) => { method: string; path: string; query?: Record<string, string>; body?: unknown };
 }
 
@@ -187,10 +187,10 @@ const str = (description: string) => ({ type: "string", description });
 const num = (description: string) => ({ type: "number", description });
 
 /**
- * The loan tools, named the way the wire names them.
+ * The deal tools, named the way the wire names them.
  *
- * `Loan_GetLoan` with an underscore, because that is what MCP carries; the hook
- * frame names the same tool `Loan.GetLoan` with a dot. Two spellings of one
+ * `Deals_GetDeal` with an underscore, because that is what MCP carries; the hook
+ * frame names the same tool `Deals.GetDeal` with a dot. Two spellings of one
  * tool, and neither is invented here: `qualifiedToolName` below is the only
  * place that converts between them.
  *
@@ -203,9 +203,9 @@ function loanTools(toolkit: string): LoanToolSpec[] {
   return [
     {
       target: "loan-app",
-      name: `${toolkit}_SearchLoans`,
+      name: `${toolkit}_SearchDeals`,
       description:
-        "Find loan applications in the loan book, newest submission first. All filters are optional and combine; with none supplied this returns every application on file.",
+        "Find discount requests in the deal book, newest submission first. All filters are optional and combine; with none supplied this returns every application on file.",
       inputSchema: object({
         status: { ...str("Only applications in this state."), enum: ["pending", "approved", "denied"] },
         min_amount: num("Only applications requesting at least this many US dollars."),
@@ -223,45 +223,45 @@ function loanTools(toolkit: string): LoanToolSpec[] {
     },
     {
       target: "loan-app",
-      name: `${toolkit}_GetLoan`,
+      name: `${toolkit}_GetDeal`,
       description:
-        "Read one loan application's complete file by ID, including the underwriter's notes and every decision already recorded.",
-      inputSchema: object({ loan_id: str("The loan application ID, in the form LN-0000.") }, ["loan_id"]),
-      run: (inputs) => ({ method: "GET", path: `/loans/${encodeURIComponent(String(inputs.loan_id))}` }),
+        "Read one discount requests's complete file by ID, including the CRM notes and every decision already recorded.",
+      inputSchema: object({ deal_id: str("The discount requests ID, in the form DL-0000.") }, ["deal_id"]),
+      run: (inputs) => ({ method: "GET", path: `/loans/${encodeURIComponent(String(inputs.deal_id))}` }),
     },
     {
       target: "loan-app",
-      name: `${toolkit}_ApproveLoan`,
+      name: `${toolkit}_ApproveDiscount`,
       description:
-        "Approve a loan application for a given dollar amount, committing the decision to the loan book.",
+        "Approve a discount requests for a given dollar amount, committing the decision to the deal book.",
       inputSchema: object(
         {
-          loan_id: str("The loan application ID, in the form LN-0000."),
+          deal_id: str("The discount requests ID, in the form DL-0000."),
           amount: num("The amount to approve, in US dollars."),
         },
-        ["loan_id", "amount"],
+        ["deal_id", "amount"],
       ),
       run: (inputs) => ({
         method: "POST",
-        path: `/loans/${encodeURIComponent(String(inputs.loan_id))}/approve`,
+        path: `/loans/${encodeURIComponent(String(inputs.deal_id))}/approve`,
         body: { amount: inputs.amount },
       }),
     },
     {
       target: "loan-app",
-      name: `${toolkit}_DenyLoan`,
+      name: `${toolkit}_DenyDiscount`,
       description:
-        "Decline a loan application with a stated reason, committing the decision to the loan book.",
+        "Decline a discount requests with a stated reason, committing the decision to the deal book.",
       inputSchema: object(
         {
-          loan_id: str("The loan application ID, in the form LN-0000."),
+          deal_id: str("The discount requests ID, in the form DL-0000."),
           reason: str("Why the application is being declined. Recorded verbatim and read by auditors."),
         },
-        ["loan_id", "reason"],
+        ["deal_id", "reason"],
       ),
       run: (inputs) => ({
         method: "POST",
-        path: `/loans/${encodeURIComponent(String(inputs.loan_id))}/deny`,
+        path: `/loans/${encodeURIComponent(String(inputs.deal_id))}/deny`,
         body: { reason: inputs.reason },
       }),
     },
@@ -412,7 +412,7 @@ function createApprovalsStore(options: {
  * They exist in this file for one reason: `tools/list` is where the agent's
  * surface comes from, and act 2's second half is the model reading a denial
  * that says *"call `Approvals_RequestApproval`"* and doing it. A stand-in that
- * advertised the loan toolkit alone would make that impossible offline and
+ * advertised the deals toolkit alone would make that impossible offline and
  * would make it look like a model problem — which is exactly how #89 was found.
  *
  * **The descriptions state what each tool does and instruct the model in
@@ -446,8 +446,8 @@ function approvalsTools(toolkit: string, store?: ApprovalsStore): ApprovalsToolS
         "Records a request for one person's approval of an action on a resource, and notifies the approver it routes to. Returns the request ID and who was notified.",
       inputSchema: object(
         {
-          action: str("The action the approval would cover — for example approve_loan."),
-          resource_id: str("What the action would act on, such as a loan application ID."),
+          action: str("The action the approval would cover — for example approve_discount."),
+          resource_id: str("What the action would act on, such as a discount requests ID."),
           amount: num("The amount the approval would cover, in US dollars."),
           justification: str("The case for the action. The approver reads it verbatim."),
         },
@@ -475,7 +475,7 @@ function approvalsTools(toolkit: string, store?: ApprovalsStore): ApprovalsToolS
 }
 
 /**
- * `Loan_GetLoan` → `{ toolkit: "Loan", name: "GetLoan" }`.
+ * `Deals_GetDeal` → `{ toolkit: "Deals", name: "GetDeal" }`.
  *
  * The first underscore separates them, and only the first: every tool name
  * `arcade-mcp` produces is PascalCase on both sides, so a later underscore
@@ -500,7 +500,7 @@ export interface GatewayStandInOptions {
   hookSigningSecret: string;
   /** The loan API's host (the app's, since #5), HOST-form. The tools are stateless clients of it. */
   loanAppHost: string;
-  /** `tool.toolkit` as Arcade files the deployed loan toolkit. */
+  /** `tool.toolkit` as Arcade files the deployed deals toolkit. */
   loanToolkit?: string;
   /**
    * `tool.toolkit` as Arcade files the deployed approvals toolkit.
@@ -591,7 +591,7 @@ type AuthorizationChallenge =
   | { kind: "protocol"; request?: NativeAuthorizationRequest };
 
 export function createGatewayStandIn(options: GatewayStandInOptions): GatewayStandIn {
-  const toolkit = options.loanToolkit ?? "Loan";
+  const toolkit = options.loanToolkit ?? "Deals";
   const approvalsToolkit = options.approvalsToolkit?.trim() || "Approvals";
   const actors = new Map<string, string>();
   const challenges = new Map<string, AuthorizationChallenge>();
@@ -643,12 +643,12 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
    * so the two have to agree exactly. The version string is the one every other
    * payload in this file carries.
    *
-   * Returns wire names (`Loan_ApproveLoan`), because that is what `tools/list`
+   * Returns wire names (`Deals_ApproveDiscount`), because that is what `tools/list`
    * answers in; `/access` speaks tool-and-toolkit, and this is the join.
    */
   async function hiddenFor(actor: string): Promise<{ ok: true; tools: Set<string> } | { ok: false; reason: string }> {
     // One entry per toolkit, each carrying its own tools. Submitting only the
-    // loan toolkit would leave every approvals tool unasked-about — and an
+    // deals toolkit would leave every approvals tool unasked-about — and an
     // unasked question is not an allow, it is a control that never ran.
     const toolkits = Object.fromEntries(
       Object.entries(byToolkit).map(([name, specs]) => [
@@ -774,7 +774,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
         return rpc(message.id, {
           tools: [
             ...visible.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })),
-            // The gateway's own, advertised to every client. Not loan tools,
+            // The gateway's own, advertised to every client. Not deal tools,
             // and `lib/agent/tools.ts` is what keeps them away from the agent.
             //
             // They are *not* submitted to `/access` and never hidden by it. That
@@ -802,7 +802,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
       // The real gateway can leave a server refresh pending while its tool
       // response is in flight. The local browser regression uses this seam to
       // prove the Continue button remains disabled until that response settles.
-      if (toolResponseDelayMs > 0 && wire === `${toolkit}_GetLoan`) {
+      if (toolResponseDelayMs > 0 && wire === `${toolkit}_GetDeal`) {
         await Bun.sleep(toolResponseDelayMs);
       }
 
@@ -964,7 +964,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
         }).catch((cause: unknown) => cause as Error);
 
         if (ran instanceof Error) {
-          return rpc(message.id, toolError(`The loan origination system could not be reached: ${ran.message}`));
+          return rpc(message.id, toolError(`The deal desk could not be reached: ${ran.message}`));
         }
         const body = (await ran.json().catch(() => null)) as { error?: string } | null;
         payload = body as Record<string, unknown> | null;
@@ -972,7 +972,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
           options.onCall?.({ user_id: actor, tool: wire, inputs, outcome: "ran" });
           return rpc(
             message.id,
-            toolError(body?.error ?? `the loan origination system answered ${ran.status}`),
+            toolError(body?.error ?? `the deal desk answered ${ran.status}`),
           );
         }
       }
@@ -1164,7 +1164,7 @@ if (import.meta.main) {
     hookSigningSecret: env.ARCADE_HOOK_SIGNING_SECRET?.trim() || "cg-hooks-dev-secret-not-for-production",
     // The app's own default since #5: the loan API is a module of the app.
     loanAppHost: env.APP_PUBLIC_HOST?.trim() || "localhost:3000",
-    loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Loan",
+    loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
     // Advertised either way; runnable only with a store token.
     approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
     ...(storeToken === ""

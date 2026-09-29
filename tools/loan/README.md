@@ -1,6 +1,6 @@
 # tools/loan
 
-The loan tools — `search_loans`, `get_loan`, `approve_loan`, `deny_loan` — as a
+The deal tools — `search_deals`, `get_deal`, `approve_discount`, `deny_discount` — as a
 Python `arcade-mcp` toolkit. Each tool is a stateless client of the app's loan
 module ([`lib/loans/`](../../lib/loans)), the bank's system of record, over
 HTTP under `/bank` (#5; it was `apps/loan-app`, a service of its own). Nothing here
@@ -64,7 +64,7 @@ so one deploy discriminates every naming rule on the table. Read back with
 
 | `MCPApp(name=...)` | `toolkit.name` | `fully_qualified_name` |
 |---|---|---|
-| `loan` | `Loan` | `Loan.SearchLoans@1.0.0`, `Loan.GetLoan@1.0.0`, `Loan.ApproveLoan@1.0.0`, `Loan.DenyLoan@1.0.0` |
+| `loan` | `Deals` | `Deals.SearchDeals@1.0.0`, `Deals.GetDeal@1.0.0`, `Deals.ApproveDiscount@1.0.0`, `Deals.DenyDiscount@1.0.0` |
 | `loan_mcp_probe` | `LoanMcpProbe` | `LoanMcpProbe.PingProbe@1.0.0` |
 
 Three things follow, and two of them were not what the issue assumed:
@@ -77,15 +77,15 @@ Three things follow, and two of them were not what the issue assumed:
    and `loan_mcp_probe.ping_probe` were `400 failed to parse tool name`;
    `LoanMcpProbe.ping_probe` was `tool_not_found`.
 3. **Tool names are PascalCased too, by `arcade-mcp` itself**, before Arcade
-   ever sees them: the function `get_loan` is the tool `GetLoan`. The MCP wire
-   name the agent sees through a gateway is therefore `Loan_GetLoan`. The
-   descriptions still say `get_loan`; whether that wording should follow the
+   ever sees them: the function `get_deal` is the tool `GetDeal`. The MCP wire
+   name the agent sees through a gateway is therefore `Deals_GetDeal`. The
+   descriptions still say `get_deal`; whether that wording should follow the
    wire name is a question for the prompt-coaching review, not this slice.
    **#14** (the first end-to-end slice) and any eval work should know the
-   model reads "call `get_loan`" while holding a tool named `Loan_GetLoan`.
+   model reads "call `get_deal`" while holding a tool named `Deals_GetDeal`.
 
-So `ARCADE_LOAN_TOOLKIT=Loan`, and policy rules key on `tool.toolkit = "Loan"`
-with `tool.name` in `SearchLoans`, `GetLoan`, `ApproveLoan`, `DenyLoan`.
+So `ARCADE_LOAN_TOOLKIT=Deals`, and policy rules key on `tool.toolkit = "Deals"`
+with `tool.name` in `SearchDeals`, `GetDeal`, `ApproveDiscount`, `DenyDiscount`.
 
 `tool.toolkit` on a live `/pre` payload is recorded on #35 once a hook
 extension in that project is pointed at a receiver; spike #2 found the

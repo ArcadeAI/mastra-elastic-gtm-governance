@@ -181,7 +181,7 @@ export interface ChatProps {
   /**
    * The bank has stopped accepting this browser's sign-in (#176).
    *
-   * `true` when the loan book read comes back `expired` — a real 401 from
+   * `true` when the deal book read comes back `expired` — a real 401 from
    * the loan module on this person's own IdP bearer, which `BankPane` holds
    * because three surfaces have to agree about it.
    *
@@ -977,7 +977,7 @@ export function EventView({
           </strong>
           <p style={{ margin: "0.4em 0 0", whiteSpace: "pre-wrap" }}>{event.reason}</p>
           <p style={{ margin: "0.4em 0 0", fontSize: "0.85em", color: "var(--muted)" }}>
-            Recorded in the audit log. Nothing was written to the loan book.
+            Recorded in the audit log. Nothing was written to the deal book.
           </p>
         </div>
       );

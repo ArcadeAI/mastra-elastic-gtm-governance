@@ -42,15 +42,15 @@ export const SERVER_KEY = "arcade";
 export const GATEWAY_BUILTINS = ["System_ManageAuthorization", "Arcade_ListApps"] as const;
 
 export interface ToolSurface {
-  /** Toolkit names as Arcade files them — `Loan`, `Approvals`. PascalCase, measured on #35. */
+  /** Toolkit names as Arcade files them — `Deals`, `Approvals`. PascalCase, measured on #35. */
   toolkits: readonly string[];
 }
 
 /**
- * `Loan` → the prefix a wire tool name starts with.
+ * `Deals` → the prefix a wire tool name starts with.
  *
- * MCP names a tool `Loan_GetLoan`; the hook frame names the same tool
- * `Loan.GetLoan`. Both spellings are real and neither is invented here — see
+ * MCP names a tool `Deals_GetDeal`; the hook frame names the same tool
+ * `Deals.GetDeal`. Both spellings are real and neither is invented here — see
  * `scripts/gateway-stand-in.ts::qualifiedToolName` for the conversion, which is
  * the only place in the repo that does it.
  */
@@ -166,8 +166,8 @@ export function gatewayClient(options: GatewayToolsOptions): MCPClient {
  * gateway answered at all.
  *
  * Toolsets rather than the flat `listTools()` on purpose: the flat form
- * namespaces every tool with the server key, so `Loan_ApproveLoan` would reach
- * the model as `arcade_Loan_ApproveLoan`. The name the model sees should be the
+ * namespaces every tool with the server key, so `Deals_ApproveDiscount` would reach
+ * the model as `arcade_Loan_ApproveDiscount`. The name the model sees should be the
  * name the wire uses and the name a rule is keyed on, modulo the dot.
  *
  * **`listToolsetsWithErrors()` rather than `listToolsets()`, and that is the

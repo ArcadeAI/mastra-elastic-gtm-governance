@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The loan book, kept current.
+ * The deal book, kept current.
  *
  * One hook, two surfaces: the cards beside the chat on `/` and the board on
  * `/loans`. They poll the same route at the same interval, so an approval — by
@@ -14,7 +14,7 @@
  * The loan module is the bank's system of record and it stays ignorant: no SSE,
  * no subscriptions, no idea anything is watching (`DESIGN.md` → Business
  * system, and `knows-nothing-about-governance.test.ts` is what keeps it that
- * way). A demo loan book answering nine cheap reads every two seconds is not a
+ * way). A demo deal book answering nine cheap reads every two seconds is not a
  * scaling problem; a business API growing a push channel for our UI would be a
  * change to the thing being governed.
  *
@@ -28,7 +28,7 @@
  *
  * A chained `setTimeout` rather than `setInterval`: a slow answer must not let
  * a second request start behind it, and an interval that fires faster than the
- * loan book answers turns one screen into a queue.
+ * deal book answers turns one screen into a queue.
  */
 import { useEffect, useRef, useState } from "react";
 
@@ -61,7 +61,7 @@ export function useLoanBook(initial: LoanBookState): LoanBookState {
         setState(
           body ?? {
             status: "unavailable",
-            message: `The loan book route answered ${response.status} with something this screen could not read.`,
+            message: `The deal book route answered ${response.status} with something this screen could not read.`,
           },
         );
       } catch (cause) {
@@ -71,7 +71,7 @@ export function useLoanBook(initial: LoanBookState): LoanBookState {
         if (!stopped) {
           setState({
             status: "unavailable",
-            message: `The loan book could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
+            message: `The deal book could not be reached: ${cause instanceof Error ? cause.message : String(cause)}.`,
           });
         }
       } finally {

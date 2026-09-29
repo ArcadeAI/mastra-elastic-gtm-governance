@@ -27,21 +27,21 @@ import {
 /** The schema exactly as #30 shipped it: no `decided_by`. */
 const SCHEMA_AT_30 = `
   CREATE TABLE loans (
-    loan_id TEXT PRIMARY KEY, borrower_name TEXT NOT NULL, amount INTEGER NOT NULL,
+    deal_id TEXT PRIMARY KEY, account_name TEXT NOT NULL, amount INTEGER NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied')),
-    purpose TEXT NOT NULL, submitted_at TEXT NOT NULL, credit_score INTEGER NOT NULL,
-    annual_revenue INTEGER NOT NULL, years_in_business INTEGER NOT NULL,
-    bank_account_number TEXT NOT NULL, tax_id TEXT NOT NULL, underwriter_notes TEXT NOT NULL
+    purpose TEXT NOT NULL, requested_at TEXT NOT NULL, credit_score INTEGER NOT NULL,
+    arr INTEGER NOT NULL, years_as_customer INTEGER NOT NULL,
+    bank_account_number TEXT NOT NULL, tax_id TEXT NOT NULL, crm_notes TEXT NOT NULL
   );
   CREATE TABLE loan_decisions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, loan_id TEXT NOT NULL REFERENCES loans(loan_id),
+    id INTEGER PRIMARY KEY AUTOINCREMENT, deal_id TEXT NOT NULL REFERENCES loans(deal_id),
     decision TEXT NOT NULL CHECK (decision IN ('approved', 'denied')),
     amount INTEGER, reason TEXT, decided_at TEXT NOT NULL
   );
-  INSERT INTO loans VALUES ('LN-0030', 'Old Schema Co', 12000, 'approved', 'Legacy',
+  INSERT INTO loans VALUES ('DL-0030', 'Old Schema Co', 12000, 'approved', 'Legacy',
     '2026-01-01', 700, 100000, 3, '0000000000000000', '00-0000000', 'Predates decided_by.');
-  INSERT INTO loan_decisions (loan_id, decision, amount, reason, decided_at)
-    VALUES ('LN-0030', 'approved', 12000, NULL, '2026-01-02T00:00:00.000Z');
+  INSERT INTO loan_decisions (deal_id, decision, amount, reason, decided_at)
+    VALUES ('DL-0030', 'approved', 12000, NULL, '2026-01-02T00:00:00.000Z');
 `;
 
 describe("opening a loans.db written by an earlier schema", () => {
@@ -54,7 +54,7 @@ describe("opening a loans.db written by an earlier schema", () => {
 
     const db = openLoanBook(path);
     try {
-      const before = getLoan(db, "LN-0030");
+      const before = getLoan(db, "DL-0030");
       expect(before?.decisions).toEqual([
         {
           decision: "approved",
@@ -66,7 +66,7 @@ describe("opening a loans.db written by an earlier schema", () => {
       ]);
 
       const after = recordDecision(db, {
-        loan_id: "LN-0030",
+        deal_id: "DL-0030",
         decision: "approved",
         amount: 9000,
         reason: null,
@@ -76,7 +76,7 @@ describe("opening a loans.db written by an earlier schema", () => {
       expect(after?.decisions.at(-1)?.decided_by).toBe("alice@example.test");
 
       // Not reseeded: the fixture's loans are absent, the legacy row is the only one.
-      expect(getLoan(db, "LN-2291")).toBeNull();
+      expect(getLoan(db, "DL-2291")).toBeNull();
     } finally {
       db.close();
       rmSync(dirname(path), { recursive: true, force: true });
@@ -88,7 +88,7 @@ describe("opening a loans.db written by an earlier schema", () => {
     openLoanBook(path).close();
     const db = openLoanBook(path);
     try {
-      expect(getLoan(db, "LN-2291")).not.toBeNull();
+      expect(getLoan(db, "DL-2291")).not.toBeNull();
       expect(readSchemaVersion(db)).toBe(SCHEMA_VERSION);
     } finally {
       db.close();
@@ -121,13 +121,13 @@ function withPath(tag: string, body: (path: string) => void): void {
  */
 const SCHEMA_MISSING_A_TABLE = `
   CREATE TABLE loans (
-    loan_id TEXT PRIMARY KEY, borrower_name TEXT NOT NULL, amount INTEGER NOT NULL,
+    deal_id TEXT PRIMARY KEY, account_name TEXT NOT NULL, amount INTEGER NOT NULL,
     status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'denied')),
-    purpose TEXT NOT NULL, submitted_at TEXT NOT NULL, credit_score INTEGER NOT NULL,
-    annual_revenue INTEGER NOT NULL, years_in_business INTEGER NOT NULL,
-    bank_account_number TEXT NOT NULL, tax_id TEXT NOT NULL, underwriter_notes TEXT NOT NULL
+    purpose TEXT NOT NULL, requested_at TEXT NOT NULL, credit_score INTEGER NOT NULL,
+    arr INTEGER NOT NULL, years_as_customer INTEGER NOT NULL,
+    bank_account_number TEXT NOT NULL, tax_id TEXT NOT NULL, crm_notes TEXT NOT NULL
   );
-  INSERT INTO loans VALUES ('LN-0060', 'No Decisions Table Co', 4200, 'pending', 'Legacy',
+  INSERT INTO loans VALUES ('DL-0060', 'No Decisions Table Co', 4200, 'pending', 'Legacy',
     '2026-01-01', 700, 100000, 3, '0000000000000000', '00-0000000', 'Predates loan_decisions.');
 `;
 
@@ -159,14 +159,14 @@ describe("opening a loans.db written before a table existed", () => {
 
         // Not reseeded: the legacy row is still the only loan.
         expect(countLoans(db)).toBe(1);
-        expect(getLoan(db, "LN-0060")?.decisions).toEqual([]);
-        expect(getLoan(db, "LN-2291")).toBeNull();
+        expect(getLoan(db, "DL-0060")?.decisions).toEqual([]);
+        expect(getLoan(db, "DL-2291")).toBeNull();
 
         // And the missing index came with it, so the app works end to end.
         expect(searchLoans(db, {})).toHaveLength(1);
         expect(
           recordDecision(db, {
-            loan_id: "LN-0060",
+            deal_id: "DL-0060",
             decision: "approved",
             amount: 4200,
             reason: null,
@@ -188,7 +188,7 @@ describe("a fresh loans.db", () => {
       const db = openLoanBook(path);
       try {
         expect(countLoans(db)).toBeGreaterThan(0);
-        expect(getLoan(db, "LN-2291")).not.toBeNull();
+        expect(getLoan(db, "DL-2291")).not.toBeNull();
         expect(readSchemaVersion(db)).toBe(SCHEMA_VERSION);
       } finally {
         db.close();
@@ -202,18 +202,18 @@ describe("a seed that fails", () => {
     const db = new Database(":memory:");
     try {
       const one = {
-        loan_id: "LN-9001",
-        borrower_name: "Duplicate Co",
+        deal_id: "DL-9001",
+        account_name: "Duplicate Co",
         amount: 1000,
         status: "pending" as const,
         purpose: "Working capital",
-        submitted_at: "2026-01-01",
+        requested_at: "2026-01-01",
         credit_score: 700,
-        annual_revenue: 100_000,
-        years_in_business: 3,
+        arr: 100_000,
+        years_as_customer: 3,
         bank_account_number: "0000000000000000",
         tax_id: "00-0000000",
-        underwriter_notes: "",
+        crm_notes: "",
         decisions: [],
       };
 

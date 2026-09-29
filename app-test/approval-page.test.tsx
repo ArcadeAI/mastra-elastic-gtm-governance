@@ -58,8 +58,8 @@ describe("resolving the request id", () => {
 
     expect(html).toContain("Alice");
     expect(html).toContain(DANA);
-    expect(html).toContain("approve_loan");
-    expect(html).toContain("LN-2291");
+    expect(html).toContain("approve_discount");
+    expect(html).toContain("DL-2291");
     expect(html).toContain("$95,000");
     expect(html).toContain("pre.approve-within-clearance");
     expect(html).toContain("Eleven years in business");
@@ -332,7 +332,7 @@ describe("what the page says about it", () => {
 
     expect(fields(outside)).toEqual(fields(inside));
     expect(fields(inside).length).toBeGreaterThan(5);
-    for (const shown of [DANA, "approve_loan", "LN-2291", "$95,000", "Eleven years in business"]) {
+    for (const shown of [DANA, "approve_discount", "DL-2291", "$95,000", "Eleven years in business"]) {
       expect(outside).toContain(shown);
       expect(inside).toContain(shown);
     }

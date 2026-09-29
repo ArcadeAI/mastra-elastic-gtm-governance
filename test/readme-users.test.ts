@@ -11,7 +11,7 @@
  * runs the command: `--no-env-file` and an allowlisted environment, so nothing
  * from this checkout's `.env` files reaches it.
  *
- * It also holds the step to the act it sets up: the loan officer's clearance
+ * It also holds the step to the act it sets up: the account executive's clearance
  * is under the $95K the Quickstart asks for, and the approver's covers it.
  */
 import { afterAll, describe, expect, test } from "bun:test";
@@ -74,7 +74,7 @@ function flag(argv: string[], name: string): string | undefined {
   return at === -1 ? undefined : argv[at + 1];
 }
 
-/** Whether the loan officer is refused the $95K and the approver may grant it: act 2, as step 7 sets it up. */
+/** Whether the account executive is refused the $95K and the approver may grant it: act 2, as step 7 sets it up. */
 function coversTheAct(commands: string[][]): boolean {
   const [officer, approver] = commands.map((argv) => Number(flag(argv, "clearance")));
   return officer! < 95_000 && approver! >= 95_000;
@@ -126,21 +126,21 @@ describe("the README's users commands", () => {
   const quickstartAdds = addCommands(step);
   const tryItOutAdds = addCommands(section(README, "Try it out"));
 
-  test("step 7 adds a loan officer and a VP, right before the app is opened", () => {
+  test("step 7 adds a account executive and a VP, right before the app is opened", () => {
     expect(step).not.toBe("");
-    expect(quickstartAdds.map((argv) => flag(argv, "role"))).toEqual(["loan_officer", "vp_credit"]);
+    expect(quickstartAdds.map((argv) => flag(argv, "role"))).toEqual(["account_executive", "vp_sales"]);
     const quickstart = section(README, "Quickstart 🚀");
     expect(quickstart.indexOf(ADD_STEP)).toBeLessThan(quickstart.indexOf("Open `https://<APP_PUBLIC_HOST>`"));
   });
 
-  test("the loan officer's clearance is under $95K and the approver's covers it", () => {
+  test("the account executive's clearance is under $95K and the approver's covers it", () => {
     expect(coversTheAct(quickstartAdds)).toBe(true);
   });
 
   test("step 7 says the approver's email is their Slack one, answers who needs an Arcade account, and offers seed-demo", () => {
     expect(step).toContain("Use the email the approver's Slack account uses");
     expect(step).toContain(
-      "   - Do your app's users need Arcade accounts? With Arcade's built-in Slack app, yes: invite each loan officer to your Arcade project's Members. " +
+      "   - Do your app's users need Arcade accounts? With Arcade's built-in Slack app, yes: invite each account executive to your Arcade project's Members. " +
         `With your own Slack app, no. See ${ACCOUNTS_LINK}.\n`,
     );
     expect(step).toContain("`bun run users seed-demo`");
@@ -148,8 +148,8 @@ describe("the README's users commands", () => {
 
   test("Try it out adds Bob and Michael, with the demo's roles", () => {
     expect(tryItOutAdds.map((argv) => [flag(argv, "name"), flag(argv, "role")])).toEqual([
-      ["Bob", "credit_analyst"],
-      ["Michael", "chief_credit_officer"],
+      ["Bob", "sdr"],
+      ["Michael", "cro"],
     ]);
   });
 
@@ -160,10 +160,10 @@ describe("the README's users commands", () => {
     expect(failures).toEqual([]);
     const rows = list.split("\n").filter((line) => line.startsWith("reader-"));
     expect(rows.map((row) => row.split(/\s{2,}/).slice(1, 4))).toEqual([
-      ["Alice", "loan_officer", "50000"],
-      ["Charlie", "vp_credit", "250000"],
-      ["Bob", "credit_analyst", "0"],
-      ["Michael", "chief_credit_officer", "5000000"],
+      ["Alice", "account_executive", "50000"],
+      ["Charlie", "vp_sales", "250000"],
+      ["Bob", "sdr", "0"],
+      ["Michael", "cro", "5000000"],
     ]);
   }, 60_000);
 });
@@ -176,11 +176,11 @@ function accountsAnswer(faq: string): string {
 describe("the FAQ the docs point at", () => {
   test("docs/faq.md answers it, and DOMAIN-SWAP links to that answer rather than repeating it", () => {
     const entry = accountsAnswer(FAQ);
-    expect(entry).toContain("With Arcade's built-in Slack app, the default, each loan officer who requests an approval has to be invited");
+    expect(entry).toContain("With Arcade's built-in Slack app, the default, each account executive who requests an approval has to be invited");
     expect(entry).toContain("With your own Slack app");
     expect(entry).toContain(ACCOUNTS_LINK_FROM_DOCS);
     expect(DOMAIN_SWAP).toContain("[Do my users need Arcade accounts?](./faq.md#do-my-users-need-arcade-accounts)");
-    expect(DOMAIN_SWAP).not.toContain("each loan officer who requests an approval has to be invited");
+    expect(DOMAIN_SWAP).not.toContain("each account executive who requests an approval has to be invited");
   });
 
   test("the README keeps no FAQ of its own, and links the page from Further reading", () => {
@@ -225,14 +225,14 @@ describe("the page on who needs an Arcade account", () => {
 
 describe("the checks bite on a planted violation", () => {
   test("a role the policy does not know, and a clearance the role needs left out", async () => {
-    const planted = addCommands(addStep(README.replace("--role vp_credit", "--role vp").replace("--clearance 50000", "")));
+    const planted = addCommands(addStep(README.replace("--role vp_sales", "--role vp").replace("--clearance 50000", "")));
     const { failures } = await runAll(planted);
     expect(failures).toHaveLength(2);
-    expect(failures[0]).toContain("--clearance is required for role loan_officer");
+    expect(failures[0]).toContain("--clearance is required for role account_executive");
     expect(failures[1]).toContain('role "vp" is not one the policy knows');
   }, 60_000);
 
-  test("an approver whose clearance does not cover the $95K, and a loan officer whose does", () => {
+  test("an approver whose clearance does not cover the $95K, and a account executive whose does", () => {
     expect(coversTheAct(addCommands(addStep(README.replace("--clearance 250000", "--clearance 90000"))))).toBe(false);
     expect(coversTheAct(addCommands(addStep(README.replace("--clearance 50000", "--clearance 100000"))))).toBe(false);
   });

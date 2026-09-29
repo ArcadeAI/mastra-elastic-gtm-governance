@@ -474,7 +474,7 @@ function narrateRouting(inputs: Inputs, subject: Subject | null, state: ReadySta
  *
  * **The event carries no payload, on purpose** (driver decision on #16, option
  * A). `audit_log` is persisted and `GET /events` is unauthenticated, so a
- * `before` holding the raw output would write the borrower's account number to
+ * `before` holding the raw output would write the customer's account number to
  * disk and broadcast it; an `after` is no safer, because a rule conditioned on
  * clearance does not fire for a privileged subject and *their* "after" still
  * holds the identifiers. What is recorded is `redactions[]`: path, `rule_id`,
@@ -552,7 +552,7 @@ export function handlePost(
  * it — which is also the line a presenter reads off the panel.
  *
  * Each rule appears once, named by id, followed by the sentence its author
- * wrote and the paths it acted on. Two rules commonly fire on one `Loan.GetLoan`
+ * wrote and the paths it acted on. Two rules commonly fire on one `Deals.GetDeal`
  * (act 3's fields and act 4's sweep) and the audience has to be able to tell
  * which did what, so neither is folded into the other.
  *

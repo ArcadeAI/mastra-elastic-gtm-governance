@@ -614,7 +614,7 @@ describe("/health", () => {
       const { GET } = await import("../app/health/route.ts");
       // Since #4 the body also carries the control plane's fields; they are
       // pinned in `app-test/health-control-plane.test.ts`. Since #5 it carries
-      // the loan book's, pinned in `app-test/loans/health.test.ts`. What this
+      // the deal book's, pinned in `app-test/loans/health.test.ts`. What this
       // test is about is unchanged, and still exact.
       // Since #6 it carries the identity provider's too, the `identity` field,
       // and since #33 `user_drift`, the two databases held against each other:

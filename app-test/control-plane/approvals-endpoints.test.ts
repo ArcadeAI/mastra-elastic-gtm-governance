@@ -32,7 +32,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 10_000,
@@ -44,8 +44,8 @@ const config: HooksConfig = {
 /** The escalation act 2 produces, as `tools/approvals` sends it. */
 const ACT_TWO = {
   requester_id: DANA,
-  action: "approve_loan",
-  resource_id: "LN-2291",
+  action: "approve_discount",
+  resource_id: "DL-2291",
   amount: 95_000,
   justification: "Eleven years in business, 742 credit score, $1.4M annual revenue.",
   approver_id: RILEY,
@@ -262,8 +262,8 @@ describe("GET /api/approvals/{id}", () => {
     );
 
     expect(read.requester_display_name).toBe("Alice");
-    expect(read.action).toBe("approve_loan");
-    expect(read.resource_id).toBe("LN-2291");
+    expect(read.action).toBe("approve_discount");
+    expect(read.resource_id).toBe("DL-2291");
     expect(read.amount).toBe(95_000);
     expect(read.rule?.id).toBe("pre.approve-within-clearance");
     expect(read.justification).toBe(ACT_TWO.justification);
@@ -306,7 +306,7 @@ describe("POST /api/approvals/{id}/decision", () => {
     expect(decided.note).toBe("Coverage checks out.");
     expect(decided.decided_at).toEndWith("Z");
     // Everything the page showed while pending is still there.
-    expect(decided.action).toBe("approve_loan");
+    expect(decided.action).toBe("approve_discount");
     expect(decided.amount).toBe(95_000);
   });
 

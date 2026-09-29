@@ -272,7 +272,7 @@ export async function signinCallback(request: Request, config: IdentitySurface =
 
   // The bearer is kept, not dropped (#157). The loan module derives the actor
   // from it at `/oauth2/userinfo` — the same endpoint that just named this
-  // person — so the bank's own screens read the loan book as them and not as a
+  // person — so the bank's own screens read the deal book as them and not as a
   // service account. `refresh_token` is present only when `IDP_SCOPES` asked
   // for `offline_access`; `session.ts` records what that costs.
   const session: Session = {
@@ -734,7 +734,7 @@ export async function completeVerification(
   // that authorization code at cg-idp and Better Auth answers the replay with
   // `invalid_grant "invalid code"` *and* revokes the tokens the first exchange
   // minted — the grant is destroyed rather than merely unfinished, and
-  // `get_loan` fails at `userinfo` a turn later. #100 then forwarded Arcade's
+  // `get_deal` fails at `userinfo` a turn later. #100 then forwarded Arcade's
   // `Location` instead, with a guard to catch the cases where that `Location`
   // was `next_uri` written differently.
   //

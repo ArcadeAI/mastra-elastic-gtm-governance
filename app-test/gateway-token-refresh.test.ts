@@ -72,7 +72,7 @@ beforeEach(() => {
     ARCADE_API_KEY: "gateway-refresh-suite-arcade-key",
     ARCADE_CLOUD_URL: arcade.url,
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: "Loan",
+    ARCADE_LOAN_TOOLKIT: "Deals",
     ARCADE_APPROVALS_TOOLKIT: "Approvals",
     ANTHROPIC_API_KEY: "gateway-refresh-suite-anthropic-key",
     SESSION_SECRET,
@@ -199,7 +199,7 @@ async function ask(jar: Jar, script: readonly Turn[]): Promise<Answer> {
     const response = await fetch(`http://localhost:${server.port}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie: jar.header },
-      body: JSON.stringify({ prompt: "Read the file for LN-2291." }),
+      body: JSON.stringify({ prompt: "Read the file for DL-2291." }),
     });
     const body = await response.text();
     jar.absorb(response.headers.getSetCookie());
@@ -215,8 +215,8 @@ async function ask(jar: Jar, script: readonly Turn[]): Promise<Answer> {
 
 /** One tool call and a sentence: a turn that used the gateway rather than one that skipped it. */
 const A_TURN: readonly Turn[] = [
-  { call: "Loan_GetLoan", input: { loan_id: "LN-2291" } },
-  { say: "LN-2291 is pending." },
+  { call: "Deals_GetDeal", input: { deal_id: "DL-2291" } },
+  { say: "DL-2291 is pending." },
 ];
 
 function kinds(events: readonly ChatEvent[]): string[] {
@@ -450,7 +450,7 @@ describe("the tool list on the page recovers the same way", () => {
     const listed = await sessionTools(session, { config, timeoutMs: 10_000 });
 
     expect(listed.ok).toBe(true);
-    if (listed.ok) expect(listed.tools.map((tool) => tool.name)).toEqual(["Loan_GetLoan"]);
+    if (listed.ok) expect(listed.tools.map((tool) => tool.name)).toEqual(["Deals_GetDeal"]);
     expect(arcade.refreshes).toBe(1);
   });
 

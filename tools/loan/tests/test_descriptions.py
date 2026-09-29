@@ -41,7 +41,7 @@ def test_every_description_is_checked():
     # Four tools, so a catalog that silently stopped loading cannot pass by
     # having nothing to check.
     names = {where for where, _ in _sentences() if "." not in where and "->" not in where}
-    assert names == {"SearchLoans", "GetLoan", "ApproveLoan", "DenyLoan"}
+    assert names == {"SearchDeals", "GetDeal", "ApproveDiscount", "DenyDiscount"}
 
 
 def test_no_description_instructs_the_model():

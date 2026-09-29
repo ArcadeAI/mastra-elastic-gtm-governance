@@ -5,7 +5,7 @@
  * ## What this replaced, and why
  *
  * Until #176 this file was `SignInPanel.tsx` and drew four "Sign in as …"
- * buttons in a card below the loan files. `DESIGN.md` → Identity already
+ * buttons in a card below the deal records. `DESIGN.md` → Identity already
  * recorded the shape that made them weak — *"on stage each persona runs in its
  * own Chrome profile, so switching is rare"* — and the human, looking at `/` on
  * 2026-09-19, named the consequence: on a screen whose whole argument is that

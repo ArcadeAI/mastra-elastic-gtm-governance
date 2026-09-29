@@ -72,7 +72,7 @@ beforeAll(async () => {
           // The app mounts the control plane since #4; a throwaway one, not
           // a governance.db in the repo.
           GOVERNANCE_DB_PATH: ":memory:",
-          // The app holds the loan book since #5; a throwaway one, not a
+          // The app holds the deal book since #5; a throwaway one, not a
           // loans.db in the repo.
           LOANS_DB_PATH: ":memory:",
           SESSION_SECRET,
@@ -116,10 +116,10 @@ test("an opener with no session sees the request, and a sign-in instead of the b
   // feels sensitive, and not widened either: whether this link should disclose
   // the request at all is a separate question, and it is not answered
   // differently per viewer here.
-  expect(html).toContain("LN-2291");
+  expect(html).toContain("DL-2291");
   expect(html).toContain("$95,000");
   expect(html).toContain("Eleven years in business");
-  expect(html).toContain("approve_loan");
+  expect(html).toContain("approve_discount");
   // There is no button to press, and nothing that reads as one having been
   // refused.
   expect(html).not.toMatch(/value="approved"/);

@@ -53,7 +53,7 @@ import {
 import { seedDemoSubjects } from "./demo-cast.ts";
 
 /** The $88,000 control application, pending in the fixture. Charlie decides it below. */
-const CONTROL_LOAN = "LN-2299";
+const CONTROL_LOAN = "DL-2299";
 
 let identity: IdentityHarness;
 /** The app's `/bank/…` route, for the writes this file makes as somebody else. */
@@ -149,7 +149,7 @@ function startControlPlane(dbPath: string) {
     dbPath,
     signingSecret: "api-loans-hook-secret",
     approvalsStoreToken: STORE_TOKEN,
-    loanToolkit: "Loan",
+    loanToolkit: "Deals",
     approvalsToolkit: "Approvals",
     deadlineMs: 2500,
     policyPollMs: 1000,
@@ -188,7 +188,7 @@ function set(key: string, value: string): void {
  * A real sign-in, and the cookie header a browser would carry afterwards.
  *
  * `stopAt` is hop 1's start: the session exists by then and nothing about the
- * loan book depends on the gateway, which is the point of #157.
+ * deal book depends on the gateway, which is the point of #157.
  */
 async function signedInCookie(persona: keyof typeof PEOPLE): Promise<string> {
   const browser = new Browser();
@@ -212,14 +212,14 @@ async function ask(cookie?: string): Promise<{ status: number; text: string; bod
   return { status: response.status, text, body: JSON.parse(text) };
 }
 
-describe("the loan book a signed-in persona is served", () => {
+describe("the deal book a signed-in persona is served", () => {
   test("every application comes back, including both the demo is about", async () => {
     const { status, body } = await ask(await signedInCookie("dana"));
 
     expect(status).toBe(200);
     expect(body.status).toBe("loaded");
     expect(body.actor).toBe(PEOPLE.dana.email);
-    const ids = body.loans.map((loan: { loan_id: string }) => loan.loan_id);
+    const ids = body.loans.map((loan: { deal_id: string }) => loan.deal_id);
     for (const id of DEMO_LOAN_IDS) expect(ids).toContain(id);
     // The whole book, because `/loans` shows the whole book off the same route.
     expect(body.loans.length).toBeGreaterThanOrEqual(DEMO_LOAN_IDS.length);
@@ -227,23 +227,23 @@ describe("the loan book a signed-in persona is served", () => {
 
   test("a card carries the fields the screen draws and nothing it does not", async () => {
     const { body } = await ask(await signedInCookie("dana"));
-    const northwind = body.loans.find((loan: { loan_id: string }) => loan.loan_id === "LN-2291");
+    const northwind = body.loans.find((loan: { deal_id: string }) => loan.deal_id === "DL-2291");
 
     expect(Object.keys(northwind).sort()).toEqual([
+      "account_name",
       "amount",
-      "annual_revenue",
-      "borrower_name",
+      "arr",
       "credit_score",
+      "deal_id",
       "decided_at",
       "decided_by",
       "decided_by_name",
-      "loan_id",
       "purpose",
+      "requested_at",
       "status",
-      "submitted_at",
-      "years_in_business",
+      "years_as_customer",
     ]);
-    expect(northwind.borrower_name).toBe("Northwind Bakery LLC");
+    expect(northwind.account_name).toBe("Northwind Robotics");
     expect(northwind.amount).toBe(95000);
   }, 30_000);
 
@@ -254,38 +254,38 @@ describe("the loan book a signed-in persona is served", () => {
    * system of record and it holds them — so this is asserted against the raw
    * response text rather than against parsed fields: a value that reaches the
    * browser is a value in the page source whatever a component draws. The
-   * account number is compared to what the loan book actually holds, not to a
+   * account number is compared to what the deal book actually holds, not to a
    * constant, so the test cannot pass by the fixture having changed.
    */
-  test("the borrower's account number, tax id and underwriter notes never leave the server", async () => {
+  test("the customer's account number, tax id and CRM notes never leave the server", async () => {
     const cookie = await signedInCookie("dana");
     const held = (await (
-      await fetch(`http://${loanAppHost}/bank/loans/LN-2291`, {
+      await fetch(`http://${loanAppHost}/bank/loans/DL-2291`, {
         headers: { authorization: `Bearer ${await bearerFor("dana")}` },
       })
     ).json()) as Record<string, string>;
     const { text } = await ask(cookie);
 
-    for (const field of ["bank_account_number", "tax_id", "underwriter_notes"]) {
+    for (const field of ["bank_account_number", "tax_id", "crm_notes"]) {
       expect(text).not.toContain(field);
     }
     expect(text).not.toContain(held.bank_account_number);
     expect(text).not.toContain(held.tax_id);
     // The injected instruction act 4 is about, which lives in the notes.
-    expect(text).not.toContain(held.underwriter_notes);
+    expect(text).not.toContain(held.crm_notes);
   }, 30_000);
 
   /**
    * The decision the demo is about to make, as the card will show it.
    *
    * Approved through the loan module's own API, `/bank/…`, as Charlie — the same call the
-   * approval page makes — so `decided_by` is whatever the loan book derived
+   * approval page makes — so `decided_by` is whatever the deal book derived
    * from *that* caller's token, not something this test handed it.
    */
   test("an approval made by another person shows up on the next read, named", async () => {
     const before = await ask(await signedInCookie("dana"));
     expect(
-      before.body.loans.find((loan: { loan_id: string }) => loan.loan_id === CONTROL_LOAN).status,
+      before.body.loans.find((loan: { deal_id: string }) => loan.deal_id === CONTROL_LOAN).status,
     ).toBe("pending");
 
     const approved = await fetch(`http://${loanAppHost}/bank/loans/${CONTROL_LOAN}/approve`, {
@@ -299,7 +299,7 @@ describe("the loan book a signed-in persona is served", () => {
     expect(approved.status).toBe(200);
 
     const after = await ask(await signedInCookie("dana"));
-    const card = after.body.loans.find((loan: { loan_id: string }) => loan.loan_id === CONTROL_LOAN);
+    const card = after.body.loans.find((loan: { deal_id: string }) => loan.deal_id === CONTROL_LOAN);
     expect(card.status).toBe("approved");
     // The address is the join key; the name is what a room reads.
     expect(card.decided_by).toBe(PEOPLE.riley.email);
@@ -315,7 +315,7 @@ describe("who the read is made as", () => {
    *
    * Measured three ways, because this is the rule the whole slice rests on:
    * the bearer on the wire is the one in this browser's session, presenting it
-   * to the IdP names the person who signed in, and the loan book refuses a
+   * to the IdP names the person who signed in, and the deal book refuses a
    * request that does not carry it.
    */
   test("the bearer on the wire is the persona's own IdP token", async () => {
@@ -386,12 +386,12 @@ describe("who the read is made as", () => {
     expect(outbound.filter((url) => url.includes("/bank/") || url.includes("/mcp"))).toEqual([]);
   }, 45_000);
 
-  test("the loan book refuses the same requests without it", async () => {
+  test("the deal book refuses the same requests without it", async () => {
     const naked = await fetch(`http://${loanAppHost}/bank/loans`);
     expect(naked.status).toBe(401);
   }, 30_000);
 
-  test("no request to the loan book carries anything but that person's bearer", async () => {
+  test("no request to the deal book carries anything but that person's bearer", async () => {
     seen = [];
     await ask(await signedInCookie("riley"));
 
@@ -479,22 +479,22 @@ describe("when there is nobody to read as", () => {
 });
 
 /**
- * Last, because it is terminal: the loan book does not answer.
+ * Last, because it is terminal: the deal book does not answer.
  *
  * The one mislabelling this project is organised against. A screen that said
  * "you are not allowed to see this" when the truth is that a process died would
  * be asserting a control-plane action that never happened — and unlike the
  * reverse mistake, nobody ever finds out.
  */
-describe("when the loan book does not answer", () => {
+describe("when the deal book does not answer", () => {
   /**
-   * Since #5 there is no loan process to kill: the loan book is this one. What
+   * Since #5 there is no loan process to kill: the deal book is this one. What
    * can still stop answering is the identity provider it asks, and a loan
    * module that cannot resolve a bearer answers 503 — so the proxy in front of
    * the provider is stopped, and a fresh sign-in's first read (which no cached
    * answer can serve) meets it.
    */
-  test("an unreachable loan book is an outage, never a refusal", async () => {
+  test("an unreachable deal book is an outage, never a refusal", async () => {
     const cookie = await signedInCookie("dana");
     proxy.stop(true);
 

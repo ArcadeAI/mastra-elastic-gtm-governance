@@ -8,9 +8,9 @@
  * configuration the control plane refuses is reported here, loudly, and then
  * on `/health` and in every hook's 503 (`lib/control-plane/instance.ts`).
  *
- * It opens the loan book (#5): `loans.db` is seeded from the fixture when it is
+ * It opens the deal book (#5): `loans.db` is seeded from the fixture when it is
  * empty, inside one transaction with the schema, before the first request. A
- * loan book that will not open — a fixture that does not parse, a seed that
+ * deal book that will not open — a fixture that does not parse, a seed that
  * fails, a disk written by a newer build — is reported here, loudly, and then
  * on `/health` and in every `/bank/…` route's 503 (`lib/loans/instance.ts`).
  * It never comes up empty.

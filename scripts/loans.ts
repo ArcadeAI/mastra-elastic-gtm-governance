@@ -4,7 +4,7 @@
  * Not a service: the app serves `/bank/…` itself, in-process, since #5. This
  * runner exists for the test harnesses under `app-test/` and `test/`, for
  * `tools/loan`'s tests, and for anyone who wants the loan API on a socket
- * without booting Next. It opens the loan book the way the app does and puts
+ * without booting Next. It opens the deal book the way the app does and puts
  * the same request handler behind `Bun.serve`. There is one implementation of
  * every route, and this is the second way to reach it.
  *
@@ -16,7 +16,7 @@
  * `listening on :<port>` on its boot line, which is how the harnesses learn the
  * port — never a literal and never a guess.
  *
- * Unlike the app, it refuses to start when the loan book will not open: there
+ * Unlike the app, it refuses to start when the deal book will not open: there
  * is nothing else in this process to keep serving. An `IDENTITY_HOST`
  * nothing can reach exits 78 (sysexits' EX_CONFIG) before the database is
  * opened and before the port is bound, the way `cg-loan-app` always did.

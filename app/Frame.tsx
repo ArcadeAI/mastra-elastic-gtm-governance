@@ -6,7 +6,7 @@
  * branded. The shape chosen at the 2026-09-19 gate was a frame **around** the
  * surfaces rather than a restyling of any of them, and the reason is
  * `BankPane.tsx`'s own argument, which #22 wrote and #177 reaffirmed: a
- * beautiful loan origination system *"makes the governed system look like part
+ * beautiful deal desk *"makes the governed system look like part
  * of the same product as the thing governing it."* Branding the bank would
  * reverse the demo's central claim. So the marks go on the thing that **is**
  * Mastra and Arcade — the page, outside everything — and the system of record

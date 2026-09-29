@@ -68,7 +68,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "interop-store-token",
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 250,
@@ -98,8 +98,8 @@ const denyDana = (executionId: string): Promise<Response> =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-2291", amount: 95_000 },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),
   });
@@ -113,7 +113,7 @@ function append(count: number, tag: string, publish: boolean): void {
       execution_id: `${tag}_${index}`,
       hook: "access",
       user_id: DANA,
-      tool: "Loan.GetLoan",
+      tool: "Deals.GetDeal",
       decision: "allow",
       reason: tag,
       rule_id: null,

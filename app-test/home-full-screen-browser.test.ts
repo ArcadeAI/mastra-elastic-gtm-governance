@@ -220,12 +220,12 @@ async function measureHome(options: {
   hooksHost?: string;
   /**
    * The identity provider the app's loan module presents bearers to
-   * (`IDENTITY_HOST`), HOST-form. The loan book is in the app since #5, so
+   * (`IDENTITY_HOST`), HOST-form. The deal book is in the app since #5, so
    * this is the one address its answer depends on; until #5 the option was the
    * loan API's own address.
    *
    * Defaults to a port this process bound and released, so the module cannot
-   * say who the bearer is and the loan book comes back `unavailable` — the
+   * say who the bearer is and the deal book comes back `unavailable` — the
    * state the default always produced. It may **not** default to the
    * worktree's own `IDENTITY_HOST`: that is whatever `.env.local` says, and
    * the page would then depend on what else happens to be running.
@@ -253,7 +253,7 @@ async function measureHome(options: {
         ARCADE_API_URL: agents.gateway.url,
         ARCADE_API_KEY: "arcade-key-for-full-screen-browser",
         ARCADE_GATEWAY_ID: "cg-demo-us",
-        ARCADE_LOAN_TOOLKIT: "Loan",
+        ARCADE_LOAN_TOOLKIT: "Deals",
         ARCADE_APPROVALS_TOOLKIT: "Approvals",
         ANTHROPIC_API_KEY: "not-used-by-this-test",
         MODEL_ID: "claude-sonnet-5",
@@ -265,7 +265,7 @@ async function measureHome(options: {
         IDP_CLIENT_ID: "web",
         IDP_CLIENT_SECRET: "not-used-by-this-test",
         APPROVALS_STORE_TOKEN: "store-token-for-agent-tests",
-        // A throwaway loan book: it may not default to `./loans.db`, which is
+        // A throwaway deal book: it may not default to `./loans.db`, which is
         // the developer's own.
         LOANS_DB_PATH: ":memory:",
         IDENTITY_HOST: loanIdpHost,
@@ -455,7 +455,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
     // No control-plane column. The panel's whole namespace, absent from the
     // served document — server HTML and hydrated client tree together.
     expect(measured.html).not.toMatch(/class="[^"]*\bcg-[a-z]/);
-    expect(measured.html).toContain("Loan Origination System");
+    expect(measured.html).toContain("Deal Desk");
     expect(measured.html).toContain("Signed in as");
     expect(measured.html).toContain(DANA);
     // And the strip #176 cut down to two entries, both of which navigate, in
@@ -513,7 +513,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
             {
               id: "evt_fullscreen0",
               kind: "pre",
-              tool: "Loan_ApproveLoan",
+              tool: "Deals_ApproveDiscount",
               user_id: DANA,
               decision: "denied",
               at: new Date().toISOString(),
@@ -573,7 +573,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       expect(measured.html).not.toContain("LIVE ·");
 
       // Still whole, with a control plane configured.
-      expect(measured.html).toContain("Loan Origination System");
+      expect(measured.html).toContain("Deal Desk");
       expect(measured.viewports).toEqual(FULL_SCREEN);
     } finally {
       hooks.stop();
@@ -587,25 +587,25 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
  *
  * The human photographed `/` on 2026-09-19 with three claims on it at once: the
  * chrome said `SIGNED IN AS bob@megaforce.tech`, the assistant said every tool
- * call is made as that person, and the loan book between them said the bank had
+ * call is made as that person, and the deal book between them said the bank had
  * not accepted that sign-in. Two of the three were true.
  *
  * `app-test/home-stale-session.test.tsx` drives the same state through
  * `readLoanBook` against a real 401 and asserts on the components. This is the
  * other half of that claim and the one a component render cannot make: the
  * *page* — App Router, server component, client bundle, hydrated — in front of a
- * real browser, with a loan book that really refuses a real bearer. A page that
+ * real browser, with a deal book that really refuses a real bearer. A page that
  * agreed with itself in a test file and not in Chrome would be the shape of
  * every failure surface this repo has had to fix twice.
  *
- * Since #5 the loan book is the app's own module, and it is real here too: the
+ * Since #5 the deal book is the app's own module, and it is real here too: the
  * stand-in is only the identity provider it asks, which refuses every bearer,
  * so the module answers the 401 itself. The half that says the module really
  * answers 401 to a bearer the real IdP refuses is measured in
  * `app-test/api-loans.test.ts`. Until #5 the stand-in was the loan API.
  */
 test.skipIf(chromeResolution.path === null && !REQUIRED)(
-  "with the loan book refusing this browser's bearer, the whole page says so once",
+  "with the deal book refusing this browser's bearer, the whole page says so once",
   async () => {
     if (chromeResolution.path === null) throw new Error(missingBrowserMessage(chromeResolution));
 
@@ -643,7 +643,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
 
       // Still whole: the bank fills the viewport and the columns are the ones
       // the 2026-09-18 gate asked for. A stale sign-in is not an outage.
-      expect(measured.html).toContain("Loan Origination System");
+      expect(measured.html).toContain("Deal Desk");
       expect(measured.viewports).toEqual(FULL_SCREEN);
     } finally {
       refusing.stop(true);

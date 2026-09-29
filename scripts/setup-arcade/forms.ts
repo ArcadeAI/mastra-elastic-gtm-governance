@@ -33,7 +33,7 @@ export interface UserSourceForm {
 export function userSourceForm({ origin, clientId, clientSecret }: UserSourceForm): string {
   return [
     "┌─ Arcade dashboard → your project → User Sources → Create User Source",
-    "│  Name            Loan Approval Limits",
+    "│  Name            Deals Approval Limits",
     "│  Description     The app's own sign-in (hop 1)",
     `│  Issuer URL      ${origin}`,
     `│  Client ID       ${clientId}`,
@@ -61,7 +61,7 @@ export function hooksForm({ origin }: { origin: string }): string {
     "│  The fields carry the names of Arcade's API (schemas.CreatePluginRequest); the dashboard's",
     "│  labels may read differently.",
     `│  name                  ${HOOKS_NAME}`,
-    "│  description           The Loan Approval Limits control plane",
+    "│  description           The Deals Approval Limits control plane",
     "│  plugin_type           webhook",
     "│  status                active",
     ...HOOK_POINTS.flatMap(({ point, hookPoint, phase }) => [
@@ -93,15 +93,15 @@ export function gatewayForm({ slug, loanToolkit, approvalsToolkit, userSourceId 
   const through = userSourceId === undefined ? "(the User Source above)" : `(${userSourceId}, already registered)`;
   return [
     "┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway",
-    "│  Name              Loan Approval Limits",
-    "│  Description       The loan officer's agent",
+    "│  Name              Deals Approval Limits",
+    "│  Description       The account executive's agent",
     `│  Slug              ${slug}        ← .env's ARCADE_GATEWAY_ID`,
     "│  LLM Instructions  (leave empty)",
     `│  Allowed Tools     these six, and no others:`,
-    `│                    ${loanToolkit}: SearchLoans, GetLoan, ApproveLoan, DenyLoan`,
+    `│                    ${loanToolkit}: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount`,
     `│                    ${approvalsToolkit}: RequestApproval, Decide`,
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
-    `│                    → Loan Approval Limits ${through}. Never Arcade Headers.`,
+    `│                    → Deals Approval Limits ${through}. Never Arcade Headers.`,
     "│",
     `│  The form lists the ${loanToolkit} and ${approvalsToolkit} tools only while the hooks are disabled,`,
     "│  which is how this run left them.",

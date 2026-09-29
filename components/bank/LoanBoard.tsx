@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * `/loans` — the loan book, full-screen, for the presenter's second display.
+ * `/loans` — the deal book, full-screen, for the presenter's second display.
  *
  * The whole book as large cards, auto-updating on the same route and the same
  * interval as the two cards beside the chat (`use-loan-book.ts`). When the
- * agent approves LN-2291, or Charlie approves it from the approval page, the
+ * agent approves DL-2291, or Charlie approves it from the approval page, the
  * card turns over here while the room is still looking at it — which is the
  * beat the 2026-09-18 rehearsal found missing: the audience heard that a loan
  * had been approved and never saw it happen.
@@ -44,8 +44,8 @@ export function LoanBoard({
   return (
     <div className="bank bank-board">
       <header className="bank-chrome">
-        <p className="bank-chrome-name">Loan Origination System</p>
-        <span className="bank-chrome-division">Commercial Lending Division</span>
+        <p className="bank-chrome-name">Deal Desk</p>
+        <span className="bank-chrome-division">Enterprise Sales</span>
         <span className="bank-chrome-release">Rel. 7.2.1</span>
       </header>
 
@@ -65,19 +65,19 @@ export function LoanBoard({
         <div className="bank-board-grid" data-loans={state.loans.length}>
           {state.loans.map((loan) => (
             <article
-              key={loan.loan_id}
+              key={loan.deal_id}
               className="bank-board-card"
-              data-loan={loan.loan_id}
+              data-loan={loan.deal_id}
               data-status={statusKey(loan.status)}
             >
               <header className="bank-board-card-head">
-                <span className="bank-board-card-id">{loan.loan_id}</span>
+                <span className="bank-board-card-id">{loan.deal_id}</span>
                 <span className="bank-status" data-status={statusKey(loan.status)}>
                   {text(loan.status)}
                 </span>
               </header>
 
-              <h2 className="bank-board-card-borrower">{text(loan.borrower_name)}</h2>
+              <h2 className="bank-board-card-customer">{text(loan.account_name)}</h2>
               <p className="bank-board-card-amount">{dollars(loan.amount)}</p>
               <p className="bank-board-card-purpose">{text(loan.purpose)}</p>
 

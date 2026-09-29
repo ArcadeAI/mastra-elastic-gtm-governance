@@ -36,7 +36,7 @@
  * stop at the line that matters: the route **loaded**, opened the transport,
  * listed the gateway's tools and selected the governed ones. That is precisely
  * the stretch #92 broke, and it is all reachable without a key. With a key, the
- * last check runs the LN-2299 turn end to end and reads the denial and the
+ * last check runs the DL-2299 turn end to end and reads the denial and the
  * `/pre` audit row back.
  *
  * The harness is imported from `test/` rather than rebuilt here. Two copies of
@@ -202,7 +202,7 @@ async function main(): Promise<number> {
             ARCADE_API_URL: `http://host.docker.internal:${gatewayPort}`,
             ARCADE_API_KEY: harness.config.arcadeApiKey,
             ARCADE_GATEWAY_ID: harness.config.identity.gatewayId,
-            ARCADE_LOAN_TOOLKIT: harness.config.agent.toolkits[0] ?? "Loan",
+            ARCADE_LOAN_TOOLKIT: harness.config.agent.toolkits[0] ?? "Deals",
             ARCADE_APPROVALS_TOOLKIT: harness.config.agent.toolkits[1] ?? "Approvals",
             ANTHROPIC_API_KEY: liveKey || "standalone-verify-has-no-key",
             MODEL_ID: harness.config.agent.modelId,
@@ -292,7 +292,7 @@ async function main(): Promise<number> {
     //
     // A 502 here would mean the gateway would not list its tools or advertised
     // nothing governed. A 200 means the container opened MCP, listed, selected
-    // `Loan_*` and handed the model a real toolset — the whole stretch that
+    // `Deals_*` and handed the model a real toolset — the whole stretch that
     // `next start` was proving and the image was not.
     const cookie = await browserCookie(harness);
     const turn = await fetch(`${base}/api/chat`, {
@@ -321,12 +321,12 @@ async function main(): Promise<number> {
       );
       const rows = await harness.audit();
       // The same row `app-test/tracer-bullet.test.ts` asserts on: `/pre` refusing
-      // `Loan.ApproveLoan` for Alice, attributed to the rule that made the call.
+      // `Deals.ApproveDiscount` for Alice, attributed to the rule that made the call.
       const preRow = rows.find(
-        (row) => row.hook === "pre" && row.tool === "Loan.ApproveLoan" && row.decision === "deny",
+        (row) => row.hook === "pre" && row.tool === "Deals.ApproveDiscount" && row.decision === "deny",
       );
       record(
-        "the LN-2299 turn is denied by the control plane, with a /pre audit row",
+        "the DL-2299 turn is denied by the control plane, with a /pre audit row",
         denied !== undefined && preRow !== undefined && preRow.user_id === DANA,
         denied
           ? `denied ${denied.tool}: ${denied.reason.slice(0, 120)} [ref ${String(denied.ref)}]; ${rows.length} audit row(s)`

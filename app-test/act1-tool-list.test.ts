@@ -10,7 +10,7 @@
  *
  * ## The two claims, and which half of each a keyless run can make
  *
- * The beat is: **as Bob, `Loan_ApproveLoan` is absent, and no denied tool call
+ * The beat is: **as Bob, `Deals_ApproveDiscount` is absent, and no denied tool call
  * appears in the audit log because no call was attempted.** Both halves of the
  * first claim and both halves of the second are mechanical and are measured
  * here without a model: the gateway's answer, the agent's toolset built from
@@ -44,9 +44,9 @@ const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;
 const DEMO_PROMPT =
   "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
 
-/** `Loan.ApproveLoan` in the hook frame's spelling; `Loan_ApproveLoan` on the wire. */
-const APPROVE_WIRE = "Loan_ApproveLoan";
-const APPROVE_FRAME = "Loan.ApproveLoan";
+/** `Deals.ApproveDiscount` in the hook frame's spelling; `Deals_ApproveDiscount` on the wire. */
+const APPROVE_WIRE = "Deals_ApproveDiscount";
+const APPROVE_FRAME = "Deals.ApproveDiscount";
 const ACCESS_RULE = "access.analysts-cannot-see-approve";
 
 let harness: AgentHarness;
@@ -154,9 +154,9 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // another.
     expect(names).not.toContain(APPROVE_WIRE);
     expect(names).toEqual([
-      "Loan_SearchLoans",
-      "Loan_GetLoan",
-      "Loan_DenyLoan",
+      "Deals_SearchDeals",
+      "Deals_GetDeal",
+      "Deals_DenyDiscount",
       "Approvals_RequestApproval",
       "Approvals_Decide",
     ]);
@@ -197,10 +197,10 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // All six, so a toolkit that silently stopped being advertised cannot pass
     // this by having nothing to check.
     expect(result.tools.map((tool) => tool.name)).toEqual([
-      "Loan_SearchLoans",
-      "Loan_GetLoan",
-      "Loan_ApproveLoan",
-      "Loan_DenyLoan",
+      "Deals_SearchDeals",
+      "Deals_GetDeal",
+      "Deals_ApproveDiscount",
+      "Deals_DenyDiscount",
       "Approvals_RequestApproval",
       "Approvals_Decide",
     ]);
@@ -240,8 +240,8 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // The description is the sentence the *model* picks a tool from. One
     // invented here would put a different surface on screen from the one in the
     // model's context.
-    const search = result.tools.find((tool) => tool.name === "Loan_SearchLoans");
-    expect(search?.description).toContain("loan book");
+    const search = result.tools.find((tool) => tool.name === "Deals_SearchDeals");
+    expect(search?.description).toContain("deal book");
   });
 
   test("the list is not a catalogue the page holds: what /access hid never reached this process", () => {
@@ -303,10 +303,10 @@ describe("who the /access frame names", () => {
     expect(rows.map((row) => row.tool).sort()).toEqual([
       "Approvals.Decide",
       "Approvals.RequestApproval",
-      "Loan.ApproveLoan",
-      "Loan.DenyLoan",
-      "Loan.GetLoan",
-      "Loan.SearchLoans",
+      "Deals.ApproveDiscount",
+      "Deals.DenyDiscount",
+      "Deals.GetDeal",
+      "Deals.SearchDeals",
     ]);
 
     const hidden = rows.find((row) => row.tool === APPROVE_FRAME);
@@ -342,12 +342,12 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     result = await turn({
       cookie: await browserFor(SAM),
       prompt: DEMO_PROMPT,
-      // The script cannot call `Loan_ApproveLoan`: it is not in the toolset the
+      // The script cannot call `Deals_ApproveDiscount`: it is not in the toolset the
       // gateway gave this persona, which is the whole point. What it does is
       // what a model with this surface can do — read, and then say so.
       script: [
-        { call: "Loan_SearchLoans", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
-        { call: "Loan_GetLoan", input: { loan_id: OVER_LIMIT_LOAN } },
+        { call: "Deals_SearchDeals", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
+        { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
         { say: "I can read this application but I have no tool that can approve a loan." },
       ],
     });
@@ -361,11 +361,11 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     expect(lastSurface?.governed).not.toContain(APPROVE_WIRE);
     // Everything except the one tool act 1 hides. Bob keeps the approvals tools
     // — nothing in the policy takes them from him, and act 1's claim is about
-    // `ApproveLoan` specifically, not about a narrower surface in general.
+    // `ApproveDiscount` specifically, not about a narrower surface in general.
     expect(lastSurface?.governed).toEqual([
-      "Loan_SearchLoans",
-      "Loan_GetLoan",
-      "Loan_DenyLoan",
+      "Deals_SearchDeals",
+      "Deals_GetDeal",
+      "Deals_DenyDiscount",
       "Approvals_RequestApproval",
       "Approvals_Decide",
     ]);
@@ -392,7 +392,7 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     expect(hidden?.rule_id).toBe(ACCESS_RULE);
   });
 
-  test("the loan book records nothing", async () => {
+  test("the deal book records nothing", async () => {
     const after = await harness.loan(OVER_LIMIT_LOAN, SAM);
     expect(after.status).toBe("pending");
     expect(after.decisions).toEqual(before.decisions as never);
@@ -414,7 +414,7 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     const reply = result.reply.toLowerCase();
     expect(reply).toMatch(/(can(no|')t|cannot|unable|don'?t have|no (tool|capability|access)|not available)/);
     // And it did not quietly approve something else instead.
-    expect(harness.calls.slice(callsBefore).map((call) => call.tool)).not.toContain("Loan_DenyLoan");
+    expect(harness.calls.slice(callsBefore).map((call) => call.tool)).not.toContain("Deals_DenyDiscount");
   });
 });
 

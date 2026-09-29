@@ -1,5 +1,5 @@
 /**
- * How the loan file prints its numbers.
+ * How the deal record prints its numbers.
  *
  * Locale is pinned to `en-US` rather than left to the browser. A server
  * component and a browser that disagree about a thousands separator is a
@@ -90,11 +90,11 @@ export function text(value: string | undefined): string {
 }
 
 /**
- * The status a loan file is in, normalised for the attribute the stylesheet
+ * The status a deal record is in, normalised for the attribute the stylesheet
  * keys on — and only when it is one this screen knows.
  *
  * An unrecognised status is styled as plain chrome rather than guessed at. The
- * loan book is free to grow a state this UI has never heard of, and a
+ * deal book is free to grow a state this UI has never heard of, and a
  * `data-status` the stylesheet has no rule for is a neutral box rather than a
  * wrong colour.
  */

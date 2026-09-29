@@ -115,7 +115,7 @@ export function seedDemoSubjects(target: Database | string): void {
  * them. A file that already has a schema keeps its policy, and gains only the
  * subjects it lacks.
  */
-export function seedDemoGovernance(path: string, toolkits: SeedOptions = { loanToolkit: "Loan", approvalsToolkit: "Approvals" }): void {
+export function seedDemoGovernance(path: string, toolkits: SeedOptions = { loanToolkit: "Deals", approvalsToolkit: "Approvals" }): void {
   const db = openGovernance(path, toolkits);
   try {
     seedDemoSubjects(db);

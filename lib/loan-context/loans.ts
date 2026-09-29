@@ -1,14 +1,14 @@
 /**
- * The loan book as the bank's own screens show it: the `/` cards and the
+ * The deal book as the bank's own screens show it: the `/` cards and the
  * `/loans` board.
  *
  * ## Why this is a direct read
  *
- * Until 2026-09-18 these screens read the loan book through the Arcade gateway,
+ * Until 2026-09-18 these screens read the deal book through the Arcade gateway,
  * and the argument for it stood here: a second, ungoverned path into the same
  * data, beside a control plane claiming there is only one. #157 retires that
  * argument, and `DESIGN.md` → Business system records the reversal. The
- * governed read cost two `Loan_GetLoan` calls on every page load, so the panel
+ * governed read cost two `Deals_GetDeal` calls on every page load, so the panel
  * showed tool calls before the presenter had said anything and the audience
  * could not tell the agent's work from the page's chrome; and because a page
  * load was the only read, an approval the agent had just made never appeared on
@@ -32,15 +32,15 @@
  * The two applications the `/` cards show. `DESIGN.md` → Cast, and #91 for the
  * control.
  *
- * - `LN-2291`, Northwind Bakery LLC, $95,000 — acts 2, 3 and 4.
- * - `LN-2299`, Meridian Physical Therapy, $88,000 — the control, without the
+ * - `DL-2291`, Northwind Robotics, $95,000 — acts 2, 3 and 4.
+ * - `DL-2299`, Meridian Health, $88,000 — the control, without the
  *   injected note, which is what lets a failed run be read as "the injection
  *   interfered" rather than "the agent broke".
  *
  * The `/loans` board shows the whole book instead; these two are what sits
  * beside the chat.
  */
-export const DEMO_LOAN_IDS = ["LN-2291", "LN-2299"] as const;
+export const DEMO_LOAN_IDS = ["DL-2291", "DL-2299"] as const;
 
 /**
  * How often the cards and the board ask again.
@@ -61,25 +61,25 @@ export const LOANS_ROUTE = "/api/loans";
  * One application, as the bank's own screens are allowed to see it.
  *
  * An **allow-list**, not a filter. The loan module (`lib/loans/`) returns
- * `bank_account_number`, `tax_id` and `underwriter_notes` on its detail route —
- * a loan origination system holds them and ours does too — and the projection
+ * `bank_account_number`, `tax_id` and `crm_notes` on its detail route —
+ * a deal desk holds them and ours does too — and the projection
  * in `read.ts` builds this object field by field rather than deleting three
- * from a record. A field added to the loan book therefore does not appear here
+ * from a record. A field added to the deal book therefore does not appear here
  * by default, which is the direction this screen wants to fail in: act 3's
  * subject may never reach a projector because somebody widened a type.
  */
 export interface LoanCard {
-  loan_id: string;
-  borrower_name: string;
+  deal_id: string;
+  account_name: string;
   /** Dollars. */
   amount: number;
-  /** `pending` | `approved` | `denied`, as the loan book spells it. */
+  /** `pending` | `approved` | `denied`, as the deal book spells it. */
   status: string;
   purpose: string;
-  submitted_at: string;
+  requested_at: string;
   credit_score: number;
-  annual_revenue: number;
-  years_in_business: number;
+  arr: number;
+  years_as_customer: number;
   /**
    * Who recorded the most recent decision, as the loan module derived it from
    * that caller's own token. `null` when nothing has been decided, and also on
@@ -96,12 +96,12 @@ export interface LoanCard {
    * and the address is the join key in any case.
    */
   decided_by_name: string | null;
-  /** ISO 8601, as the loan book recorded it. `null` when nothing was decided. */
+  /** ISO 8601, as the deal book recorded it. `null` when nothing was decided. */
   decided_at: string | null;
 }
 
 /**
- * What one read of the loan book produced — the body of `GET /api/loans`, and
+ * What one read of the deal book produced — the body of `GET /api/loans`, and
  * the prop the server component hands the first paint.
  *
  * Four states, kept apart for the reason this repo keeps everything apart: they
@@ -117,7 +117,7 @@ export type LoanBookState =
   | { status: "signed-out"; message: string }
   /** Somebody is, but the IdP bearer is gone, expired, or refused. Sign in again. */
   | { status: "expired"; message: string }
-  /** The loan book did not answer. Nothing decided anything. */
+  /** The deal book did not answer. Nothing decided anything. */
   | { status: "unavailable"; message: string };
 
 /** Every `LoanBookState` tag, so a reader can tell a body apart from a stray 404 page. */

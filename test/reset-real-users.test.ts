@@ -44,7 +44,7 @@ const PRIYA = {
   email: "priya@company.test",
   name: "Priya",
   password: "priya-chose-this-one",
-  role: "vp_credit",
+  role: "vp_sales",
   clearance: 400_000,
 };
 
@@ -138,8 +138,8 @@ async function approve95k(userId: string): Promise<unknown> {
     headers: { authorization: `Bearer ${HOOK_SECRET}`, "content-type": "application/json" },
     body: JSON.stringify({
       execution_id: `tc_${crypto.randomUUID()}`,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-2291", amount: 95_000 },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: userId },
     }),
   });
@@ -211,7 +211,7 @@ const EXPECTED_PRIYA_ROW: RosterEntry = {
 
 beforeAll(async () => {
   // The token endpoint the loan module reads the actor off, and nothing else:
-  // the loan book is reset here, never read as anybody.
+  // the deal book is reset here, never read as anybody.
   userinfo = Bun.serve({ port: 0, fetch: () => new Response("invalid_token", { status: 401 }) });
 
   app = await bootApp({
@@ -303,7 +303,7 @@ describe("drift, with a user `bun run users add` created (#32)", () => {
     // Put back the way an operator would, so the next test starts whole.
     const back = new Database(app.databases.governance);
     back.run(
-      "INSERT INTO subjects (user_id, display_name, role, clearance, attributes) VALUES (?, 'Charlie', 'vp_credit', 250000, '{}')",
+      "INSERT INTO subjects (user_id, display_name, role, clearance, attributes) VALUES (?, 'Charlie', 'vp_sales', 250000, '{}')",
       [CHARLIE],
     );
     back.close();
@@ -315,7 +315,7 @@ describe("drift, with a user `bun run users add` created (#32)", () => {
     const GHOST = "ghost@company.test";
     const ghost = new Database(app.databases.governance);
     ghost.run(
-      "INSERT INTO subjects (user_id, display_name, role, clearance, attributes) VALUES (?, 'Ghost', 'vp_credit', 300000, '{}')",
+      "INSERT INTO subjects (user_id, display_name, role, clearance, attributes) VALUES (?, 'Ghost', 'vp_sales', 300000, '{}')",
       [GHOST],
     );
     ghost.close();
@@ -438,7 +438,7 @@ describe("`bun run reset --hard` keeps her too, and signs everybody out", () => 
     expect(out).toContain(`Bob: added ${BOB}`);
     await until(async () => (await roster()).some((entry) => entry.user_id === BOB));
     await untilDrift((value) => value === null);
-    expect((await roster()).find((entry) => entry.user_id === BOB)?.role).toBe("credit_analyst");
+    expect((await roster()).find((entry) => entry.user_id === BOB)?.role).toBe("sdr");
     expect((await signIn(BOB, "bob-is-back-2026")).status).toBe(200);
 
     // Present again, so both resets treat him as the demo cast once more.

@@ -32,7 +32,7 @@
  *    two.** The server fetch runs the authorization-code exchange at `cg-idp`;
  *    a browser sent to the same URL runs it again, and Better Auth's token
  *    endpoint does not merely refuse the replay — it revokes the tokens the
- *    first exchange minted. The visible symptom is three layers away: `get_loan`
+ *    first exchange minted. The visible symptom is three layers away: `get_deal`
  *    fails at `userinfo` with "The identity provider rejected the token."
  *
  * #100 answered "then where does the browser go?" with *the continuation Arcade

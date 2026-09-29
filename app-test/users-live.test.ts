@@ -58,8 +58,8 @@ const approve = (userId: string, amount: number) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${HOOK_SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_users_${crypto.randomUUID()}`,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-2299", amount },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-2299", amount },
       context: { authorization: [{}], user_id: userId },
     }),
   }).then((response) => response.json() as Promise<{ code: string; error_message?: string }>);
@@ -123,7 +123,7 @@ describe("bun run users, against the running app", () => {
   let cookie = "";
 
   test("a user added with users add signs in with the password it printed", async () => {
-    const added = await users(["add", EMAIL, "--name", "Rowan", "--role", "loan_officer", "--clearance", "50000"]);
+    const added = await users(["add", EMAIL, "--name", "Rowan", "--role", "account_executive", "--clearance", "50000"]);
     password = added.stdout.match(/^ {2}password {3}(\S+)$/m)![1]!;
 
     const wrong = await signIn(LOWER, `${password}x`);

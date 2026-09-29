@@ -21,7 +21,7 @@ import {
 import { addSubject, subjectChanges } from "../../lib/control-plane/subjects.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
-const OPTIONS: SeedOptions = { loanToolkit: "Loan", approvalsToolkit: "Approvals" };
+const OPTIONS: SeedOptions = { loanToolkit: "Deals", approvalsToolkit: "Approvals" };
 
 function withDir(body: (dir: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), "cg-subject-changes-"));
@@ -47,7 +47,7 @@ function writeDiskAtVersion4(path: string): void {
   db.exec("DROP TRIGGER subject_changes_is_append_only_update");
   db.exec("DROP TRIGGER subject_changes_is_append_only_delete");
   db.exec("DROP TABLE subject_changes");
-  db.exec("UPDATE subjects SET clearance = 75000 WHERE role = 'loan_officer'");
+  db.exec("UPDATE subjects SET clearance = 75000 WHERE role = 'account_executive'");
   db.exec("PRAGMA user_version = 4");
   db.close();
 }
@@ -72,9 +72,9 @@ describe("subject_changes on an existing disk", () => {
         expect((report as MigrationReport | null)).toMatchObject({ from: 4, to: 5, vacuumMs: null });
         // The live state is the live state: the edited clearance survived.
         expect(counts(db).subjects).toBe(4);
-        expect(db.query<{ c: number }, []>("SELECT clearance AS c FROM subjects WHERE role = 'loan_officer'").get()!.c).toBe(75000);
+        expect(db.query<{ c: number }, []>("SELECT clearance AS c FROM subjects WHERE role = 'account_executive'").get()!.c).toBe(75000);
 
-        const change = addSubject(db, { user_id: "new@example.com", display_name: "New", role: "vp_credit", clearance: 1 }, "test");
+        const change = addSubject(db, { user_id: "new@example.com", display_name: "New", role: "vp_sales", clearance: 1 }, "test");
         expect(subjectChanges(db)).toEqual([change]);
         expect(() => db.exec("DELETE FROM subject_changes")).toThrow(/append-only/);
       } finally {

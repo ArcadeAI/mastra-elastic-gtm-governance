@@ -295,7 +295,7 @@ export function ControlPlaneStatus({
  * blast radius rather than most of it — every table it empties, named.
  *
  * Naming `loans.db` is the other half, and it is about *this control* rather
- * than about the demo: an approved LN-2291 survives both modes, because that
+ * than about the demo: an approved DL-2291 survives both modes, because that
  * database belongs to the loan module and nothing in the control plane may
  * reach into it (DESIGN.md). A presenter who presses Reset and then finds the
  * loan still approved should read that here, not discover it in front of an

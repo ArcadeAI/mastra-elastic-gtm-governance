@@ -4,7 +4,7 @@
  * it (#5).
  *
  * The claim under test is the one #23 needs: after a take of the demo has
- * approved `LN-2291`, one call puts the book back to the rows the fixture
+ * approved `DL-2291`, one call puts the book back to the rows the fixture
  * ships, and calling it again changes nothing. Everything is read through the
  * service's own HTTP surface; nothing here opens `loans.db`, because a test
  * that reads the file could pass against a service that never noticed the
@@ -120,17 +120,17 @@ afterAll(() => {
 });
 
 describe("the seeded book comes back", () => {
-  test("a take that approved LN-2291 is undone by one call", async () => {
-    const seeded = await loan(live.baseUrl, "LN-2291");
+  test("a take that approved DL-2291 is undone by one call", async () => {
+    const seeded = await loan(live.baseUrl, "DL-2291");
     expect(seeded.status).toBe("pending");
 
-    const approved = await fetch(`${live.baseUrl}/loans/LN-2291/approve`, {
+    const approved = await fetch(`${live.baseUrl}/loans/DL-2291/approve`, {
       method: "POST",
       headers: { ...as("tok-dana").headers, "content-type": "application/json" },
       body: JSON.stringify({ amount: 95_000 }),
     });
     expect(approved.status).toBe(200);
-    expect((await loan(live.baseUrl, "LN-2291")).status).toBe("approved");
+    expect((await loan(live.baseUrl, "DL-2291")).status).toBe("approved");
 
     const response = await reset(live.baseUrl);
     expect(response.status).toBe(200);
@@ -142,7 +142,7 @@ describe("the seeded book comes back", () => {
     expect(body.counts.before.decisions).toBe(body.counts.after.decisions + 1);
     expect(body.counts.after.loans).toBe(body.counts.before.loans);
 
-    const after = await loan(live.baseUrl, "LN-2291");
+    const after = await loan(live.baseUrl, "DL-2291");
     expect(after.status).toBe("pending");
     // Not just the status: a decision row left behind and ignored would still
     // be a $95K approval in the bank's system of record.
@@ -152,11 +152,11 @@ describe("the seeded book comes back", () => {
 
   test("running it twice leaves exactly the same book", async () => {
     await reset(live.baseUrl);
-    const once = await Promise.all([loan(live.baseUrl, "LN-2291"), loan(live.baseUrl, "LN-2299")]);
+    const once = await Promise.all([loan(live.baseUrl, "DL-2291"), loan(live.baseUrl, "DL-2299")]);
 
     const second = await reset(live.baseUrl);
     expect(second.status).toBe(200);
-    const twice = await Promise.all([loan(live.baseUrl, "LN-2291"), loan(live.baseUrl, "LN-2299")]);
+    const twice = await Promise.all([loan(live.baseUrl, "DL-2291"), loan(live.baseUrl, "DL-2299")]);
 
     expect(twice).toEqual(once);
     const body = (await second.json()) as ResetBody;
@@ -183,9 +183,9 @@ describe("the seeded book comes back", () => {
 
 describe("the bearer", () => {
   test("no token is 401, and the book is untouched", async () => {
-    const before = await loan(live.baseUrl, "LN-2291");
+    const before = await loan(live.baseUrl, "DL-2291");
     expect((await reset(live.baseUrl, null)).status).toBe(401);
-    expect(await loan(live.baseUrl, "LN-2291")).toEqual(before);
+    expect(await loan(live.baseUrl, "DL-2291")).toEqual(before);
   });
 
   test("the wrong token is 401", async () => {

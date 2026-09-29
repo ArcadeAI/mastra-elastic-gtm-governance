@@ -45,9 +45,9 @@ import { seedDemoGovernance } from "./demo-cast.ts";
 const WEB = join(import.meta.dir, "..");
 
 /** Alice's card beside the chat, and Charlie's decision on the control application. */
-const ON_THE_CARDS = "LN-2299";
+const ON_THE_CARDS = "DL-2299";
 /** The $95,000 application, decided while the board is on screen. */
-const ON_THE_BOARD = "LN-2291";
+const ON_THE_BOARD = "DL-2291";
 
 /**
  * How long a decision may take to appear.
@@ -120,7 +120,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       });
       next = web.child;
       const origin = `http://127.0.0.1:${web.port}`;
-      // The loan book is the app's own module since #5: Charlie's approvals
+      // The deal book is the app's own module since #5: Charlie's approvals
       // below go to the app's `/bank/…`, the same route `tools/loan` calls.
       const loanAppHost = `127.0.0.1:${web.port}`;
 
@@ -239,7 +239,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
         /governance|control plane|policy|hook|Arcade/i,
       );
       // And act 3's and act 4's subjects are not in the page source at all.
-      for (const field of ["bank_account_number", "tax_id", "underwriter_notes"]) {
+      for (const field of ["bank_account_number", "tax_id", "crm_notes"]) {
         expect(board).not.toContain(field);
       }
     } finally {
@@ -276,7 +276,7 @@ async function approve(host: string, loanId: string, amount: number, bearer: str
  * The card's text as the DOM holds it, not as CSS renders it.
  *
  * `textContent`, deliberately: the status box is `text-transform: uppercase`,
- * so `innerText` would come back `APPROVED` and a test matching the loan book's
+ * so `innerText` would come back `APPROVED` and a test matching the deal book's
  * own `approved` would fail for a reason that has nothing to do with the loan
  * book.
  */

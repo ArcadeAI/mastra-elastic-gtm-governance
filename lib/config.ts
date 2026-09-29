@@ -88,11 +88,11 @@ export interface AgentConfig {
   /** `MODEL_ID` — `claude-sonnet-5`. */
   modelId: string;
   /**
-   * Every toolkit this project owns, as Arcade files them — `["Loan",
+   * Every toolkit this project owns, as Arcade files them — `["Deals",
    * "Approvals"]`, measured on #35. The agent's **allow-list**.
    *
-   * Both, not just `Loan`. Round 1 of #88's review found the chat handler
-   * passing the loan toolkit alone: the documented eight-tool surface selected
+   * Both, not just `Deals`. Round 1 of #88's review found the chat handler
+   * passing the deals toolkit alone: the documented eight-tool surface selected
    * four, `Approvals_RequestApproval` and `Approvals_Decide` were dropped
    * alongside the gateway's built-ins, and the pre-hook's own remediation
    * instruction — *"call Approvals.RequestApproval"* — named a tool the model
@@ -104,7 +104,7 @@ export interface AgentConfig {
    * is a rule that matches nothing. Here, a wrong name is an allow-list that
    * **selects** nothing, and the agent is handed no tools at all — which is
    * loud rather than silent, because `lib/agent/handlers.ts` refuses the turn
-   * rather than letting a model answer from memory about a loan book it could
+   * rather than letting a model answer from memory about a deal book it could
    * not read.
    */
   toolkits: readonly string[];
@@ -217,7 +217,7 @@ export function readIdentitySurface(
       // allow-list. Blank entries are dropped rather than turned into a bare
       // `_` prefix, which would match every tool the gateway advertises.
       toolkits: [
-        env.ARCADE_LOAN_TOOLKIT?.trim() || "Loan",
+        env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
         env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
       ].filter((name) => name !== ""),
       approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
@@ -227,7 +227,7 @@ export function readIdentitySurface(
       idpClientId: env.IDP_CLIENT_ID?.trim() ?? "",
       idpClientSecret: env.IDP_CLIENT_SECRET?.trim() ?? "",
       // `openid` for an ID token, `email` because the address is the join key
-      // across Arcade, the OAuth subject and the loan book (DESIGN.md rule 3).
+      // across Arcade, the OAuth subject and the deal book (DESIGN.md rule 3).
       idpScopes: env.IDP_SCOPES?.trim() || "openid email",
       sessionSecret: env.SESSION_SECRET?.trim() ?? "",
       publicUrl: appOrigin(env),
@@ -440,7 +440,7 @@ export function verifierProblems(config: IdentitySurface): string[] {
  *
  * A superset of `gatewayProblems`, because the agent reaches its tools through
  * the gateway with the signed-in persona's token: no token, no tools, and a
- * model answering about a loan book it never read is worse than a refusal.
+ * model answering about a deal book it never read is worse than a refusal.
  *
  * `MODEL_ID` is absent from this list on purpose — it has a working default and
  * a deployment that never sets it runs the model `DESIGN.md` names. A key is

@@ -4,7 +4,7 @@
  *
  * Two of these are load-bearing in a way that fails silently if wrong, so they
  * are read here and nowhere else: the toolkit names. A policy rule keyed on a
- * toolkit Arcade does not actually call `Loan` matches nothing, and a rule that
+ * toolkit Arcade does not actually call `Deals` matches nothing, and a rule that
  * matches nothing is indistinguishable from a rule that permits. The catalogue
  * built from these values is what lets `compilePolicy` refuse such a rule at
  * boot instead of letting the demo run and enforce nothing.
@@ -151,7 +151,7 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     dbPath: env.GOVERNANCE_DB_PATH ?? "./governance.db",
     signingSecret: secret || DEV_SECRET,
     approvalsStoreToken: storeToken || DEV_STORE_TOKEN,
-    loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Loan",
+    loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
     approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
     deadlineMs: Number(env.HOOK_DEADLINE_MS ?? 2500),
     policyPollMs: Number(env.POLICY_POLL_MS ?? 250),

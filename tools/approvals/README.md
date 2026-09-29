@@ -148,8 +148,8 @@ fields — a page that can render the read is a page that can render the write.
 | `approver_id` | string | Email of the one person routing chose. |
 | `approver_display_name` | string | |
 | `candidate_approver_ids` | string[] | Everyone sufficient, lowest clearance first. `[0]` is the approver; the rest are who was deliberately not bothered. |
-| `action` | string | The refused action, e.g. `approve_loan`. |
-| `resource_id` | string | e.g. `LN-2291`. |
+| `action` | string | The refused action, e.g. `approve_discount`. |
+| `resource_id` | string | e.g. `DL-2291`. |
 | `amount` | number | What determines who has the authority. |
 | `required_clearance` | number | The bar a candidate had to clear: the amount. |
 | `rule` | `{id, description}` \| null | The policy rule the blocked call tripped, when the control plane can name it. `null` when it cannot — the page and the DM both still state the authority that was exceeded. |
@@ -175,15 +175,15 @@ because who was *not* asked is as load-bearing as who was.
 
 ```json
 200 { "subjects": [ { "user_id": "charlie@…", "display_name": "Charlie",
-                      "role": "vp_credit", "clearance": 250000,
+                      "role": "vp_sales", "clearance": 250000,
                       "attributes": {} } ] }
 ```
 
 ### `POST /api/approvals`
 
 ```json
-<- { "requester_id": "alice@…", "action": "approve_loan",
-     "resource_id": "LN-2291", "amount": 95000,
+<- { "requester_id": "alice@…", "action": "approve_discount",
+     "resource_id": "DL-2291", "amount": 95000,
      "justification": "…", "approver_id": "charlie@…",
      "candidate_approver_ids": ["charlie@…", "michael@…"],
      "required_clearance": 95000 }
@@ -292,7 +292,7 @@ PascalCases the tools itself, so these are `Approvals.RequestApproval` and
 `Approvals_RequestApproval` and `Approvals_Decide`.
 
 ⚠️ **That is derived from `tools/loan`'s measurement, not observed here.** #34
-measured `loan` → `Loan` and `loan_mcp_probe` → `LoanMcpProbe` on a real
+measured `loan` → `Deals` and `loan_mcp_probe` → `LoanMcpProbe` on a real
 deploy; this package had no tools to deploy at the time. Thirty seconds after
 the first deploy: read `toolkit.name` off `GET /v1/workers/<server>/tools`,
 correct `ARCADE_APPROVALS_TOOLKIT` in `.env.example` if it differs, and report

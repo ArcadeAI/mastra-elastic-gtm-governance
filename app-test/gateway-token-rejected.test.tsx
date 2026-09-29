@@ -4,7 +4,7 @@
  *
  * The failure this file exists to keep out: Alice, signed in, asks for the $95K
  * loan on the live deployment and reads *"The gateway advertised 0 tools and
- * none of them belong to \"Loan\" or \"Approvals\" … Check ARCADE_LOAN_TOOLKIT
+ * none of them belong to \"Deals\" or \"Approvals\" … Check ARCADE_LOAN_TOOLKIT
  * and ARCADE_APPROVALS_TOOLKIT"*. Both variables were correct. Her gateway
  * token was not, and one click on `/api/arcade/start` was the whole fix.
  *
@@ -100,7 +100,7 @@ function startGateway(shape: Shape): Stub {
         const builtins = ["System_ManageAuthorization", "Arcade_ListApps"];
         const names =
           shape === "serves-the-toolkits"
-            ? ["Loan_GetLoan", ...builtins]
+            ? ["Deals_GetDeal", ...builtins]
             : shape === "serves-nothing"
               ? []
               : builtins;
@@ -122,7 +122,7 @@ function surfaceFor(arcadeApiUrl: string): IdentitySurface {
     ARCADE_API_URL: arcadeApiUrl,
     ARCADE_API_KEY: "gateway-rejection-suite-arcade-key",
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: "Loan",
+    ARCADE_LOAN_TOOLKIT: "Deals",
     ARCADE_APPROVALS_TOOLKIT: "Approvals",
     ANTHROPIC_API_KEY: "gateway-rejection-suite-anthropic-key",
     SESSION_SECRET,
@@ -224,7 +224,7 @@ describe("the cause, measured rather than assumed", () => {
       await expect(client.listToolsets()).resolves.toEqual({});
 
       // And `governedToolset` now says which of the two it was.
-      const selected = await governedToolset(client, { toolkits: ["Loan", "Approvals"] });
+      const selected = await governedToolset(client, { toolkits: ["Deals", "Approvals"] });
       expect(selected.advertised).toEqual([]);
       expect(selected.error).toBeTruthy();
     } finally {

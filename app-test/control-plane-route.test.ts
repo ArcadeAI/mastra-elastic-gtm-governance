@@ -98,13 +98,13 @@ describe("reading the control plane", () => {
   });
 
   test("a policy that no longer compiles comes back with the compiler's own words", async () => {
-    edit("UPDATE policy_rules SET tool = 'approve_loan' WHERE id = 'pre.approve-within-clearance'");
+    edit("UPDATE policy_rules SET tool = 'approve_discount' WHERE id = 'pre.approve-within-clearance'");
     await settled();
 
     const report = reachable(await readControlPlane(config, { token: RESET_TOKEN }));
     expect(report.status).toBe("degraded");
     expect(report.policy.status).toBe("failed");
-    expect(report.policy.error).toMatch(/approve_loan/);
+    expect(report.policy.error).toMatch(/approve_discount/);
   });
 
   /**

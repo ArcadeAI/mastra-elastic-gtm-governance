@@ -4,7 +4,7 @@
  * One claim, and it is a number: **one `tools/list`, zero governed tool
  * calls.** Loading a page is not the agent doing something, so nothing a page
  * load does may appear on the control-plane panel — that is #157's whole point,
- * and before it a page load put two `Loan.GetLoan` decisions on the panel
+ * and before it a page load put two `Deals.GetDeal` decisions on the panel
  * before the presenter had said anything, which left the audience unable to
  * tell the agent's work from the page's chrome.
  *
@@ -21,7 +21,7 @@
  * they may see.
  *
  * This suite was `test/loan-context.test.ts` until #109 and a suite about
- * governed loan reads until #157. The loan book's own tests are now
+ * governed loan reads until #157. The deal book's own tests are now
  * `app-test/api-loans.test.ts`, which is where a read that costs no tool call
  * belongs.
  */
@@ -125,8 +125,8 @@ describe("what one page load costs", () => {
     );
     // Act 1 survives: as Bob, the approval tool is absent from the listing
     // itself, so it is absent from the widget without anything here hiding it.
-    expect(listing?.hidden).toContain("Loan_ApproveLoan");
-    expect(surface.tools.tools.map((tool) => tool.name)).not.toContain("Loan_ApproveLoan");
+    expect(listing?.hidden).toContain("Deals_ApproveDiscount");
+    expect(surface.tools.tools.map((tool) => tool.name)).not.toContain("Deals_ApproveDiscount");
   });
 });
 

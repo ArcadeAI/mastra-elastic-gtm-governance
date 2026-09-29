@@ -70,10 +70,10 @@ async function drive(
 describe("authorization pauses the actual agent turn", () => {
   test("legacy layer-2 auth emits one card, aborts, and never consumes the retry", async () => {
     const { events, signal } = await drive([
-      { type: "tool-call", payload: { toolName: "Loan_GetLoan", args: { loan_id: "LN-2291" } } },
-      { type: "tool-error", payload: { toolName: "Loan_GetLoan", error: { message: legacyChallenge } } },
-      { type: "tool-call", payload: { toolName: "Loan_GetLoan", args: { loan_id: "LN-2291" } } },
-      { type: "tool-error", payload: { toolName: "Loan_GetLoan", error: { message: legacyChallenge } } },
+      { type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: "DL-2291" } } },
+      { type: "tool-error", payload: { toolName: "Deals_GetDeal", error: { message: legacyChallenge } } },
+      { type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: "DL-2291" } } },
+      { type: "tool-error", payload: { toolName: "Deals_GetDeal", error: { message: legacyChallenge } } },
       { type: "text-delta", payload: { text: "Please authorize and retry." } },
     ]);
 
@@ -87,10 +87,10 @@ describe("authorization pauses the actual agent turn", () => {
     const outbound: string[] = [];
     const closure = closeTurnOnEscalation(
       {
-        Loan_GetLoan: {
+        Deals_GetDeal: {
           execute: async (input: unknown) => {
             outbound.push(JSON.stringify(input));
-            return { loan_id: "LN-2291" };
+            return { deal_id: "DL-2291" };
           },
         },
       },
@@ -99,8 +99,8 @@ describe("authorization pauses the actual agent turn", () => {
     const bridge = createNativeElicitationBridge({ onRequest: closure.close });
     const { events } = await drive(
       [
-        { type: "tool-error", payload: { toolName: "Loan_GetLoan", error: { code: -32042, data: { elicitations: [nativeRequest] } } } },
-        { type: "tool-call", payload: { toolName: "Loan_GetLoan", args: { loan_id: "LN-2291" } } },
+        { type: "tool-error", payload: { toolName: "Deals_GetDeal", error: { code: -32042, data: { elicitations: [nativeRequest] } } } },
+        { type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: "DL-2291" } } },
         { type: "text-delta", payload: { text: "Try another call." } },
       ],
       { nativeElicitation: bridge, onAuthorization: closure.close },
@@ -109,7 +109,7 @@ describe("authorization pauses the actual agent turn", () => {
     expect(events.map((event) => event.kind)).toEqual(["authorization", "done"]);
     expect(events.filter((event) => event.kind === "authorization")).toHaveLength(1);
     await expect(
-      (closure.tools.Loan_GetLoan as { execute: (input: unknown) => Promise<unknown> }).execute({ loan_id: "LN-2291" }),
+      (closure.tools.Deals_GetDeal as { execute: (input: unknown) => Promise<unknown> }).execute({ deal_id: "DL-2291" }),
     ).rejects.toThrow(/turn ended/);
     expect(outbound).toEqual([]);
   });
@@ -117,11 +117,11 @@ describe("authorization pauses the actual agent turn", () => {
   test("structured -32042 without a URL still pauses with an explicit continuation", async () => {
     expect(authorizationRequired({ code: -32042 })).toEqual({});
     const { events } = await drive([
-      { type: "tool-error", payload: { toolName: "Loan_GetLoan", error: { code: -32042 } } },
-      { type: "tool-call", payload: { toolName: "Loan_GetLoan", args: {} } },
+      { type: "tool-error", payload: { toolName: "Deals_GetDeal", error: { code: -32042 } } },
+      { type: "tool-call", payload: { toolName: "Deals_GetDeal", args: {} } },
     ]);
 
     expect(events.map((event) => event.kind)).toEqual(["authorization", "done"]);
-    expect(events[0]).toEqual({ kind: "authorization", tool: "Loan_GetLoan" });
+    expect(events[0]).toEqual({ kind: "authorization", tool: "Deals_GetDeal" });
   });
 });

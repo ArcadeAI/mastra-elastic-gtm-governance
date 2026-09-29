@@ -268,7 +268,7 @@ export async function forgetStudioGrant(): Promise<void> {
  * The governed toolset, resolved when Studio asks for the agent's tools.
  *
  * Throws rather than returning an empty set: an agent with no tools still
- * answers, fluently, about a loan book it never read (`handlers.ts` spells out
+ * answers, fluently, about a deal book it never read (`handlers.ts` spells out
  * the four ways that happens). Studio shows the message.
  */
 export async function studioTools(
@@ -336,7 +336,7 @@ export async function studioTools(
  * first comes back as **readable text carrying the authorization link** (#30).
  *
  * The chat route draws that challenge as an authorization card (`run.ts`).
- * Studio has no card, and on the third live run (#7) it drew the Loan
+ * Studio has no card, and on the third live run (#7) it drew the Deals
  * toolkit's hop-2 challenge as a tool error whose result read `[object
  * Object]`. Two things made that, and neither is ours to change: Arcade's
  * gateway answered with an error ("authorization challenge requires URL

@@ -32,7 +32,7 @@
  * `--role` must be a role the policy knows: one a `subjects` row holds, one a
  * rule narrows on, or one the shipped fixture's cast holds. `--clearance` is a
  * non-negative whole number, and required unless `/access` hides the approval
- * tool from the role (today `credit_analyst`, by
+ * tool from the role (today `sdr`, by
  * `access.analysts-cannot-see-approve`): there is nothing for a clearance to
  * cap, so it defaults to 0.
  *
@@ -104,7 +104,7 @@ import { openPeopleStore, type People } from "./identity/people.ts";
 const ARCADE_INVITE_WHERE = "Arcade dashboard (https://api.arcade.dev/dashboard), your project, Members";
 
 /** The tool `/access` hides from a role with no approval authority. PascalCase, as measured (#35). */
-const APPROVE_TOOL = "ApproveLoan";
+const APPROVE_TOOL = "ApproveDiscount";
 /** The tool that asks for an approval, and so goes through Arcade's Slack provider. */
 const REQUEST_TOOL = "RequestApproval";
 

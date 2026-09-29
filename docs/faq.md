@@ -14,9 +14,9 @@ Yes. A spike measured `/access`, `/pre` and `/post` firing for a remote MCP serv
 
 Because only one of them is a decision. The chat draws a denial card only on positive evidence that a hook decided, such as `CHECK_FAILED` or the `[ref evt_…]` token, which the control plane writes on every decision and which survives MCP all the way to the UI. Every other tool failure is a fault card that says no decision was made, because a control surface must never claim a control-plane action that did not happen.
 
-## Why does the $95K approval depend on stripping the note pasted into `LN-2291`?
+## Why does the $95K approval depend on stripping the note pasted into `DL-2291`?
 
-Because the model reads the injected instruction, refuses it, and ends its turn asking whether to proceed, so it never calls `Loan_ApproveLoan`. With the note visible, the $95K request reached `/hooks/pre` roughly 5 times in 17; with `/hooks/post` stripping the note first, 5 of 5, and 5 of 5 again on an independent re-measurement. The fix removed what the model was reading and did not steer the model.
+Because the model reads the injected instruction, refuses it, and ends its turn asking whether to proceed, so it never calls `Deals_ApproveDiscount`. With the note visible, the $95K request reached `/hooks/pre` roughly 5 times in 17; with `/hooks/post` stripping the note first, 5 of 5, and 5 of 5 again on an independent re-measurement. The fix removed what the model was reading and did not steer the model.
 
 ## Why does Charlie's Slack DM come from Alice and not from a bot?
 
@@ -32,11 +32,11 @@ No. The two identity spikes hit four, among them a token request that carried th
 
 ## Do my users need Arcade accounts?
 
-With Arcade's built-in Slack app, the default, each loan officer who requests an approval has to be invited to your Arcade project's Members, under the email they sign in to the app with; approvers and the loan tools need no Arcade account. With your own Slack app, registered as your project's Slack auth provider, your app's users need none at all, as [`app-users-and-arcade-accounts.md`](./app-users-and-arcade-accounts.md) explains.
+With Arcade's built-in Slack app, the default, each account executive who requests an approval has to be invited to your Arcade project's Members, under the email they sign in to the app with; approvers and the deal tools need no Arcade account. With your own Slack app, registered as your project's Slack auth provider, your app's users need none at all, as [`app-users-and-arcade-accounts.md`](./app-users-and-arcade-accounts.md) explains.
 
 ## Why does it need a public host when it runs on my machine?
 
-Because Arcade Cloud makes the calls. Arcade calls the hooks, the deployed loan toolkit calls the loan API, and both OAuth hops reach the app's sign-in and verifier endpoints, all on `APP_PUBLIC_HOST`. One ngrok domain carries all of them, and a fixed domain keeps that host the same across restarts, which matters because `bun run setup-arcade` registers it with Arcade. If you host the image instead, as [Deploying](./deploying.md) describes, `APP_PUBLIC_HOST` is the deployment's own host.
+Because Arcade Cloud makes the calls. Arcade calls the hooks, the deployed deals toolkit calls the loan API, and both OAuth hops reach the app's sign-in and verifier endpoints, all on `APP_PUBLIC_HOST`. One ngrok domain carries all of them, and a fixed domain keeps that host the same across restarts, which matters because `bun run setup-arcade` registers it with Arcade. If you host the image instead, as [Deploying](./deploying.md) describes, `APP_PUBLIC_HOST` is the deployment's own host.
 
 ## Why Bun?
 

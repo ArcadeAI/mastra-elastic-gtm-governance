@@ -3,7 +3,7 @@
  * call is read, and the stream protocol the page decodes.
  *
  * Everything here is a function of its arguments. The chain these functions sit
- * in — real control plane, real loan book, real MCP transport — is
+ * in — real control plane, real deal book, real MCP transport — is
  * `tracer-bullet.test.ts`; this file pins the decisions that would otherwise
  * only be observable through it, where a mistake would read as "the agent
  * behaved oddly" rather than as a wrong prefix.
@@ -28,10 +28,10 @@ import { resolveStandInPort } from "../scripts/gateway-stand-in.ts";
  * 2026-09-12: **eight** entries, not six. The two extras are the gateway's own.
  */
 const LIVE_TOOLS_LIST = [
-  "Loan_SearchLoans",
-  "Loan_GetLoan",
-  "Loan_ApproveLoan",
-  "Loan_DenyLoan",
+  "Deals_SearchDeals",
+  "Deals_GetDeal",
+  "Deals_ApproveDiscount",
+  "Deals_DenyDiscount",
   "Approvals_RequestApproval",
   "Approvals_Decide",
   "System_ManageAuthorization",
@@ -43,14 +43,14 @@ const asRecord = (names: readonly string[]) => Object.fromEntries(names.map((nam
 describe("which tools the agent is given", () => {
   test("the gateway's own two are dropped, and the project's six are kept", () => {
     const { governed, dropped } = selectGoverned(asRecord(LIVE_TOOLS_LIST), {
-      toolkits: ["Loan", "Approvals"],
+      toolkits: ["Deals", "Approvals"],
     });
 
     expect(Object.keys(governed)).toEqual([
-      "Loan_SearchLoans",
-      "Loan_GetLoan",
-      "Loan_ApproveLoan",
-      "Loan_DenyLoan",
+      "Deals_SearchDeals",
+      "Deals_GetDeal",
+      "Deals_ApproveDiscount",
+      "Deals_DenyDiscount",
       "Approvals_RequestApproval",
       "Approvals_Decide",
     ]);
@@ -65,25 +65,25 @@ describe("which tools the agent is given", () => {
     // two names above would.
     const { governed, dropped } = selectGoverned(
       asRecord([...LIVE_TOOLS_LIST, "Arcade_SomethingNew"]),
-      { toolkits: ["Loan"] },
+      { toolkits: ["Deals"] },
     );
-    expect(Object.keys(governed)).toEqual(["Loan_SearchLoans", "Loan_GetLoan", "Loan_ApproveLoan", "Loan_DenyLoan"]);
+    expect(Object.keys(governed)).toEqual(["Deals_SearchDeals", "Deals_GetDeal", "Deals_ApproveDiscount", "Deals_DenyDiscount"]);
     expect(dropped).toContain("Arcade_SomethingNew");
   });
 
   test("the agent's own configured allow-list selects all six, from an empty environment", () => {
     // Round 1 of #88's review reproduced the bug with exactly these eight names
-    // and `{ toolkits: ["Loan"] }`, which selected four and dropped
+    // and `{ toolkits: ["Deals"] }`, which selected four and dropped
     // `Approvals_RequestApproval` and `Approvals_Decide` alongside the gateway
     // built-ins — so the pre-hook's own remediation instruction ("call
     // Approvals.RequestApproval") named a tool the model could not see.
     //
     // This asserts against `readIdentitySurface`'s value rather than a literal,
     // because the bug was not in `selectGoverned` — it was in what the chat
-    // handler passed it. A test that hand-wrote `["Loan", "Approvals"]` here
+    // handler passed it. A test that hand-wrote `["Deals", "Approvals"]` here
     // would have passed while the handler stayed wrong.
     const { agent } = readIdentitySurface({});
-    expect(agent.toolkits).toEqual(["Loan", "Approvals"]);
+    expect(agent.toolkits).toEqual(["Deals", "Approvals"]);
 
     const { governed, dropped } = selectGoverned(asRecord(LIVE_TOOLS_LIST), agent);
     expect(Object.keys(governed)).toHaveLength(6);
@@ -98,7 +98,7 @@ describe("which tools the agent is given", () => {
     // gateway advertises, built-ins included. `wirePrefixes` drops blanks, and
     // `readIdentitySurface` filters them out before they get here.
     expect(readIdentitySurface({ ARCADE_APPROVALS_TOOLKIT: "   " }).agent.toolkits).toEqual([
-      "Loan",
+      "Deals",
       "Approvals",
     ]);
     const { governed } = selectGoverned(asRecord(LIVE_TOOLS_LIST), { toolkits: ["", "  "] });
@@ -115,10 +115,10 @@ describe("which tools the agent is given", () => {
   });
 
   test("the prefix is the toolkit plus an underscore, which is how MCP spells it", () => {
-    // MCP: `Loan_GetLoan`. The hook frame: `Loan.GetLoan`. Two spellings of one
+    // MCP: `Deals_GetDeal`. The hook frame: `Deals.GetDeal`. Two spellings of one
     // tool; there is no third.
-    expect(wirePrefixes({ toolkits: ["Loan", "Approvals"] })).toEqual(["Loan_", "Approvals_"]);
-    expect(wirePrefixes({ toolkits: ["Loan", "  ", ""] })).toEqual(["Loan_"]);
+    expect(wirePrefixes({ toolkits: ["Deals", "Approvals"] })).toEqual(["Deals_", "Approvals_"]);
+    expect(wirePrefixes({ toolkits: ["Deals", "  ", ""] })).toEqual(["Deals_"]);
   });
 });
 
@@ -126,17 +126,17 @@ describe("reading a failed tool call", () => {
   /** The shape measured off `@mastra/mcp` 1.17 on 2026-09-12. */
   const mastraToolError = (message: string) => ({
     name: "Error",
-    cause: { message, code: "MCP_CLIENT_TOOL_EXECUTION_FAILED", details: { toolName: "Loan_ApproveLoan" } },
+    cause: { message, code: "MCP_CLIENT_TOOL_EXECUTION_FAILED", details: { toolName: "Deals_ApproveDiscount" } },
     id: "TOOL_EXECUTION_FAILED",
   });
 
   test("the hook's own sentence comes out of the wrapper Mastra puts round it", () => {
-    const hookMessage = `${DENIAL_PREFIX}DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000. [ref evt_tkgv4b30gj]`;
+    const hookMessage = `${DENIAL_PREFIX}DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. [ref evt_tkgv4b30gj]`;
     expect(failureText(mastraToolError(hookMessage))).toBe(hookMessage);
   });
 
   test("Arcade's prefix is stripped and the rule author's words are not touched", () => {
-    const reason = "DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000. [ref evt_tkgv4b30gj]";
+    const reason = "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. [ref evt_tkgv4b30gj]";
     expect(remediationText(DENIAL_PREFIX + reason)).toBe(reason);
   });
 
@@ -255,7 +255,7 @@ describe("native MCP URL elicitation", () => {
             result: {
               tools: [
                 {
-                  name: "Loan_GetLoan",
+                  name: "Deals_GetDeal",
                   description: "Read one loan.",
                   inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
                 },
@@ -359,7 +359,7 @@ describe("native MCP URL elicitation", () => {
               controller.enqueue({
                 type: "tool-error",
                 payload: {
-                  toolName: "Loan_GetLoan",
+                  toolName: "Deals_GetDeal",
                   error: { code: -32042, data: { elicitations: [request] } },
                 },
               });
@@ -381,7 +381,7 @@ describe("native MCP URL elicitation", () => {
     expect(events).toEqual([
       {
         kind: "authorization",
-        tool: "Loan_GetLoan",
+        tool: "Deals_GetDeal",
         url: request.url,
         instructions: request.message,
         mode: "url",
@@ -394,8 +394,8 @@ describe("native MCP URL elicitation", () => {
 
 describe("the stream protocol", () => {
   const events: ChatEvent[] = [
-    { kind: "tool-call", tool: "Loan_ApproveLoan", inputs: { loan_id: "LN-2291", amount: 95000 } },
-    { kind: "denied", tool: "Loan_ApproveLoan", reason: "DENIED: no. [ref evt_aaaaaaaaaa]", ref: "evt_aaaaaaaaaa" },
+    { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
+    { kind: "denied", tool: "Deals_ApproveDiscount", reason: "DENIED: no. [ref evt_aaaaaaaaaa]", ref: "evt_aaaaaaaaaa" },
     { kind: "text", text: "I could not " },
     { kind: "text", text: "approve it." },
     { kind: "done", calls: 1 },
@@ -444,17 +444,17 @@ describe("the runnable stand-in's port", () => {
 
 describe("a tool that failed is not the same as a tool that was refused", () => {
   // Round 1 of #88's review: every non-authorization tool error was labelled
-  // `denied`. A probe with `Loan_GetLoan` failing as "The loan origination
+  // `denied`. A probe with `Deals_GetDeal` failing as "The loan origination
   // system could not be reached" produced
-  // `{kind:"denied", reason:"The loan origination system could not be reached", ref:null}`
+  // `{kind:"denied", reason:"The deal desk could not be reached", ref:null}`
   // — a refusal on screen that no hook made and no audit row backs.
 
   test("a socket error is not a hook decision", () => {
     for (const text of [
-      "The loan origination system could not be reached.",
+      "The deal desk could not be reached.",
       "the control plane at http://localhost:4401 could not be reached: Unable to connect.",
       "fetch failed",
-      "No loan application found with ID LN-9999.",
+      "No discount requests found with ID DL-9999.",
       "",
     ]) {
       expect(isHookDecision(text)).toBe(false);
@@ -477,7 +477,7 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
     // refusal is a decision with an audit row behind it. Rendering it as
     // plumbing would hide the one state an operator most needs to see.
     const failClosed =
-      "DENIED: the control plane cannot evaluate Loan.ApproveLoan because its policy is " +
+      "DENIED: the control plane cannot evaluate Deals.ApproveDiscount because its policy is " +
       "unavailable. Do not retry; report the reference to an administrator. [ref evt_tkgv4b30gj]";
     expect(isHookDecision(failClosed)).toBe(true);
   });

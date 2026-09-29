@@ -136,7 +136,7 @@ class StandIn {
   /**
    * The dashboard's behaviour (#48), assumed of the API too, which is the worst
    * case: while the project's hooks are active, a gateway create that names a
-   * Loan or Approvals tool is refused as if the tool did not exist. The one-click
+   * Deals or Approvals tool is refused as if the tool did not exist. The one-click
    * path creates the gateway before it turns the hooks on, so it must pass with
    * this on; the default is on for that reason (#52).
    */
@@ -475,7 +475,7 @@ class StandIn {
       }
       const tools: string[] = body.tool_filter?.allowed_tools ?? [];
       const hooksOn = [...this.plugins.values()].some((each) => each.status === "active");
-      const hidden = tools.find((tool) => /^(Loan|Approvals)\./.test(tool));
+      const hidden = tools.find((tool) => /^(Deals|Approvals)\./.test(tool));
       if (this.activeHooksHideTools && hooksOn && hidden) {
         return Response.json({ name: "malformed_request", message: `tool ${hidden} not found` }, { status: 400 });
       }
@@ -521,7 +521,7 @@ function sourceId(label: string): string {
  */
 function userSourceRecord(fields: Json): Json {
   return {
-    name: "Loan Approval Limits",
+    name: "Deals Approval Limits",
     description: "The app's own sign-in (hop 1)",
     issuer: ORIGIN,
     binding_type: "project",
@@ -540,13 +540,13 @@ function userSourceRecord(fields: Json): Json {
 function dashboardGateway(overrides: Json = {}): Json {
   const gateway = {
     id: `gw_dashboard_${arcade.gateways.size + 1}`,
-    name: "Loan Approval Limits",
+    name: "Deals Approval Limits",
     slug: "loan-approval-limits",
     status: "active",
     auth_type: "user_source",
     user_source_id: USER_SOURCE,
     tool_filter: {
-      allowed_tools: ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"],
+      allowed_tools: ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"],
     },
     ...overrides,
   };
@@ -969,9 +969,9 @@ function gatewayFormIsComplete(stdout: string): void {
   expect(start, "no gateway form").toBeGreaterThan(-1);
   const form = stdout.slice(start, stdout.indexOf("└─", start));
   expect(form).toMatch(/│ {2}Slug +loan-approval-limits +← \.env's ARCADE_GATEWAY_ID$/m);
-  expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    Loan: SearchLoans, GetLoan, ApproveLoan, DenyLoan\n│                    Approvals: RequestApproval, Decide\n");
-  expect(form).toContain("Non-Arcade Users → User Source\n│                    → Loan Approval Limits (the User Source above). Never Arcade Headers.");
-  expect(form).toContain("lists the Loan and Approvals tools only while the hooks are disabled");
+  expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    Deals: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount\n│                    Approvals: RequestApproval, Decide\n");
+  expect(form).toContain("Non-Arcade Users → User Source\n│                    → Deals Approval Limits (the User Source above). Never Arcade Headers.");
+  expect(form).toContain("lists the Deals and Approvals tools only while the hooks are disabled");
 }
 
 /**
@@ -1100,7 +1100,7 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   expect(bodyAfter(run.stdout, `  POST ${arcade.coordinatorUrl}${USER_SOURCES}/test_issuer\n`)).toEqual({ issuer: discovered });
   const source = bodyAfter(run.stdout, `  POST ${arcade.coordinatorUrl}${USER_SOURCES}\n`);
   expect(source).toEqual({
-    name: "Loan Approval Limits",
+    name: "Deals Approval Limits",
     description: "The app's own sign-in (hop 1)",
     protocol: "oidc",
     issuer: discovered,
@@ -1118,7 +1118,7 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   const gateway = bodyAfter(run.stdout, `  POST ${arcade.url}${SCOPED}/gateways\n`);
   expect(gateway.auth_type).toBe("user_source");
   expect(gateway.user_source_id).toBe("<the User Source's id>");
-  expect(gateway.tool_filter.allowed_tools).toEqual(["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"]);
+  expect(gateway.tool_filter.allowed_tools).toEqual(["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"]);
   expect(bodyAfter(run.stdout, `  PATCH ${arcade.url}${SCOPED}/plugins/<plugin_id>\n`).status).toBe("active");
   expect(run.stdout).toContain("falls back to the dashboard forms (#48): the\n    gateway loan-approval-limits is only looked for, the hooks stay disabled");
   expect(run.stdout).toContain(
@@ -1248,7 +1248,7 @@ test("hooks already on with no gateway are left on, and the run says the gateway
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   expect(sequence(arcade.requests)).toEqual(RERUN);
   expect(run.stdout).toContain(
-    "hooks: already on, so the dashboard's gateway form will not list the Loan and Approvals tools. Disable loan-approval-limits-hooks in the dashboard before you fill it in",
+    "hooks: already on, so the dashboard's gateway form will not list the Deals and Approvals tools. Disable loan-approval-limits-hooks in the dashboard before you fill it in",
   );
   hooksAreRegistered(dir, "active");
 }, 90_000);
@@ -1279,10 +1279,10 @@ test("a gateway that does not authenticate through the User Source is refused, a
 test("a gateway whose tool list is not the six turns the hooks on anyway, with the differences as warnings", async () => {
   const dir = project("gateway-tools-differ");
   expect((await setupArcade(dir)).code).toBe(0);
-  dashboardGateway({ tool_filter: { allowed_tools: ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Approvals.RequestApproval", "Approvals.Decide", "Gmail.SendEmail"] } });
+  dashboardGateway({ tool_filter: { allowed_tools: ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Approvals.RequestApproval", "Approvals.Decide", "Gmail.SendEmail"] } });
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools is missing Loan.DenyLoan");
+  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools is missing Deals.DenyDiscount");
   expect(run.stdout).toContain("  warning       tool_filter.allowed_tools also has Gmail.SendEmail, which this app does not use");
   expect(run.stdout).toContain("the hooks are turned on anyway. To fix the tool list, disable loan-approval-limits-hooks in the dashboard first");
   hooksAreRegistered(dir, "active");
@@ -2121,7 +2121,7 @@ test("a worker lookup that fails for another reason stops the run with Arcade's 
 
 // --- One click, through the Coordinator API (#52) -----------------------------
 
-const SIX_TOOLS = ["Loan.SearchLoans", "Loan.GetLoan", "Loan.ApproveLoan", "Loan.DenyLoan", "Approvals.RequestApproval", "Approvals.Decide"];
+const SIX_TOOLS = ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"];
 /** Enter, once, at the pause: what a developer does after restarting `bun run dev`. */
 const ENTER: RunOptions = { tty: true, input: "\n" };
 
@@ -2175,7 +2175,7 @@ test("one run, one click: the User Source is created through the Coordinator, th
   const [checked, create] = arcade.coordinatorRequests.filter((each) => each.method === "POST");
   expect(checked!.body).toEqual({ issuer: ORIGIN });
   expect(create!.body).toEqual({
-    name: "Loan Approval Limits",
+    name: "Deals Approval Limits",
     description: "The app's own sign-in (hop 1)",
     protocol: "oidc",
     issuer: ORIGIN,
@@ -2196,8 +2196,8 @@ test("one run, one click: the User Source is created through the Coordinator, th
   // The gateway: through that User Source, never Headers, exactly the six tools.
   const created = arcade.requests.find((each) => each.method === "POST" && each.path === `${SCOPED}/gateways`)!.body as Json;
   expect(created).toEqual({
-    name: "Loan Approval Limits",
-    description: "The loan officer's agent",
+    name: "Deals Approval Limits",
+    description: "The account executive's agent",
     slug: "loan-approval-limits",
     auth_type: "user_source",
     user_source_id: source.id,
@@ -2226,8 +2226,8 @@ test("one run, one click: the User Source is created through the Coordinator, th
       "  Press Enter when both are running (n, or Ctrl-C, ends on the dashboard forms instead): ",
   );
   expect(run.stdout).toContain(`the app answers for ${ORIGIN} through the tunnel, and Arcade can use it`);
-  expect(run.stdout).toContain(`user source: created Loan Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}, status active (read back)`);
-  expect(run.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}, with the six tools of Loan and Approvals (read back)`);
+  expect(run.stdout).toContain(`user source: created Deals Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}, status active (read back)`);
+  expect(run.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}, with the six tools of Deals and Approvals (read back)`);
   expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
   expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through loan-approval-limits");
   expect(formOrder(run.stdout)).toEqual([]);
@@ -2254,7 +2254,7 @@ test("a rerun after one click is a no-op that says so: nothing paused, created, 
   console.log(`--- setup-arcade ${HOST}, one click, again ---\n${again.stdout}${again.stderr}`);
   expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
   const [source] = [...arcade.userSources.values()] as [Json];
-  expect(again.stdout).toContain(`user source: found Loan Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}; it matches and is left as it is`);
+  expect(again.stdout).toContain(`user source: found Deals Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}; it matches and is left as it is`);
   expect(again.stdout).toContain(`gateway: found loan-approval-limits, through the User Source ${source.id}`);
   expect(again.stdout).toContain(`user source: ${source.id} is active (read back)`);
   expect(again.stdout).toContain("hooks: already on (status active); nothing to do");
@@ -2629,7 +2629,7 @@ test("the User Source created and the gateway not: it says so and what is left, 
   expect(run.stdout).toContain("What is left: run this same command again, which finds the User Source and creates the\ngateway through it");
   // Only the gateway form: the User Source is not to be made again.
   expect(formOrder(run.stdout)).toEqual(["gateway"]);
-  expect(run.stdout).toContain(`→ Loan Approval Limits (${source.id}, already registered). Never Arcade Headers.`);
+  expect(run.stdout).toContain(`→ Deals Approval Limits (${source.id}, already registered). Never Arcade Headers.`);
   expect(thenList(run.stdout)).not.toContain("User Source form");
   expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
   hooksAreRegistered(dir, "inactive");
@@ -2687,7 +2687,7 @@ test("the order does not depend on active hooks hiding tools: a fresh run passes
   // Under the worst case, the create after the hooks is refused, and the run says what is left.
   const refused = await setupArcade(dir, ENTER);
   expect(refused.code).toBe(1);
-  expect(refused.stderr).toContain("Arcade says: tool Loan.SearchLoans not found");
+  expect(refused.stderr).toContain("Arcade says: tool Deals.SearchDeals not found");
   expect(refused.stdout).toContain("and the gateway is not, so the hooks\nare left on.");
   expect(arcade.gateways.size).toBe(0);
 
@@ -2729,7 +2729,7 @@ test("the list is read page by page until total_count, and a match on page two i
   const run = await setupArcade(dir, { tty: true, input: "" });
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   expect(coordinatorSequence()).toEqual([LIST, `GET ${USER_SOURCES}?limit=100&offset=100`, READ_BY_ID]);
-  expect(run.stdout).toContain(`user source: found Loan Approval Limits (${ours.id}), issuer ${ORIGIN}`);
+  expect(run.stdout).toContain(`user source: found Deals Approval Limits (${ours.id}), issuer ${ORIGIN}`);
   expect(arcade.userSources.size).toBe(151);
   expect((arcade.requests.find((each) => each.method === "POST" && each.path === `${SCOPED}/gateways`)!.body as Json).user_source_id).toBe(ours.id);
   hooksAreRegistered(dir, "active");
@@ -2860,7 +2860,7 @@ test("the stand-in's Coordinator is the contract: code 200 inside a 201, the 422
     // `null` for a body-less 204, typed as a body so each assertion can read into it.
     return { status: response.status, json: (text ? JSON.parse(text) : null) as Json };
   };
-  const body = { name: "Loan Approval Limits", issuer: ORIGIN, client_id: "cid", client_secret: "shh", subject_claim: "email" };
+  const body = { name: "Deals Approval Limits", issuer: ORIGIN, client_id: "cid", client_secret: "shh", subject_claim: "email" };
 
   const checked = await call("POST", `${base}/test_issuer`, { issuer: ORIGIN });
   expect(checked.status).toBe(204);
@@ -2974,7 +2974,7 @@ async function usersIn(dir: string, ...args: string[]): Promise<{ code: number; 
   return { code, out: `${stdout}${stderr}` };
 }
 
-const PERSON = { email: "alice@bank.example", name: "Alice", role: "loan_officer", clearance: "50000", password: "setup-arcade-54-password" };
+const PERSON = { email: "alice@bank.example", name: "Alice", role: "account_executive", clearance: "50000", password: "setup-arcade-54-password" };
 const addPerson = (dir: string) =>
   usersIn(dir, "add", PERSON.email, "--name", PERSON.name, "--role", PERSON.role, "--clearance", PERSON.clearance, "--password", PERSON.password);
 

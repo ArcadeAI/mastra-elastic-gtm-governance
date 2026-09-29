@@ -4,7 +4,7 @@
  * A plain `(Request) => Promise<Response>`, for the same reason every identity
  * route is one (`lib/identity/cookies.ts`): the suite mounts this exact
  * function behind a real `Bun.serve` and drives it over HTTP with a cookie jar,
- * against a real control plane and a real loan book. `app/api/chat/route.ts` is
+ * against a real control plane and a real deal book. `app/api/chat/route.ts` is
  * a one-line adapter onto it.
  *
  * ## Who the turn is made as
@@ -34,7 +34,7 @@
  *
  * The last four are one symptom — an agent with no tools — and four different
  * causes, and every split between them was paid for. An agent with no tools
- * still answers, fluently, from memory, about a loan book it never read, which
+ * still answers, fluently, from memory, about a deal book it never read, which
  * is the worst possible output of this demo; so all four are errors rather than
  * turns, and the only question is which sentence goes on screen.
  *
@@ -444,7 +444,7 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
     // The turn boundary, enforced where there is no gap: the moment the
     // escalation returns a request id, every other tool in this turn's set
     // stops calling through. Round 1 of #110's review found a model calling
-    // `Loan_ApproveLoan` straight after the escalation and that call reaching
+    // `Deals_ApproveDiscount` straight after the escalation and that call reaching
     // the gateway; a consumer reading a stream is always a tick behind, so the
     // guarantee has to live in `execute`. See `escalation.ts`.
     const closure = closeTurnOnEscalation(selected.tools, {

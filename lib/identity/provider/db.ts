@@ -4,7 +4,7 @@
  * tokens, consents).
  *
  * The identity module knows who someone is and nothing else: no titles, no
- * limits, no loans. Authority lives in the control plane; the loan book lives
+ * limits, no loans. Authority lives in the control plane; the deal book lives
  * in the loan module. Everything here is identity.
  */
 import { Database } from "bun:sqlite";
@@ -320,7 +320,7 @@ async function hashAll(people: PersonSeed[]): Promise<HashedPerson[]> {
  * and on a disk that persists, it stays that way. A caller that seeds two
  * people under one email is one boot away from that.
  *
- * Same shape as the loan book's seed (#29), copied rather than reinvented.
+ * Same shape as the deal book's seed (#29), copied rather than reinvented.
  * Exported for the test that holds this line.
  */
 export async function seed(db: Database, people: PersonSeed[]): Promise<void> {

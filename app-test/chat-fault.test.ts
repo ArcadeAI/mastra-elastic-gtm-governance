@@ -70,7 +70,7 @@ function surfaceWith(overrides: Record<string, string>): IdentitySurface {
     ARCADE_API_URL: "http://localhost:1",
     ARCADE_API_KEY: "chat-fault-arcade-key",
     ARCADE_GATEWAY_ID: "cg-demo-us",
-    ARCADE_LOAN_TOOLKIT: "Loan",
+    ARCADE_LOAN_TOOLKIT: "Deals",
     ANTHROPIC_API_KEY: "chat-fault-anthropic-key",
     SESSION_SECRET,
     APP_PUBLIC_HOST: "localhost:1",

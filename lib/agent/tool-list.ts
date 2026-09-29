@@ -1,7 +1,7 @@
 /**
  * The tool list the page shows — **from the gateway, for this session**.
  *
- * Act 1's entire claim is that `Loan_ApproveLoan` is *absent* for Bob rather
+ * Act 1's entire claim is that `Deals_ApproveDiscount` is *absent* for Bob rather
  * than present-and-refused, and a list assembled in the browser could not make
  * that claim about anything. So this is one real `tools/list` over MCP with the
  * signed-in persona's gateway bearer, which is the same call
@@ -10,7 +10,7 @@
  * what a person reads on screen is what the model was handed.
  *
  * That is worth stating as a rule rather than an implementation detail. A UI
- * that filtered `ApproveLoan` out of a full catalogue would render exactly the
+ * that filtered `ApproveDiscount` out of a full catalogue would render exactly the
  * same pixels while proving the opposite thing, and everyone in the room would
  * be looking at a screenshot of a control that does nothing.
  *
@@ -18,7 +18,7 @@
  *
  * `sessionTools` is the narrow reading of this module; {@link sessionSurface}
  * is the general one. A page load needs the persona's tool list *and* the two
- * governed `Loan_GetLoan` reads the bank's screen puts up, and until #109
+ * governed `Deals_GetDeal` reads the bank's screen puts up, and until #109
  * those were two `tools/list` calls in two MCP sessions — the second one
  * because a browser-side request could not share a connection with a server
  * render it was not part of. `sessionSurface` takes a
@@ -34,7 +34,7 @@
  * **reported** rather than silently removed: `filtered` is rendered under the
  * list so nobody has to take "eight became six" on trust. Hiding the fact of a
  * filter is the thing this module is careful about; hiding two gateway
- * built-ins from a loan officer is not.
+ * built-ins from a account executive is not.
  *
  * ## Every failure is named
  *
@@ -64,7 +64,7 @@ export { GATEWAY_BUILTINS };
 
 /** One entry as `tools/list` advertised it: the wire name and what the model reads. */
 export interface GatewayTool {
-  /** `Loan_ApproveLoan` — the underscore spelling MCP carries. */
+  /** `Deals_ApproveDiscount` — the underscore spelling MCP carries. */
   name: string;
   description: string;
 }
@@ -78,7 +78,7 @@ export type SessionTools =
    *
    * `action` is the click that would fix it, when there is one. It is a field
    * rather than something a caller greps out of `reason`, because a second
-   * surface reads this same answer since #109 — the loan files on the bank's screen
+   * surface reads this same answer since #109 — the deal records on the bank's screen
    * come out of this same listing — and two surfaces deciding from a sentence
    * whether there is a way in would be two chances to get it wrong.
    */
@@ -106,7 +106,7 @@ export interface SessionToolsOptions {
  * a caller that wants to run one runs it here, on the session that listed it.
  * `advertised` is every name the gateway sent, governed or not, because the one
  * sentence that has to name a number — *"the gateway advertised N tools and
- * none of the governed ones is a `GetLoan`"* — is about the whole answer rather
+ * none of the governed ones is a `GetDeal`"* — is about the whole answer rather
  * than the part that survived the filter.
  */
 export interface GovernedListing {
@@ -165,8 +165,8 @@ export async function sessionTools(
  * One gateway session: `tools/list` once, then `inside` on what it advertised.
  *
  * `inside` runs **before the connection is dropped and only when the listing
- * arrived**, which is the whole of #109: the loan files the bank's screen shows are
- * two `Loan_GetLoan` calls that used to cost a second `tools/list` in a second
+ * arrived**, which is the whole of #109: the deal records the bank's screen shows are
+ * two `Deals_GetDeal` calls that used to cost a second `tools/list` in a second
  * MCP session, because they were made from the browser through a route of their
  * own. They are now made here, on the session the page already opens.
  *

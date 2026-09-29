@@ -1,6 +1,6 @@
 # Swapping the domain — pointing this template at your own business system
 
-This template governs a commercial bank's loan book. Nothing about the control plane
+This template governs a commercial bank's deal book. Nothing about the control plane
 is about loans. This document is the concrete walk from the loan domain to yours.
 
 The promise, stated as an instruction rather than a claim:
@@ -42,14 +42,14 @@ The bank's system of record. A plain HTTP API, five routes, owning `loans.db`:
 
 ```
 GET  /loans?status=&min_amount=&max_amount=
-GET  /loans/:loan_id
-POST /loans/:loan_id/approve   { amount }
-POST /loans/:loan_id/deny      { reason }
+GET  /loans/:deal_id
+POST /loans/:deal_id/approve   { amount }
+POST /loans/:deal_id/deny      { reason }
 GET  /health
 ```
 
 Those are the module's own paths. The app mounts them under `/bank`
-(`app/bank/[...path]/route.ts`), so `tools/loan` calls `GET /bank/loans/:loan_id` and so
+(`app/bank/[...path]/route.ts`), so `tools/loan` calls `GET /bank/loans/:deal_id` and so
 on, on the app's host; `bun run loans` runs the module on a port of its own.
 
 **If you already have this service, you delete the directory and skip to §2.** That is
@@ -66,8 +66,8 @@ demo:
    the model can forge.
 2. **It knows nothing about governance**, and that is enforced rather than asserted —
    see §9.
-3. **It returns sensitive fields in full.** `GET /loans/:id` hands back the borrower's
-   bank account number, tax ID and the underwriter's notes. Redacting them is the
+3. **It returns sensitive fields in full.** `GET /loans/:id` hands back the customer's
+   bank account number, tax ID and the CRM notes. Redacting them is the
    post-execution hook's job, and a service that did it itself would leave nothing to
    demonstrate.
 
@@ -78,13 +78,13 @@ Later boots leave accumulated decisions alone (see **Durability** in `DESIGN.md`
 
 Your fixture needs one record that carries the beats you intend to show:
 
-| the demo's `LN-2291` | your equivalent |
+| the demo's `DL-2291` | your equivalent |
 |---|---|
 | an amount over the protagonist's authority | a record whose write your protagonist may not make |
 | `bank_account_number`, `tax_id` | two fields nobody at that clearance should read |
-| an `underwriter_notes` ending in an instruction aimed at whatever model reads it | one free-text field carrying a plausible injected instruction |
+| an `crm_notes` ending in an instruction aimed at whatever model reads it | one free-text field carrying a plausible injected instruction |
 
-Keep a **control record** too. The loan book's is `LN-2299`: equally over the
+Keep a **control record** too. The deal book's is `DL-2299`: equally over the
 protagonist's authority, no injected note. It exists to tell two failures apart when an
 act misbehaves: if the control record escalates and the injected one does not, the
 injected note is what the model is reacting to.
@@ -135,7 +135,7 @@ tool functions itself, before Arcade ever sees them.
 
 | `MCPApp(name=...)` | toolkit | tools |
 |---|---|---|
-| `loan` | `Loan` | `Loan.SearchLoans`, `Loan.GetLoan`, `Loan.ApproveLoan`, `Loan.DenyLoan` |
+| `loan` | `Deals` | `Deals.SearchDeals`, `Deals.GetDeal`, `Deals.ApproveDiscount`, `Deals.DenyDiscount` |
 | `loan_mcp_probe` | `LoanMcpProbe` | `LoanMcpProbe.PingProbe` |
 
 Underscores are consumed; `mcp` is **not** stripped (that is where `arcade deploy`
@@ -161,8 +161,8 @@ working demo.
 
 | where | spelling |
 |---|---|
-| MCP `tools/list`, and therefore what the model can call | `Loan_GetLoan` |
-| hook payloads, audit rows, policy rules | `Loan.GetLoan` |
+| MCP `tools/list`, and therefore what the model can call | `Deals_GetDeal` |
+| hook payloads, audit rows, policy rules | `Deals.GetDeal` |
 
 Key rules the dot way. Write the underscore spelling in any text **addressed to the
 model** — a `/pre` denial's remediation sentence, for instance, because the model can
@@ -180,7 +180,7 @@ The one file that is entirely about your domain and lives outside it. Four keys.
 
 ```json
 "catalogue": {
-  "$LOAN": { "GetLoan": ["loan_id"], "ApproveLoan": ["loan_id", "amount"] },
+  "$LOAN": { "GetDeal": ["deal_id"], "ApproveDiscount": ["deal_id", "amount"] },
   "$APPROVALS": { "RequestApproval": ["action", "resource_id", "amount", "justification"] }
 }
 ```
@@ -199,7 +199,7 @@ get right and the first thing to check when a rule silently does nothing.
 
 ```json
 { "persona": "dana", "user_id": "alice@bank.example",
-  "display_name": "Alice", "role": "loan_officer", "clearance": 50000 }
+  "display_name": "Alice", "role": "account_executive", "clearance": 50000 }
 ```
 
 `user_id` is an **email**, lowercase, and it is the join key: Arcade's `user_id`, the
@@ -230,7 +230,7 @@ narrows on with `subjects.roles`, or one this fixture's cast holds. So a new rol
 this file, as a rule that names it or a demo-cast row that holds it, and then
 `bun run users` accepts it. `--clearance` is required unless `/access` hides the approval
 tool from the role, and `scripts/users.ts` names that tool and the one that requests an
-approval as `APPROVE_TOOL` (`ApproveLoan`) and `REQUEST_TOOL` (`RequestApproval`): point
+approval as `APPROVE_TOOL` (`ApproveDiscount`) and `REQUEST_TOOL` (`RequestApproval`): point
 them at your own tools' names. `REQUEST_TOOL` decides who gets the reminder that they need
 an Arcade account (§5).
 
@@ -242,8 +242,8 @@ own scalar or add attributes — the engine reads `subjects.roles`,
 
 ```json
 { "id": "access.analysts-cannot-see-approve",
-  "hook": "access", "match": { "toolkit": "$LOAN", "tool": "ApproveLoan" },
-  "subjects": { "roles": ["credit_analyst"] },
+  "hook": "access", "match": { "toolkit": "$LOAN", "tool": "ApproveDiscount" },
+  "subjects": { "roles": ["sdr"] },
   "effect": "deny", "reason": "…", "priority": 10 }
 ```
 
@@ -255,12 +255,12 @@ call is within authority**, and its `reason` is what the model reads and acts on
 
 Two rules ship, and the split is deliberate:
 
-- `post.redact-borrower-identifiers` — field rules (`fields[].path`, `strategy`,
+- `post.redact-customer-identifiers` — field rules (`fields[].path`, `strategy`,
   `replacement`), **conditioned on clearance**. A control that redacts for everyone
   demonstrates nothing about identity.
 - `post.strip-injected-instructions` — six regex patterns over free text, conditioned on
   **nobody**. Whether text is trying to give the model orders is not a question about
-  anyone's authority; a chief credit officer must not be the one persona who reads the
+  anyone's authority; a chief revenue officer must not be the one persona who reads the
   injection.
 
 Patterns apply in array order and each is fed the previous one's output.
@@ -359,7 +359,7 @@ needs the catalogue, which the control plane has and this toolkit deliberately d
 
 Two things to align with your domain:
 
-- The `action` strings your `/pre` remediation text names (`approve_loan` in the loan
+- The `action` strings your `/pre` remediation text names (`approve_discount` in the loan
   book) must be the ones `POST /approvals` receives.
 - The Slack message body in `tools/approvals/approvals/message.py` names the action and
   the resource. It is domain-flavoured prose, not domain-coupled code.
@@ -403,7 +403,7 @@ of #150's review.
 
 | | |
 |---|---|
-| `lib/loan-context/loans.ts` | the records the bank's screens show, by id — `DEMO_LOAN_IDS = ["LN-2291", "LN-2299"]` — the poll interval, and the fields one record is allowed to carry to the browser |
+| `lib/loan-context/loans.ts` | the records the bank's screens show, by id — `DEMO_LOAN_IDS = ["DL-2291", "DL-2299"]` — the poll interval, and the fields one record is allowed to carry to the browser |
 | `lib/loan-context/read.ts` | calls your API over HTTP as the signed-in person: a list, then a detail read per record. Rename the paths, keep the shape |
 | `app/api/loans/route.ts` | the cookie-bound route both screens poll. No parameters, on purpose |
 | `lib/home/surface.ts` | the one gateway session a page load opens, for the persona's tool list (act 1). Nothing else |
@@ -451,18 +451,18 @@ system look like part of the same product as the thing governing it.
 
 | | |
 |---|---|
-| `lib/governance/access-fanout.ts` | the panel's **fixture replay** — pins the measured access-row fanout using `Loan.GetLoan` and `Loan.ApproveLoan` as sample tool names. Not a live path; update it or leave it as a replay of somebody else's demo |
+| `lib/governance/access-fanout.ts` | the panel's **fixture replay** — pins the measured access-row fanout using `Deals.GetDeal` and `Deals.ApproveDiscount` as sample tool names. Not a live path; update it or leave it as a replay of somebody else's demo |
 
 ### Six user-visible strings, in files you otherwise keep
 
 Not seams — one line each, in a file whose logic is entirely generic. They are on this
-list because a heading reading "Loan operations" above somebody else's demo is exactly
+list because a heading reading "Deals operations" above somebody else's demo is exactly
 the leftover this guide exists to prevent.
 
 | | |
 |---|---|
-| `app/chat/page.tsx` | the page heading, `Loan operations` |
-| `components/chat/Chat.tsx` | the placeholder prompt (`Approve the loan for $95K…`) and a denial caption naming the loan book |
+| `app/chat/page.tsx` | the page heading, `Deals operations` |
+| `components/chat/Chat.tsx` | the placeholder prompt (`Approve the loan for $95K…`) and a denial caption naming the deal book |
 | `components/governance/ControlPlaneStatus.tsx` | the Reset confirmation, which names `loans.db` |
 | `lib/governance/control-plane.ts` | the Reset result sentence |
 
@@ -480,7 +480,7 @@ The three excluded directories are §1's module, which you replace whole, the co
 plane, which you keep whole, and §4's provider. **51 files on `ba0c1fe`**, and **27 of
 them match only in comments** — every occurrence is explanatory prose in a docblock. The
 other 24 are the files named above, `app/bank/[...path]/route.ts` (the mount §1 names),
-and a handful that name the loan toolkit or the loan book in a string.
+and a handful that name the deals toolkit or the deal book in a string.
 
 Run the same sweep against your own vocabulary once the swap is done. Anything still
 holding the old domain is a file this list did not know about, and that is a finding
@@ -618,7 +618,7 @@ cp .env.example .env                # then fill it in
 
 bun run typecheck
 bun test                            # every group, including both boundary tests
-bun run reset                       # the policy, audit log and loan book back to their fixtures; your users stay
+bun run reset                       # the policy, audit log and deal book back to their fixtures; your users stay
 ```
 
 Then the whole system, with your domain in it, against a real Arcade project: the

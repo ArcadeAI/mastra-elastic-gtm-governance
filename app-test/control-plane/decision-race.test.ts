@@ -5,7 +5,7 @@
  * Round 1 of #52's review drove this by hand and it worked: both `Decide`
  * calls pass `/pre` while the request is still `pending`, the approving one
  * mints a grant, the denial is recorded first, the approval's store write
- * loses with a `409` — and `Loan.ApproveLoan` then returned `OK` against a
+ * loses with a `409` — and `Deals.ApproveDiscount` then returned `OK` against a
  * request whose recorded outcome was `denied`.
  *
  * These tests close the class rather than that sequence. A grant is minted
@@ -43,7 +43,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 10_000,
@@ -112,7 +112,7 @@ async function pre(
 async function escalate(resourceId: string): Promise<ApprovalRecord> {
   const response = await store("POST", "/api/approvals", {
     requester_id: DANA,
-    action: "approve_loan",
+    action: "approve_discount",
     resource_id: resourceId,
     amount: 95_000,
     justification: "Eleven years in business.",
@@ -134,7 +134,7 @@ const record = (id: string, decision: "approved" | "denied") =>
 
 /** Alice's retry of the call that was blocked in the first place. */
 const retry = (resourceId: string) =>
-  pre(DANA, "Loan", "ApproveLoan", { loan_id: resourceId, amount: 95_000 });
+  pre(DANA, "Deals", "ApproveDiscount", { deal_id: resourceId, amount: 95_000 });
 
 /** The most recent audit row for one tool. */
 const lastRowFor = (tool: string) =>
@@ -148,7 +148,7 @@ const statusOf = async (id: string): Promise<string> =>
 
 describe("the reviewer's sequence, verbatim", () => {
   test("an approval that loses to a denial leaves nothing usable behind", async () => {
-    const request = await escalate("LN-CONCURRENT");
+    const request = await escalate("DL-CONCURRENT");
 
     // Both decisions authorize: the request is still pending, so both pass the
     // "a decision is final" rule. This is the in-flight window, and it is real.
@@ -165,7 +165,7 @@ describe("the reviewer's sequence, verbatim", () => {
     expect(await statusOf(request.id)).toBe("denied");
 
     // The finding: this returned OK before the fix.
-    const blocked = await retry("LN-CONCURRENT");
+    const blocked = await retry("DL-CONCURRENT");
     expect(blocked.code).toBe("CHECK_FAILED");
     expect((blocked as { error_message: string }).error_message).toContain(
       "exceeds your approval authority",
@@ -183,7 +183,7 @@ describe("the reviewer's sequence, verbatim", () => {
   });
 
   test("the mirror image: a denial that loses to an approval blocks nothing", async () => {
-    const request = await escalate("LN-MIRROR");
+    const request = await escalate("DL-MIRROR");
 
     expect((await authorize(request.id, "denied")).code).toBe("OK");
     expect((await authorize(request.id, "approved")).code).toBe("OK");
@@ -193,7 +193,7 @@ describe("the reviewer's sequence, verbatim", () => {
     expect((await record(request.id, "denied")).status).toBe(409);
     expect(await statusOf(request.id)).toBe("approved");
 
-    const allowed = await retry("LN-MIRROR");
+    const allowed = await retry("DL-MIRROR");
     expect(allowed.code).toBe("OK");
 
     const grants = allGrants(db);
@@ -203,7 +203,7 @@ describe("the reviewer's sequence, verbatim", () => {
   });
 
   test("an approval recorded, then a late denial: nothing changes and the grant stays good once", async () => {
-    const request = await escalate("LN-LATE");
+    const request = await escalate("DL-LATE");
 
     expect((await authorize(request.id, "approved")).code).toBe("OK");
     expect((await record(request.id, "approved")).status).toBe(200);
@@ -216,8 +216,8 @@ describe("the reviewer's sequence, verbatim", () => {
     expect(allGrants(db)[0]?.grant.revoked_at).toBeNull();
 
     // Good exactly once, which is what single use means.
-    expect((await retry("LN-LATE")).code).toBe("OK");
-    expect((await retry("LN-LATE")).code).toBe("CHECK_FAILED");
+    expect((await retry("DL-LATE")).code).toBe("OK");
+    expect((await retry("DL-LATE")).code).toBe("CHECK_FAILED");
     expect(allGrants(db)[0]?.grant.uses_remaining).toBe(0);
   });
 
@@ -225,23 +225,23 @@ describe("the reviewer's sequence, verbatim", () => {
     // The `Decide` tool call passed `/pre` and then never reached the store —
     // Arcade timed out, the worker died, the network dropped it. The request
     // is still pending, so the grant is still pending, so it is not authority.
-    const request = await escalate("LN-ORPHAN");
+    const request = await escalate("DL-ORPHAN");
     expect((await authorize(request.id, "approved")).code).toBe("OK");
 
     expect(await statusOf(request.id)).toBe("pending");
     expect(allGrants(db)[0]?.lifecycle).toBe("pending");
-    expect((await retry("LN-ORPHAN")).code).toBe("CHECK_FAILED");
+    expect((await retry("DL-ORPHAN")).code).toBe("CHECK_FAILED");
   });
 
   test("a grant that is not considered says so in the audit row", async () => {
-    const request = await escalate("LN-LOUD");
+    const request = await escalate("DL-LOUD");
     await authorize(request.id, "approved");
     await authorize(request.id, "denied");
     await record(request.id, "denied");
 
-    await retry("LN-LOUD");
+    await retry("DL-LOUD");
 
-    const row = lastRowFor("Loan.ApproveLoan");
+    const row = lastRowFor("Deals.ApproveDiscount");
     // A grant that was present and ignored must be visible as exactly that. A
     // control that fires silently is indistinguishable from one that did not.
     expect(row?.reason).toContain("was not considered");
@@ -291,7 +291,7 @@ describe("across every interleaving", () => {
     const usableWhenApproved: string[] = [];
 
     for (const [index, order] of ORDERS.entries()) {
-      const resource = `LN-ORDER-${index}`;
+      const resource = `DL-ORDER-${index}`;
       const request = await escalate(resource);
 
       for (const step of order as Operation[]) {

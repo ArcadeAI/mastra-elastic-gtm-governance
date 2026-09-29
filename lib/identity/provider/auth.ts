@@ -177,7 +177,7 @@ export function staleSigningKey(dbPath: string, host?: string): string {
  * carries is `sub` — an opaque uuid. Arcade's User Source identifies the
  * person from a configured subject claim **on the ID token** (#65), and
  * DESIGN.md's third identity rule is that the Arcade `user_id`, the OAuth
- * subject and the loan book's actor column are the same string, joined on
+ * subject and the deal book's actor column are the same string, joined on
  * email. A User Source keyed on `sub` would make the Arcade user a uuid while
  * `governance.db` and `loans.db` hold addresses — open risk 4, which is the
  * one that leaves every test passing while the audit trail describes two
@@ -185,7 +185,7 @@ export function staleSigningKey(dbPath: string, host?: string): string {
  *
  * Lowercased here as well as at the seed (#58), because this is the value
  * Arcade ends up holding and it must be byte-equal to what `/oauth2/userinfo`
- * returns and to what the loan book records.
+ * returns and to what the deal book records.
  *
  * Only when the `email` scope was actually granted: a claim that appears
  * regardless of scope is a claim the consent screen did not describe.

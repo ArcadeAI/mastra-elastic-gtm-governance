@@ -76,7 +76,7 @@ beforeAll(async () => {
   // Nobody is seeded (#33), so the person is added the way an operator adds
   // one, capitalised as a human would type it, into the files the app has open.
   const added = await runUsers(
-    ["add", CONFIGURED_EMAIL, "--name", "Alice", "--role", "loan_officer", "--clearance", "50000", "--password", PASSWORD],
+    ["add", CONFIGURED_EMAIL, "--name", "Alice", "--role", "account_executive", "--clearance", "50000", "--password", PASSWORD],
     { idp: env.IDP_DB_PATH, governance: app.databases.governance },
   );
   if (added.code !== 0) throw new Error(`users add exited ${added.code}:\n${added.out}\n${added.err}`);

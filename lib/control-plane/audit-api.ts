@@ -16,7 +16,7 @@
  * ## Three choices that are all the same choice
  *
  * A filter that does not do what its author thinks it does is this project's
- * recurring failure: a rule keyed on `get_loan` matches nothing, and nothing is
+ * recurring failure: a rule keyed on `get_deal` matches nothing, and nothing is
  * indistinguishable from permitted. The same trap is one query string away
  * here, so the endpoint refuses to be quietly approximate.
  *

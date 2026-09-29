@@ -51,7 +51,7 @@ const baseConfig: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "test-store-token",
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: POLL_MS,
@@ -74,8 +74,8 @@ function pre89Fixture(): unknown {
   const text = JSON.stringify(rawFixture)
     .split("$APPROVALS_RequestApproval")
     .join("$APPROVALS.RequestApproval")
-    .split("$LOAN_ApproveLoan")
-    .join("$LOAN.ApproveLoan");
+    .split("$LOAN_ApproveDiscount")
+    .join("$LOAN.ApproveDiscount");
   return JSON.parse(text) as unknown;
 }
 
@@ -190,7 +190,7 @@ const pre = (base: string, tool: string, inputs: Record<string, unknown>) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_${Math.random().toString(36).slice(2)}`,
-      tool: { name: tool, toolkit: "Loan", version: "1.0.0" },
+      tool: { name: tool, toolkit: "Deals", version: "1.0.0" },
       inputs,
       context: { authorization: [{}], user_id: DANA },
     }),
@@ -235,7 +235,7 @@ describe("/health is 200 even when the policy will not compile (#112)", () => {
     const broken = pre89Fixture();
     const instance = boot(diskSeededFrom(broken), { imageFixture: broken });
 
-    const denied = await pre(instance.base, "GetLoan", { loan_id: "LN-2291" });
+    const denied = await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     expect(denied.status).toBe(200);
     expect(PreHookResult.parse(await denied.json()).code).toBe("CHECK_FAILED");
 
@@ -244,11 +244,11 @@ describe("/health is 200 even when the policy will not compile (#112)", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
       body: JSON.stringify({
         user_id: DANA,
-        toolkits: { Loan: { tools: { GetLoan: [{ version: "1.0.0" }] } } },
+        toolkits: { Deals: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
       }),
     });
     expect(AccessHookResult.parse(await access.json())).toEqual({
-      deny: { Loan: { tools: { GetLoan: [{ version: "1.0.0" }] } } },
+      deny: { Deals: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
     });
   });
 
@@ -315,8 +315,8 @@ describe("fixture drift is loud (#106)", () => {
     expect(drift?.missing).toEqual(["policy_rules:pre.decide-only-while-pending"]);
     // The clearance edit is exactly the stage edit #29 protects, and it is
     // still in force — being named is not being reverted.
-    const allowed = await pre(instance.base, "ApproveLoan", {
-      loan_id: "LN-2291",
+    const allowed = await pre(instance.base, "ApproveDiscount", {
+      deal_id: "DL-2291",
       amount: 95_000,
     });
     expect(await allowed.json()).toEqual({ code: "OK" });
@@ -342,7 +342,7 @@ describe("stale rows that cannot compile reseed themselves (#106, route A)", () 
     // The rule that could not compile is now the fixture's, spelled the way the
     // model reads it — which is the whole of #89 and the reason the guard
     // refused the old row.
-    const denied = await pre(instance.base, "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+    const denied = await pre(instance.base, "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     const result = PreHookResult.parse(await denied.json());
     expect(result.code).toBe("CHECK_FAILED");
     expect(result.error_message).toContain("Approvals_RequestApproval");
@@ -381,7 +381,7 @@ describe("stale rows that cannot compile reseed themselves (#106, route A)", () 
     const body = await health(instance.base);
     expect(body.status).toBe("degraded");
     expect(body.fixture_drift?.changed).toEqual([`subjects:${DANA}`]);
-    const allowed = await pre(instance.base, "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+    const allowed = await pre(instance.base, "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(await allowed.json()).toEqual({ code: "OK" });
   });
 
@@ -429,10 +429,10 @@ describe("POST /admin/reset (#106)", () => {
     const path = diskSeededFrom(pre17Fixture());
     const instance = boot(path);
     // Something happened before the reset: a decision, and a grant.
-    await pre(instance.base, "GetLoan", { loan_id: "LN-2291" });
+    await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     instance.db.run(
       `INSERT INTO grants (id, subject_id, granted_by, request_id, toolkit, tool, issued_at, expires_at)
-       VALUES ('g1', ?, 'riley@x', 'r1', 'Loan', 'ApproveLoan', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
+       VALUES ('g1', ?, 'riley@x', 'r1', 'Deals', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
       [DANA],
     );
     const before = (await health(instance.base)).counts;
@@ -455,10 +455,10 @@ describe("POST /admin/reset (#106)", () => {
 
   test("demo mode also clears grants, approval requests and the audit log", async () => {
     const instance = boot(diskSeededFrom(rawFixture));
-    await pre(instance.base, "GetLoan", { loan_id: "LN-2291" });
+    await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     instance.db.run(
       `INSERT INTO grants (id, subject_id, granted_by, request_id, toolkit, tool, issued_at, expires_at)
-       VALUES ('g1', ?, 'riley@x', 'r1', 'Loan', 'ApproveLoan', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
+       VALUES ('g1', ?, 'riley@x', 'r1', 'Deals', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
       [DANA],
     );
     expect((await health(instance.base)).counts.audit_log).toBeGreaterThan(0);
@@ -486,7 +486,7 @@ describe("POST /admin/reset (#106)", () => {
     await reset(instance.base, { mode: "demo" });
 
     // Writable: the hooks still append.
-    await pre(instance.base, "GetLoan", { loan_id: "LN-2291" });
+    await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     expect((await health(instance.base)).counts.audit_log).toBe(1);
 
     // And that row cannot be deleted or edited by anything but another reset.
@@ -506,7 +506,7 @@ describe("POST /admin/reset (#106)", () => {
 
   test("defaults to the narrow mode and refuses one it does not know", async () => {
     const instance = boot(diskSeededFrom(rawFixture));
-    await pre(instance.base, "GetLoan", { loan_id: "LN-2291" });
+    await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
 
     const bare = await fetch(`${instance.base}/admin/reset`, {
       method: "POST",
@@ -550,7 +550,7 @@ describe("POST /admin/reset (#106)", () => {
  * straight into the table the policy cache polls, because that is the whole of
  * what makes somebody a subject.
  */
-const REAL_USER = { user_id: "priya@company.test", display_name: "Priya", role: "vp_credit", clearance: 400_000 };
+const REAL_USER = { user_id: "priya@company.test", display_name: "Priya", role: "vp_sales", clearance: 400_000 };
 
 function addRealUser(db: Database): void {
   db.run(
@@ -565,7 +565,7 @@ const preAs = (base: string, userId: string, tool: string, inputs: Record<string
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_${Math.random().toString(36).slice(2)}`,
-      tool: { name: tool, toolkit: "Loan", version: "1.0.0" },
+      tool: { name: tool, toolkit: "Deals", version: "1.0.0" },
       inputs,
       context: { authorization: [{}], user_id: userId },
     }),
@@ -591,7 +591,7 @@ describe("a user added by `bun run users` is not drift (#32)", () => {
 
     // Not ignored by the policy, only by the drift check: the row is live.
     // $95K is over Alice's $50K and within this user's $400K.
-    const allowed = await preAs(instance.base, REAL_USER.user_id, "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+    const allowed = await preAs(instance.base, REAL_USER.user_id, "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(await allowed.json()).toEqual({ code: "OK" });
   });
 
@@ -648,7 +648,7 @@ describe("a reset keeps real users' subjects rows (#32)", () => {
       expect(instance.logs.some((line) => line.includes(`kept 1 subject the fixture does not seed (${REAL_USER.user_id})`))).toBe(true);
 
       // And the control plane still knows them, rather than "must register the identity".
-      const allowed = await preAs(instance.base, REAL_USER.user_id, "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+      const allowed = await preAs(instance.base, REAL_USER.user_id, "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
       expect(await allowed.json()).toEqual({ code: "OK" });
     });
   }
@@ -683,7 +683,7 @@ describe("a first boot has no subjects, and neither drift nor a reset adds any (
 
   test("the demo cast at the fixture's addresses is put back to the demo's clearance, one member at a time", async () => {
     const instance = boot(join(scratch(), "governance.db"));
-    addSubject(instance.db, { user_id: DANA, display_name: "Alice", role: "loan_officer", clearance: 75_000 }, "cli:test");
+    addSubject(instance.db, { user_id: DANA, display_name: "Alice", role: "account_executive", clearance: 75_000 }, "cli:test");
     await Bun.sleep(POLL_MS * 8);
     expect((await health(instance.base)).fixture_drift?.changed).toEqual([`subjects:${DANA}`]);
 
@@ -697,7 +697,7 @@ describe("a first boot has no subjects, and neither drift nor a reset adds any (
 
 describe("a demo subject removed with `bun run users remove` stays removed (#32, round 1)", () => {
   const BOB = "bob@bank.example";
-  const BOB_SUBJECT = { user_id: BOB, display_name: "Bob", role: "credit_analyst", clearance: 0 };
+  const BOB_SUBJECT = { user_id: BOB, display_name: "Bob", role: "sdr", clearance: 0 };
 
   test("it is not drift", async () => {
     const instance = boot(diskSeededFrom(rawFixture));

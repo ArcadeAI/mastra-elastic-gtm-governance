@@ -42,7 +42,7 @@ import {
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const OPTIONS: SeedOptions = {
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
 };
 
@@ -107,14 +107,14 @@ const SCHEMA_BEFORE_APPROVAL_REQUESTS = `
   INSERT INTO policy_revision (id, revision) VALUES (1, 7);
 
   INSERT INTO subjects (user_id, display_name, role, clearance)
-    VALUES ('alice@bank.example', 'Alice', 'loan_officer', 100000);
+    VALUES ('alice@bank.example', 'Alice', 'account_executive', 100000);
   INSERT INTO catalogue (toolkit, tool, arguments)
-    VALUES ('Loan', 'GetLoan', '["loan_id"]');
+    VALUES ('Deals', 'GetDeal', '["deal_id"]');
   INSERT INTO policy_rules (id, hook, toolkit, tool, effect, reason, priority)
-    VALUES ('access.stale-fixture', 'access', 'Loan', '*', 'allow', 'from the old disk', 100);
+    VALUES ('access.stale-fixture', 'access', 'Deals', '*', 'allow', 'from the old disk', 100);
   INSERT INTO audit_log (id, ts, hook, user_id, tool, decision, reason)
     VALUES ('ev_old', '2026-01-01T00:00:00.000Z', 'pre', 'alice@bank.example',
-            'Loan.GetLoan', 'allow', 'recorded before the upgrade');
+            'Deals.GetDeal', 'allow', 'recorded before the upgrade');
 `;
 
 function writeOldDisk(path: string): void {
@@ -232,14 +232,14 @@ describe("a database written before a table existed", () => {
             execution_id: "tc_post",
             hook: "post",
             user_id: "alice@bank.example",
-            tool: "Loan.GetLoan",
+            tool: "Deals.GetDeal",
             decision: "modify",
             reason: "redacted",
-            rule_id: "post.redact-borrower-identifiers",
+            rule_id: "post.redact-customer-identifiers",
             redactions: [
               {
                 path: "$.bank_account_number",
-                rule_id: "post.redact-borrower-identifiers",
+                rule_id: "post.redact-customer-identifiers",
                 pattern_id: null,
                 kind: "mask",
               },
@@ -250,7 +250,7 @@ describe("a database written before a table existed", () => {
         expect(row?.redactions).toEqual([
           {
             path: "$.bank_account_number",
-            rule_id: "post.redact-borrower-identifiers",
+            rule_id: "post.redact-customer-identifiers",
             pattern_id: null,
             kind: "mask",
           },
@@ -297,7 +297,7 @@ describe("a fresh database", () => {
           execution_id: "tc_1",
           hook: "pre",
           user_id: "alice@bank.example",
-          tool: "Loan.ApproveLoan",
+          tool: "Deals.ApproveDiscount",
           decision: "allow",
           reason: "because",
           rule_id: null,
@@ -434,7 +434,7 @@ const TAX_ID = "86-7530912";
 
 /**
  * A disk at version 2 — the schema #16 left — carrying rows whose `before`
- * and `after` hold raw `Loan.GetLoan` output. This is the shape of the stage
+ * and `after` hold raw `Deals.GetDeal` output. This is the shape of the stage
  * demo's disk: ~745,000 rows, most of them written before #101 stopped
  * binding those columns.
  *
@@ -460,11 +460,11 @@ function writeDiskAtVersion2(path: string, rows = 200): void {
       // decoration: measured, a bare `DROP COLUMN` zeroes what it defragments
       // inside a page and leaves the freed overflow pages verbatim, so the
       // same value ahead of the filler comes back clean and behind it does
-      // not. The real `Loan.GetLoan` output has `underwriter_notes` in it.
+      // not. The real `Deals.GetDeal` output has `crm_notes` in it.
       const payload = JSON.stringify({
-        loan_id: "LN-2291",
-        borrower: "Northwind Bakery LLC",
-        underwriter_notes: "x".repeat(4096),
+        deal_id: "DL-2291",
+        customer: "Northwind Robotics",
+        crm_notes: "x".repeat(4096),
         bank_account_number: ACCOUNT,
         tax_id: TAX_ID,
       });
@@ -474,10 +474,10 @@ function writeDiskAtVersion2(path: string, rows = 200): void {
         `tc_${i}`,
         "post",
         "alice@bank.example",
-        "Loan.GetLoan",
+        "Deals.GetDeal",
         "modify",
         "Sensitive field masked.",
-        "post.redact-borrower-identifiers",
+        "post.redact-customer-identifiers",
         payload,
         payload.replace(ACCOUNT, "****"),
       );
@@ -562,7 +562,7 @@ describe("a database carrying the retired payload columns (#103)", () => {
       expect(occurrencesInFile(path, ACCOUNT)).toBe(0);
       expect(occurrencesInFile(path, TAX_ID)).toBe(0);
       // The 4KB filler went with it: nothing of the old payload survives.
-      expect(occurrencesInFile(path, "underwriter_notes")).toBe(0);
+      expect(occurrencesInFile(path, "crm_notes")).toBe(0);
     });
   });
 
@@ -729,7 +729,7 @@ describe("GET /health after a migration (#103)", () => {
     // Unset, so `POST /admin/reset` is not mounted (#106): this file is about
     // the schema upgrade, not the reset.
     resetToken: "",
-    loanToolkit: "Loan",
+    loanToolkit: "Deals",
     approvalsToolkit: "Approvals",
     deadlineMs: 2500,
     policyPollMs: 250,

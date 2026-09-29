@@ -1,7 +1,7 @@
-"""The loan toolkit: four tools, each a stateless client of the app's loan module.
+"""The deals toolkit: four tools, each a stateless client of the app's loan module.
 
 Nothing here holds state and nothing here decides anything. Every tool takes
-the caller's OAuth token, hands it to the bank's API, and returns what the API
+the caller's OAuth token, hands it to the deal desk's API, and returns what the API
 returns. The API derives who is acting from that token; the tools never say.
 
 Whether a caller *may* do what they are asking is not this toolkit's question
@@ -27,10 +27,10 @@ __all__ = [
     "APP_HOST_SECRET",
     "IDP_PROVIDER_ID",
     "app",
-    "approve_loan",
-    "deny_loan",
-    "get_loan",
-    "search_loans",
+    "approve_discount",
+    "deny_discount",
+    "get_deal",
+    "search_deals",
 ]
 
 # The name here is what `arcade deploy` reads off `initialize` and becomes the
@@ -41,12 +41,12 @@ __all__ = [
 # hyphenated toolkit could not form a parseable Arcade tool name anyway
 # (measured in spike #2).
 app = MCPApp(
-    name="loan",
+    name="deals",
     version="1.0.0",
     instructions=(
-        "Loan origination system for a commercial bank. Loan applications are identified "
-        "by IDs of the form LN-0000. Use search_loans to find applications, get_loan to "
-        "read one in full, and approve_loan or deny_loan to record a decision on one."
+        "Deal desk for a B2B software company. Discount requests are identified "
+        "by IDs of the form DL-0000. Use search_deals to find requests, get_deal to "
+        "read one in full, and approve_discount or deny_discount to record a decision on one."
     ),
 )
 
@@ -84,7 +84,7 @@ _requires_secrets = [APP_HOST_SECRET]
 # overwritten — a decision is appended) nor idempotent (approving twice is two
 # rows, on purpose). MCP `title` has no equivalent and is dropped. No
 # `Classification`: its service domains describe third-party SaaS, and the
-# bank's own loan book is not one (`arcade-mcp` rejects a domain on a
+# bank's own deal book is not one (`arcade-mcp` rejects a domain on a
 # closed-world tool). Note that spike #2 measured this metadata does not reach
 # hook payloads; it is for clients, not for policy.
 _read = ToolMetadata(
@@ -101,7 +101,7 @@ _write = ToolMetadata(
 )
 
 
-class LoanStatus(str, Enum):
+class DealStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -129,7 +129,7 @@ async def _call(
             response = await client.request(method, url, params=params, json=json, headers=headers)
         except httpx.HTTPError as exc:
             raise ToolExecutionError(
-                "The loan origination system could not be reached.",
+                "The deal desk could not be reached.",
                 developer_message=f"{method} {url}: {exc!r}",
             ) from exc
 
@@ -146,27 +146,27 @@ async def _call(
     )
 
 
-LoanId = Annotated[
-    str, "The loan application ID, in the form LN-0000 — for example LN-2291."
+DealId = Annotated[
+    str, "The discount requests ID, in the form DL-0000 — for example DL-2291."
 ]
 
 
 @app.tool(requires_auth=_requires_auth, requires_secrets=_requires_secrets, metadata=_read)
-async def search_loans(
+async def search_deals(
     context: Context,
     status: Annotated[
-        LoanStatus | None,
-        "Return only applications in this state. 'pending' means no decision has been "
+        DealStatus | None,
+        "Return only requests in this state. 'pending' means no decision has been "
         "recorded yet.",
     ] = None,
     min_amount: Annotated[
-        float | None, "Return only applications requesting at least this many US dollars."
+        float | None, "Return only requests for a discount of at least this many US dollars."
     ] = None,
     max_amount: Annotated[
-        float | None, "Return only applications requesting at most this many US dollars."
+        float | None, "Return only requests for a discount of at most this many US dollars."
     ] = None,
-) -> Annotated[dict[str, Any], "The number of matching applications and their list-view fields."]:
-    """Find loan applications in the loan book, newest submission first: what is awaiting a decision, or what falls within a dollar range. All filters are optional and combine; with none supplied this returns every application on file. Each hit carries the list-view fields only — ID, borrower, amount, status, purpose and submission date. A borrower's financials, the underwriter's notes and the decisions already recorded are in get_loan's result for an ID from these hits."""
+) -> Annotated[dict[str, Any], "The number of matching requests and their list-view fields."]:
+    """Find discount requests in the deal book, newest request first: what is awaiting a decision, or what falls within a dollar range. All filters are optional and combine; with none supplied this returns every request on file. Each hit carries the list-view fields only — ID, account, discount amount, status, purpose and request date. The account's financials, the CRM notes and the decisions already recorded are on get_deal, by ID."""
     params: dict[str, Any] = {}
     if status is not None:
         params["status"] = status.value
@@ -178,37 +178,37 @@ async def search_loans(
 
 
 @app.tool(requires_auth=_requires_auth, requires_secrets=_requires_secrets, metadata=_read)
-async def get_loan(
+async def get_deal(
     context: Context,
-    loan_id: LoanId,
-) -> Annotated[dict[str, Any], "The complete loan application record."]:
-    """Read one loan application's complete file by ID. Returns everything the loan book holds on it: borrower details, the requested amount and purpose, credit score, annual revenue and years in business, the underwriter's notes, the borrower's bank account number and tax ID, and every approval or denial already recorded against it, oldest first."""
-    return await _call(context, "GET", f"/loans/{loan_id}")
+    deal_id: DealId,
+) -> Annotated[dict[str, Any], "The complete discount request record."]:
+    """Read one discount request's complete record by ID. Returns everything the deal book holds on it: the account, the requested discount amount and purpose, credit score, ARR and years as a customer, the CRM notes, the customer's billing bank account number and tax ID, and every approval or denial already recorded against it, oldest first."""
+    return await _call(context, "GET", f"/loans/{deal_id}")
 
 
 @app.tool(requires_auth=_requires_auth, requires_secrets=_requires_secrets, metadata=_write)
-async def approve_loan(
+async def approve_discount(
     context: Context,
-    loan_id: LoanId,
+    deal_id: DealId,
     amount: Annotated[
         float,
-        "The amount to approve, in US dollars. Need not equal the amount requested — an "
-        "application may be approved for less.",
+        "The discount to approve, in US dollars. Need not equal the amount requested — a "
+        "request may be approved for less.",
     ],
-) -> Annotated[dict[str, Any], "The application as it stands after the approval."]:
-    """Approve a loan application for a given dollar amount, committing the decision to the loan book: the approval is appended to the application's decision history and its status becomes 'approved'. Returns the application as it stands after the approval."""
-    return await _call(context, "POST", f"/loans/{loan_id}/approve", json={"amount": amount})
+) -> Annotated[dict[str, Any], "The request as it stands after the approval."]:
+    """Approve a discount request for a given dollar amount, committing the decision to the deal book: the approval is appended to the request's decision history and its status becomes 'approved'. Returns the request as it stands after the approval."""
+    return await _call(context, "POST", f"/loans/{deal_id}/approve", json={"amount": amount})
 
 
 @app.tool(requires_auth=_requires_auth, requires_secrets=_requires_secrets, metadata=_write)
-async def deny_loan(
+async def deny_discount(
     context: Context,
-    loan_id: LoanId,
+    deal_id: DealId,
     reason: Annotated[
         str,
-        "Why the application is being declined. Recorded verbatim in the decision history "
+        "Why the request is being declined. Recorded verbatim in the decision history "
         "and read by auditors, so write it for a human.",
     ],
-) -> Annotated[dict[str, Any], "The application as it stands after the denial."]:
-    """Decline a loan application with a stated reason, committing the decision to the loan book: the denial is appended to the application's decision history and its status becomes 'denied'. Returns the application as it stands after the denial."""
-    return await _call(context, "POST", f"/loans/{loan_id}/deny", json={"reason": reason})
+) -> Annotated[dict[str, Any], "The request as it stands after the denial."]:
+    """Decline a discount request with a stated reason, committing the decision to the deal book: the denial is appended to the request's decision history and its status becomes 'denied'. Returns the request as it stands after the denial."""
+    return await _call(context, "POST", f"/loans/{deal_id}/deny", json={"reason": reason})

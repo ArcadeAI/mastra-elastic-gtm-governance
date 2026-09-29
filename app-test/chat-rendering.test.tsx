@@ -53,7 +53,7 @@ const DANA = "alice@bank.example";
  * rather than on a length.
  */
 const REPLY =
-  "It looks like the loan system needs you to authorize it before I can read LN-2291, " +
+  "It looks like the loan system needs you to authorize it before I can read DL-2291, " +
   "so I have stopped here for right now.";
 
 /** `text` events of exactly three characters, the way a provider streams. */
@@ -248,16 +248,16 @@ describe("a streamed reply is one message, not one message per chunk", () => {
     const container = await turn([
       ...deltas("Rea"),
       ...deltas("ding it now."),
-      { kind: "tool-call", tool: "Loan_GetLoan", inputs: { loan_id: "LN-2291" } },
-      { kind: "tool-result", tool: "Loan_GetLoan", result: { loan_id: "LN-2291", amount: 95000 } },
+      { kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } },
+      { kind: "tool-result", tool: "Deals_GetDeal", result: { deal_id: "DL-2291", amount: 95000 } },
       ...deltas("It is for $95,000."),
       { kind: "done", calls: 1 },
     ]);
 
     expect(replies(container)).toEqual(["Reading it now.", "It is for $95,000."]);
     const markup = container.innerHTML;
-    expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Loan_GetLoan"));
-    expect(markup.indexOf("Loan_GetLoan")).toBeLessThan(markup.indexOf("It is for $95,000."));
+    expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Deals_GetDeal"));
+    expect(markup.indexOf("Deals_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
   });
 });
 
@@ -281,7 +281,7 @@ describe("markdown in a streamed reply", () => {
 
   test("an HTML payload in the reply is shown as text, never rendered", async () => {
     // The reply is the one surface on this screen a prompt injection gets to
-    // write — act 4 is a loan file trying to. Whatever the model emits, no
+    // write — act 4 is a deal record trying to. Whatever the model emits, no
     // element of its choosing ends up in this document.
     const payload = '<img src=x onerror="alert(1)"> and <b>bold</b> and <script>alert(2)</script>';
     const container = await turn([...deltas(payload), { kind: "done", calls: 0 }]);

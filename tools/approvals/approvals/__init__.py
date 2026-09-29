@@ -148,10 +148,10 @@ async def request_approval(
     context: Context,
     action: Annotated[
         str,
-        "The action the approval would cover — for example approve_loan.",
+        "The action the approval would cover — for example approve_discount.",
     ],
     resource_id: Annotated[
-        str, "What the action would act on, such as a loan application ID."
+        str, "What the action would act on, such as a discount requests ID."
     ],
     amount: Annotated[
         float,

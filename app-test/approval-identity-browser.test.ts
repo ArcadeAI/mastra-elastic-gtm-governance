@@ -91,7 +91,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
             // The app mounts the control plane since #4; a throwaway one, not
             // a governance.db in the repo.
             GOVERNANCE_DB_PATH: ":memory:",
-            // The app holds the loan book since #5; a throwaway one, not a
+            // The app holds the deal book since #5; a throwaway one, not a
             // loans.db in the repo.
             LOANS_DB_PATH: ":memory:",
             // The key the sealed sessions below are sealed under. A mismatch here

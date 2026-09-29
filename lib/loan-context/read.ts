@@ -1,5 +1,5 @@
 /**
- * The loan book, read from the loan module in-process **as the person holding
+ * The deal book, read from the loan module in-process **as the person holding
  * this browser**.
  *
  * ## Why this is not a governed read any more
@@ -11,7 +11,7 @@
  * `lib/loan-context/loans.ts` states the new reasoning in full; the short form
  * is that the thesis is about the agent's path, the bank's own screen for an
  * authenticated human is not that path, and routing it through the gateway cost
- * two `Loan_GetLoan` calls on every page load — tool calls on the panel before
+ * two `Deals_GetDeal` calls on every page load — tool calls on the panel before
  * the presenter had spoken, and cards that never moved when the agent approved
  * something.
  *
@@ -28,7 +28,7 @@
  *
  * ## In-process, and still through the module's front door
  *
- * Since #5 the loan book is a module of this app (`lib/loans/`), and this file
+ * Since #5 the deal book is a module of this app (`lib/loans/`), and this file
  * reads it without leaving the process: no loopback HTTP to `/bank/…`, no MCP,
  * no gateway. It hands the module's own request handler a `Request` carrying
  * the person's bearer, so the read goes through exactly the path `tools/loan`'s
@@ -105,20 +105,20 @@ export interface ReadLoanBookOptions {
 
 /** What the loan module answers `GET /loans` with, as far as this reads it. */
 interface LoanSummary {
-  loan_id?: unknown;
+  deal_id?: unknown;
 }
 
 /** The detail route's record, as far as this reads it. Everything else is ignored. */
 interface LoanDetail {
-  loan_id?: unknown;
-  borrower_name?: unknown;
+  deal_id?: unknown;
+  account_name?: unknown;
   amount?: unknown;
   status?: unknown;
   purpose?: unknown;
-  submitted_at?: unknown;
+  requested_at?: unknown;
   credit_score?: unknown;
-  annual_revenue?: unknown;
-  years_in_business?: unknown;
+  arr?: unknown;
+  years_as_customer?: unknown;
   decisions?: unknown;
 }
 
@@ -127,7 +127,7 @@ interface LoanDetail {
  *
  * Total: nothing here throws. The caller is a route handler answering a poll
  * every two seconds and a server component rendering a page with a chat and a
- * panel on it; a loan book that cannot be reached costs the cards, not the
+ * panel on it; a deal book that cannot be reached costs the cards, not the
  * screen.
  */
 export async function readLoanBook(
@@ -137,7 +137,7 @@ export async function readLoanBook(
   if (session === null) {
     return {
       status: "signed-out",
-      message: "Nobody is signed in on this browser, so there is no one to read the loan book as.",
+      message: "Nobody is signed in on this browser, so there is no one to read the deal book as.",
     };
   }
 
@@ -148,7 +148,7 @@ export async function readLoanBook(
       message:
         `This browser's sign-in as ${session.email} carries no loan-system token — it predates ` +
         `the version of this app that keeps one. Nothing was refused by policy — sign in again ` +
-        `to read the loan book.`,
+        `to read the deal book.`,
     };
   }
 
@@ -167,7 +167,7 @@ export async function readLoanBook(
   if (ids === null) {
     return {
       status: "unavailable",
-      message: "The loan book answered with something this screen could not read as a list of applications.",
+      message: "The deal book answered with something this screen could not read as a list of applications.",
     };
   }
 
@@ -204,16 +204,16 @@ function expiredFor(email: string): LoanBookState {
     status: "expired",
     message:
       `The loan system did not accept this browser's sign-in as ${email}. Nothing was refused by ` +
-      `policy — sign in again to read the loan book.`,
+      `policy — sign in again to read the deal book.`,
   };
 }
 
 /**
- * One request to the loan book, with the person's bearer on it.
+ * One request to the deal book, with the person's bearer on it.
  *
  * `unauthorized` is kept apart from every other failure because it is the only
  * one the reader can do something about, and because calling it an outage would
- * put "the loan book is down" on screen while the loan book was up and saying
+ * put "the deal book is down" on screen while the deal book was up and saying
  * no.
  */
 type Asked =
@@ -239,7 +239,7 @@ async function ask(
       outcome: "failed",
       status: 0,
       message:
-        `The loan book could not answer ${path}: ` +
+        `The deal book could not answer ${path}: ` +
         `${cause instanceof Error ? cause.message : String(cause)}.`,
     };
   }
@@ -249,14 +249,14 @@ async function ask(
     return {
       outcome: "failed",
       status: response.status,
-      message: `The loan book answered ${response.status} to ${path}.`,
+      message: `The deal book answered ${response.status} to ${path}.`,
     };
   }
 
   try {
     return { outcome: "ok", body: await response.json() };
   } catch {
-    return { outcome: "failed", status: response.status, message: `The loan book's answer to ${path} was not JSON.` };
+    return { outcome: "failed", status: response.status, message: `The deal book's answer to ${path} was not JSON.` };
   }
 }
 
@@ -282,12 +282,12 @@ async function ask(
  *
  * The rule that follows is narrow and checkable: **renew only when there is a
  * callback to hand the new session to.** A server component therefore uses the
- * bearer it was given, whatever the clock says, and lets the loan book decide —
+ * bearer it was given, whatever the clock says, and lets the deal book decide —
  * which costs at most one 401 and one poll interval, because `GET /api/loans`
  * *can* reseal and renews two seconds later.
  *
  * That is also why `expires_at` never on its own produces a re-sign-in here.
- * It is this service's note to itself; the IdP and the loan book are the only
+ * It is this service's note to itself; the IdP and the deal book are the only
  * things that decide a token is dead, and `RENEW_BEFORE_MS` exists to renew
  * *early*, not to declare death early. The one `null` below is a session
  * carrying no bearer at all.
@@ -322,7 +322,7 @@ async function usableToken(session: Session, options: ReadLoanBookOptions): Prom
   });
   // A refusal here is not this read's answer. The bearer in the cookie may
   // still be live — a rotation does not revoke it — so it is presented, and the
-  // loan book says whether it works.
+  // deal book says whether it works.
   if (!renewed.ok) return held;
 
   const token: IdpToken = {
@@ -341,7 +341,7 @@ function idsOf(body: unknown): string[] | null {
   if (!Array.isArray(loans)) return null;
   const ids: string[] = [];
   for (const entry of loans as LoanSummary[]) {
-    if (typeof entry?.loan_id === "string" && entry.loan_id.trim() !== "") ids.push(entry.loan_id);
+    if (typeof entry?.deal_id === "string" && entry.deal_id.trim() !== "") ids.push(entry.deal_id);
   }
   return ids;
 }
@@ -350,8 +350,8 @@ function idsOf(body: unknown): string[] | null {
  * One detail record, field by field.
  *
  * Built rather than filtered, so `bank_account_number`, `tax_id` and
- * `underwriter_notes` are absent because nothing here names them — and a field
- * the loan book grows tomorrow is absent for the same reason. See
+ * `crm_notes` are absent because nothing here names them — and a field
+ * the deal book grows tomorrow is absent for the same reason. See
  * {@link LoanCard}.
  *
  * `decided_by_name` is left `null` here: the name is the control plane's to
@@ -360,21 +360,21 @@ function idsOf(body: unknown): string[] | null {
 export function projectLoan(body: unknown): LoanCard | null {
   if (typeof body !== "object" || body === null) return null;
   const record = body as LoanDetail;
-  if (typeof record.loan_id !== "string" || record.loan_id.trim() === "") return null;
+  if (typeof record.deal_id !== "string" || record.deal_id.trim() === "") return null;
 
   const latest = latestDecision(record.decisions);
   const decidedBy = latest?.decided_by ?? null;
 
   return {
-    loan_id: record.loan_id,
-    borrower_name: string(record.borrower_name),
+    deal_id: record.deal_id,
+    account_name: string(record.account_name),
     amount: number(record.amount),
     status: string(record.status),
     purpose: string(record.purpose),
-    submitted_at: string(record.submitted_at),
+    requested_at: string(record.requested_at),
     credit_score: number(record.credit_score),
-    annual_revenue: number(record.annual_revenue),
-    years_in_business: number(record.years_in_business),
+    arr: number(record.arr),
+    years_as_customer: number(record.years_as_customer),
     decided_by: decidedBy,
     decided_by_name: null,
     decided_at: latest?.decided_at ?? null,

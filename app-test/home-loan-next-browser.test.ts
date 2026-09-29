@@ -5,12 +5,12 @@
  * headless Chrome, waits for React to take ownership of the controls, and then
  * drives the chat composer the way a person does. The gateway is the repo's
  * synthetic MCP server backed by the real hooks, loan app and local IdP; the
- * loan cards are the real `GET /api/loans` against the real loan book.
+ * loan cards are the real `GET /api/loans` against the real deal book.
  *
  * ## What this file used to be, and what #157 took out of it
  *
  * It was #149's *continuation* regression: the loan cards were governed
- * `Loan_GetLoan` reads, a layer-2 challenge put a `Continue` button on a card,
+ * `Deals_GetDeal` reads, a layer-2 challenge put a `Continue` button on a card,
  * and the test clicked it to drive `HomeRefreshBoundary` and `router.refresh()`
  * through a re-challenge and a success. #157 moved the cards off the MCP path —
  * they read the bank's own API as the signed-in person and poll — so there is
@@ -82,7 +82,7 @@ const HYDRATION_DELAY_MS = Number(process.env.CG_HYDRATION_DELAY_MS ?? "0");
  * Everything this test clicks and types into is in the server-rendered HTML
  * before any JavaScript runs: the page is a server component, and the
  * authorization card the test waits for is rendered by the *server* when the
- * gateway challenges `Loan_GetLoan`. So `waitFor("initial authorization card")`
+ * gateway challenges `Deals_GetDeal`. So `waitFor("initial authorization card")`
  * proves the HTML arrived and proves nothing about React.
  *
  * Measured, on a passing run, at the moment the old test clicked Send — with a
@@ -133,7 +133,7 @@ const HYDRATION_DELAY_MS = Number(process.env.CG_HYDRATION_DELAY_MS ?? "0");
  * `LoanFilesView`, which is the client component that owns the polling, so its
  * presence under a hydrated `.bank` says the same thing the button did — the
  * subtree this test drives is live — and says one thing more, that the new read
- * path works in a real browser against the real loan book.
+ * path works in a real browser against the real deal book.
  *
  * Round 1 of this review rejected an earlier version that read React's private
  * `__reactProps$…` properties off the DOM nodes, and was right to: those are
@@ -155,7 +155,7 @@ async function waitForHydration(cdp: Cdp): Promise<void> {
           if (document.querySelector('.bank[data-hydrated="true"]') === null) return false;
           return document.querySelector('textarea[aria-label="Message the assistant"]') !== null
             && document.querySelector('form.chat-composer') !== null
-            && document.querySelector('.bank-file[data-loan="LN-2291"]') !== null;
+            && document.querySelector('.bank-file[data-loan="DL-2291"]') !== null;
         })()`,
       ),
   );
@@ -194,7 +194,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
         ARCADE_API_URL: agents.gateway.url,
         ARCADE_API_KEY: "arcade-key-for-local-next-browser",
         ARCADE_GATEWAY_ID: "cg-demo-us",
-        ARCADE_LOAN_TOOLKIT: "Loan",
+        ARCADE_LOAN_TOOLKIT: "Deals",
         ARCADE_APPROVALS_TOOLKIT: "Approvals",
         ANTHROPIC_API_KEY: "not-used-by-local-chat-intercept",
         MODEL_ID: "claude-sonnet-5",
@@ -319,9 +319,9 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
 
       await cdp.command("Page.navigate", { url: origin });
       await waitFor("the server-rendered loan card", async () =>
-        evaluate<boolean>(cdp as Cdp, `document.querySelector('.bank-file[data-loan="LN-2291"]') !== null`),
+        evaluate<boolean>(cdp as Cdp, `document.querySelector('.bank-file[data-loan="DL-2291"]') !== null`),
       );
-      // That card is server-rendered — `app/page.tsx` reads the loan book
+      // That card is server-rendered — `app/page.tsx` reads the deal book
       // before it returns — so it says nothing about React. Every interaction
       // below needs React's handlers to exist, so wait for the handlers.
       await waitForHydration(cdp);
@@ -430,9 +430,9 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       expect(
         await evaluate<string[]>(
           cdp,
-          `Array.from(document.querySelectorAll('.bank-file-borrower')).map((node) => node.textContent)`,
+          `Array.from(document.querySelectorAll('.bank-file-customer')).map((node) => node.textContent)`,
         ),
-      ).toEqual(["Northwind Bakery LLC", "Meridian Physical Therapy"]);
+      ).toEqual(["Northwind Robotics", "Meridian Health"]);
       expect(harness.lists.length - initialCounts.lists).toBe(0);
       expect(harness.calls.length - initialCounts.calls).toBe(0);
       // The route the cards actually poll, waited for rather than sampled. A

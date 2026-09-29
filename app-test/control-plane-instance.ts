@@ -29,7 +29,7 @@ export function bootTestControlPlane(): void {
   process.on("exit", () => rmSync(scratch, { recursive: true, force: true }));
   const path = join(scratch, "governance.db");
   seedDemoGovernance(path, {
-    loanToolkit: process.env.ARCADE_LOAN_TOOLKIT?.trim() || "Loan",
+    loanToolkit: process.env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
     approvalsToolkit: process.env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
   });
   process.env.GOVERNANCE_DB_PATH = path;

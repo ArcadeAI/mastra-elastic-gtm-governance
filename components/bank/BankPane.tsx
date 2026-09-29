@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * The bank's loan origination system, and since #155 the whole of `/`.
+ * The bank's deal desk, and since #155 the whole of `/`.
  *
  * Deliberately dull. Square corners, hairline rules, uppercase field labels, a
  * navy chrome bar, a tab strip, and a release number nobody has bumped since
  * 2009. The argument this screen is making is that
- * *this* — a fifteen-year-old system of record with a real loan book behind it —
+ * *this* — a fifteen-year-old system of record with a real deal book behind it —
  * is what agents are being connected to, and a beautiful version quietly undoes
  * it: it makes the governed system look like part of the same product as the
  * thing governing it. #22's issue comment says so in as many words: resist
@@ -33,7 +33,7 @@
  * is not built yet says so ({@link ToolListSlot}).
  *
  * What #176 removed was the last of the furniture that was: four "Sign in as …"
- * persona buttons in a card below the loan files, and four tabs that were
+ * persona buttons in a card below the deal records, and four tabs that were
  * `<span>`s because there was nothing behind them. The old comment defended the
  * dead tabs — *"a tab that navigates nowhere is worse on a projector than one
  * that plainly cannot be pressed"* — and the human's answer, looking at the
@@ -53,7 +53,7 @@
  * component may not. Moving them from a card in the records column into the
  * chrome bar did not change which side of the seam they are on.
  *
- * ## Who holds the loan book
+ * ## Who holds the deal book
  *
  * This component, since #176, rather than `LoanFilesView`. One poll
  * (`use-loan-book.ts`) feeding three surfaces, because two of them have to
@@ -112,7 +112,7 @@ import "./bank.css";
  * from outside this component (#155, reaffirmed by the human at the #176 gate).
  */
 const TABS: ReadonlyArray<{ label: string; href: string; current?: true }> = [
-  { label: "Applications", href: "/", current: true },
+  { label: "Requests", href: "/", current: true },
   { label: "Decision board", href: "/loans" },
 ] as const;
 
@@ -131,10 +131,10 @@ export interface BankPaneProps {
    */
   identity: ReactNode;
   /**
-   * The loan book as the server read it for this request.
+   * The deal book as the server read it for this request.
    *
    * Data rather than an element, and required rather than optional: a screen
-   * that silently drew no applications would look exactly like a loan book with
+   * that silently drew no applications would look exactly like a deal book with
    * nothing in it. This is the **first paint**; this component polls
    * `GET /api/loans` from there (#157) and hands the answer to everything that
    * needs it.
@@ -177,7 +177,7 @@ export function BankPane({
    * the control plane's words. What it is is a sign-in to do again, and the
    * reason the whole screen has to know is #176's third complaint: the cookie
    * is intact, so `signedInAs` is perfectly true, and a chrome bar reading
-   * `SIGNED IN AS bob@…` in 30px navy while the loan book underneath says the
+   * `SIGNED IN AS bob@…` in 30px navy while the deal book underneath says the
    * bank just refused that person is the screen contradicting itself in favour
    * of the half the audience reads first.
    */
@@ -186,8 +186,8 @@ export function BankPane({
   return (
     <div className="bank" data-hydrated={hydrated ? "true" : undefined}>
       <header className="bank-chrome">
-        <p className="bank-chrome-name">Loan Origination System</p>
-        <span className="bank-chrome-division">Commercial Lending Division</span>
+        <p className="bank-chrome-name">Deal Desk</p>
+        <span className="bank-chrome-division">Enterprise Sales</span>
         <span className="bank-chrome-release">Rel. 7.2.1</span>
       </header>
 

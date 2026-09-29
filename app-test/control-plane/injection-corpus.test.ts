@@ -2,7 +2,7 @@
  * Act 4's scanners, measured against a corpus rather than against one note.
  *
  * #16 wired `/post` and fixed a regex that matched nothing. It proved that one
- * regex against the one poisoned record the loan book seeds, and said plainly
+ * regex against the one poisoned record the deal book seeds, and said plainly
  * that two sentences of prose are one data point. This file is the other
  * points, and it has two halves that fail in opposite directions.
  *
@@ -12,8 +12,8 @@
  * byte. A scanner proved against a payload with nothing around it has never
  * been asked to leave anything behind.
  *
- * **Benign prose.** Realistic underwriter notes written to trip the scanners
- * and required not to. `LN-2291`'s own note reads as real underwriting and
+ * **Benign prose.** Realistic CRM notes written to trip the scanners
+ * and required not to. `DL-2291`'s own note reads as real underwriting and
  * *then* carries the payload, so "does this mangle legitimate business text?"
  * is not a question to answer by inspection. A redaction layer that eats a
  * clean note will do it on a projector.
@@ -50,7 +50,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "test-store-token",
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 10,
@@ -125,7 +125,7 @@ function removedSpan(entry: Injection): string {
 }
 
 /**
- * One `Loan.GetLoan` result carrying nothing but the note.
+ * One `Deals.GetDeal` result carrying nothing but the note.
  *
  * Act 3's rule names `bank_account_number` and `tax_id`; a payload without them
  * matches nothing there, which is what isolates act 4. So every `redactions[]`
@@ -142,10 +142,10 @@ async function sweep(note: string): Promise<{
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id,
-      tool: { name: "GetLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-0000" },
+      tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-0000" },
       success: true,
-      output: { loan_id: "LN-0000", underwriter_notes: note },
+      output: { deal_id: "DL-0000", crm_notes: note },
       context: { user_id: DANA },
     }),
   });
@@ -163,7 +163,7 @@ async function sweep(note: string): Promise<{
   const output = body.override?.output as Record<string, unknown> | undefined;
   return {
     code: body.code,
-    notes: output?.underwriter_notes as string | undefined,
+    notes: output?.crm_notes as string | undefined,
     records: (row?.redactions as RedactionRecord[] | undefined) ?? [],
   };
 }
@@ -220,7 +220,7 @@ describe("an injected instruction is removed, and the underwriter's own work is 
       // panel could not name a cause.
       expect(records).toEqual([
         {
-          path: "$.underwriter_notes",
+          path: "$.crm_notes",
           rule_id: RULE,
           pattern_id: entry.pattern,
           kind: "remove",

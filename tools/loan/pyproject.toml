@@ -1,7 +1,7 @@
 [project]
 name = "loan"
 version = "1.0.0"
-description = "The loan tools — search_loans, get_loan, approve_loan, deny_loan — as stateless clients of the app's loan module, over HTTP under /bank."
+description = "The deal tools — search_deals, get_deal, approve_discount, deny_discount — as stateless clients of the app's loan module, over HTTP under /bank."
 requires-python = ">=3.11"
 dependencies = [
     "arcade-mcp-server>=1.32.0,<2.0.0",
@@ -17,7 +17,7 @@ dev = [
 
 # Tells Arcade this package carries Arcade tools.
 [project.entry-points.arcade_toolkits]
-toolkit_name = "loan"
+toolkit_name = "deals"
 
 [build-system]
 requires = ["hatchling"]

@@ -15,7 +15,7 @@
  * - **A fan-out.** Arcade calls `/access` once per tool-schema resolution, so
  *   one `tools/call` produces several decisions about the same person and the
  *   same tool. Measured at the #13 sitting with retry off: one
- *   `Loan.GetLoan` produced **three** rows and one `Loan.ApproveLoan` produced
+ *   `Deals.GetDeal` produced **three** rows and one `Deals.ApproveDiscount` produced
  *   **two** (#64). That is one card per run of repeats, carrying its count —
  *   which is what this module did before #156 and still does.
  *

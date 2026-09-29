@@ -13,7 +13,7 @@
  * reads it yet — #16's redaction work is the first consumer — which is exactly
  * why boot is the right place to say so: the value is wrong from the moment it
  * is set, and the alternative is finding out during the first pass that needs
- * the loan book.
+ * the deal book.
  *
  * The table below is shared, verbatim, with
  * `apps/loan-app/test/public-host.test.ts` and `app-test/public-host.test.ts`

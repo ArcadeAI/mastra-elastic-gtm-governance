@@ -24,8 +24,8 @@ from approvals import Decision, decide, request_approval
 from tests.conftest import RECORD_FIELDS, STORE_TOKEN, DANA, RILEY, SlackState, StoreState
 
 ACT_TWO = {
-    "action": "approve_loan",
-    "resource_id": "LN-2291",
+    "action": "approve_discount",
+    "resource_id": "DL-2291",
     "amount": 95_000.0,
     "justification": "Eleven years in business, 742 credit score, $1.4M annual revenue.",
 }
@@ -113,8 +113,8 @@ class TestTheRecordShape:
         assert record["approver_id"] == RILEY.user_id
         assert record["approver_display_name"] == RILEY.display_name
         assert record["candidate_approver_ids"][0] == RILEY.user_id
-        assert record["action"] == "approve_loan"
-        assert record["resource_id"] == "LN-2291"
+        assert record["action"] == "approve_discount"
+        assert record["resource_id"] == "DL-2291"
         assert record["amount"] == 95_000.0
         assert record["required_clearance"] == 95_000.0
         assert record["rule"]["id"] == "act2_amount_exceeds_clearance"
@@ -157,7 +157,7 @@ class TestTheRecordShape:
         assert record["note"] == "Coverage checks out."
         assert record["decided_at"].endswith("Z")
         # Everything the page showed while pending is still there.
-        assert record["action"] == "approve_loan"
+        assert record["action"] == "approve_discount"
         assert record["amount"] == 95_000.0
 
 

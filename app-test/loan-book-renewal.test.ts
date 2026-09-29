@@ -54,7 +54,7 @@ beforeAll(async () => {
 
   loans = createLoanModule({
     db: openLoanBook(join(workspace, "loans.db")),
-    // The loan book validates bearers against the IdP itself, not the proxy:
+    // The deal book validates bearers against the IdP itself, not the proxy:
     // the proxy exists to count what `readLoanBook` asks for, and putting it
     // on this leg too would blur the two.
     idpHost: new URL(identity.idpUrl).host,
@@ -224,10 +224,10 @@ describe("a server render, which cannot store a renewed token", () => {
   }, 60_000);
 
   /**
-   * A bearer the loan book refuses is still a re-sign-in, not a silent empty
+   * A bearer the deal book refuses is still a re-sign-in, not a silent empty
    * screen — the server-render path must not become a way to skip that.
    */
-  test("a bearer the loan book refuses still reads as expired", async () => {
+  test("a bearer the deal book refuses still reads as expired", async () => {
     const session = sessionWith(
       { access_token: "not-a-token-this-idp-ever-issued", expires_at: 0 },
       PEOPLE.dana.email,

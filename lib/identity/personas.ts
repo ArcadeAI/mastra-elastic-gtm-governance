@@ -39,14 +39,14 @@ export interface PersonaButton {
 }
 
 export const PERSONAS: readonly PersonaButton[] = [
-  { key: "dana", name: "Alice", role: "Loan Officer", roleKey: "loan_officer", clearance: 50_000 },
-  { key: "sam", name: "Bob", role: "Credit Analyst", roleKey: "credit_analyst", clearance: 0 },
-  { key: "riley", name: "Charlie", role: "VP Credit", roleKey: "vp_credit", clearance: 250_000 },
+  { key: "dana", name: "Alice", role: "Account Executive", roleKey: "account_executive", clearance: 50_000 },
+  { key: "sam", name: "Bob", role: "SDR", roleKey: "sdr", clearance: 0 },
+  { key: "riley", name: "Charlie", role: "VP Sales", roleKey: "vp_sales", clearance: 250_000 },
   {
     key: "morgan",
     name: "Michael",
-    role: "Chief Credit Officer",
-    roleKey: "chief_credit_officer",
+    role: "Chief Revenue Officer",
+    roleKey: "cro",
     clearance: 5_000_000,
   },
 ] as const;

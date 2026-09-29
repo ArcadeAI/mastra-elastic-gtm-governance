@@ -1,5 +1,5 @@
 /**
- * `POST /admin/reset` — the loan book back to the rows this build ships,
+ * `POST /admin/reset` — the deal book back to the rows this build ships,
  * without a deploy and without a shell.
  *
  * `loans.db` sits on a persistent disk and seeds only when it has no schema (#29),
@@ -16,7 +16,7 @@
  *
  * Empties `loan_decisions` and `loans` and inserts the fixture again, in one
  * transaction. Afterwards the book is exactly what a fresh disk comes up with:
- * `LN-2291` pending, `LN-2299` pending, every decision recorded since gone.
+ * `DL-2291` pending, `DL-2299` pending, every decision recorded since gone.
  *
  * `sqlite_sequence` is deliberately left alone, so `loan_decisions.id` keeps
  * climbing across a reset rather than handing a second take the same row ids
@@ -71,7 +71,7 @@ function counts(db: Database): ResetCounts {
 /**
  * Delete, then re-insert, in one transaction.
  *
- * `loan_decisions` goes first: it references `loans(loan_id)` and the service
+ * `loan_decisions` goes first: it references `loans(deal_id)` and the service
  * opens the database with `PRAGMA foreign_keys = ON`, so the other order is a
  * constraint failure rather than a subtle bug.
  *

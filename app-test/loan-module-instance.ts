@@ -1,5 +1,5 @@
 /**
- * Opens the app's one loan book for a test file that imports a route reaching
+ * Opens the app's one deal book for a test file that imports a route reaching
  * it (`app/health/route.ts`, `app/api/loans/route.ts`), before that file
  * changes the environment.
  *
@@ -17,7 +17,7 @@ export function openTestLoanBook(): void {
   process.env.LOANS_DB_PATH = ":memory:";
   try {
     const failure = loanModuleFailure();
-    if (failure !== null) throw new Error(`the test loan book did not open: ${failure}`);
+    if (failure !== null) throw new Error(`the test deal book did not open: ${failure}`);
   } finally {
     if (previous === undefined) delete process.env.LOANS_DB_PATH;
     else process.env.LOANS_DB_PATH = previous;

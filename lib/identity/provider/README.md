@@ -63,7 +63,7 @@ discovery check and fails at the token.
 **The subject claim is `email`.** Better Auth blanks every standard profile claim in the
 ID token by default and points relying parties at `/oauth2/userinfo`, which would leave
 `sub` — an opaque uuid — as the only identity on the token. DESIGN.md's third identity
-rule is that the Arcade `user_id`, the OAuth subject and the loan book's actor are the
+rule is that the Arcade `user_id`, the OAuth subject and the deal book's actor are the
 same string, joined on email, so `customIdTokenClaims` puts `email` and `email_verified`
 on the ID token, lowercased. `app-test/identity/flow.test.ts` asserts the claim is byte-equal to what
 `/oauth2/userinfo` returns for the same session.
@@ -76,7 +76,7 @@ anything holding the old key set.
 ## The people
 
 **Nobody is seeded** (#33). The first time `idp.db` is opened it gets its schema, in one
-transaction following the loan book's pattern (#29), and no people: there is no shipped
+transaction following the deal book's pattern (#29), and no people: there is no shipped
 cast and no shipped password. Every person is added from the terminal with
 `bun run users add`, or the demo cast (Alice, Bob, Charlie and Michael) with
 `bun run users seed-demo`; each gets a generated password printed once, or one passed with

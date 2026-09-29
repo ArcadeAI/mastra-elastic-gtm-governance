@@ -15,8 +15,8 @@
 import loans from "../../lib/loans/fixtures/loans.json" with { type: "json" };
 
 export interface LoanFixture extends Record<string, unknown> {
-  loan_id: string;
-  underwriter_notes: string;
+  deal_id: string;
+  crm_notes: string;
   bank_account_number: string;
   tax_id: string;
 }
@@ -27,11 +27,11 @@ export function loanFixtures(): LoanFixture[] {
 }
 
 /**
- * One seeded loan, as `Loan.GetLoan` returns it — a fresh copy each call, so a
+ * One seeded loan, as `Deals.GetDeal` returns it — a fresh copy each call, so a
  * test that hands it to a handler cannot be poisoned by an earlier one.
  */
 export function loanFixture(loanId: string): LoanFixture {
-  const loan = loanFixtures().find((candidate) => candidate.loan_id === loanId);
+  const loan = loanFixtures().find((candidate) => candidate.deal_id === loanId);
   if (loan === undefined) {
     throw new Error(`the loan module's fixture has no ${loanId}`);
   }

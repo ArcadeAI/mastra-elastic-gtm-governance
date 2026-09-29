@@ -197,7 +197,7 @@ async function tokenRequest(
  * An hour when the IdP says nothing, which is what `apps/idp` issues anyway
  * (measured 2026-09-18) — a token with no stated lifetime is still a token with
  * a lifetime, and treating it as immortal would put the re-sign-in prompt on
- * screen only once the loan book had already refused the read.
+ * screen only once the deal book had already refused the read.
  */
 export function tokenExpiry(token: TokenSet, now = Date.now()): number {
   const seconds = typeof token.expires_in === "number" && Number.isFinite(token.expires_in)
@@ -249,7 +249,7 @@ export async function fetchUserinfo(issuer: string, accessToken: string): Promis
   if (!userinfo.email) {
     return { ok: false, failure: "no-email-claim", status: response.status, body };
   }
-  // DESIGN.md rule 3: the Arcade user_id, the OAuth subject and the loan book's
+  // DESIGN.md rule 3: the Arcade user_id, the OAuth subject and the deal book's
   // actor column are one string. Lowercased here as well as at the IdP, because
   // this is the value that ends up on every hook payload.
   return { ok: true, email: userinfo.email.toLowerCase() };

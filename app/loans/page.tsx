@@ -5,10 +5,10 @@
  * at `/panel`, and the loan board here, and the presenter switches between them
  * deliberately. The board is the business outcome with nothing about governance
  * anywhere on it — deliberately quiet, so pointing at it is pointing at the
- * loan book and not at the demo.
+ * deal book and not at the demo.
  *
  * A **server** component, for the same reason `/` is one: the IdP bearer in the
- * sealed cookie never reaches the browser. It reads the loan book once here, so
+ * sealed cookie never reaches the browser. It reads the deal book once here, so
  * the first paint is already correct, and hands it down as `initial`; the board
  * polls `GET /api/loans` from then on.
  *
@@ -23,7 +23,7 @@ import { readSessionFromCookies } from "../../lib/identity/session.ts";
 import { readLoanBook } from "../../lib/loan-context/read.ts";
 import { LoanBoard } from "../../components/bank/LoanBoard.tsx";
 
-/** Reads a session cookie and a live loan book. A prerender of either is fiction. */
+/** Reads a session cookie and a live deal book. A prerender of either is fiction. */
 export const dynamic = "force-dynamic";
 
 export default async function Loans() {

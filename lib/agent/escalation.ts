@@ -11,7 +11,7 @@
  *
  * `DESIGN.md` → The wait: the agent ends its turn on the escalation. Round 1 of
  * #110's review found that it did not — `run.ts` emitted `waiting` and carried
- * on reading, so a model that called `Loan_ApproveLoan` straight after
+ * on reading, so a model that called `Deals_ApproveDiscount` straight after
  * `Approvals_RequestApproval` got that call executed, against a control plane
  * that had no grant yet.
  *
@@ -144,7 +144,7 @@ export interface TurnClosure {
  *
  * A refused call throws. It has to: a tool that resolved with a message would
  * hand the model a success-shaped object, and the model would carry on
- * believing it had written to the loan book. What the throw produces upstream —
+ * believing it had written to the deal book. What the throw produces upstream —
  * a `tool-error` chunk — is dropped by `run.ts` rather than rendered, because
  * nothing decided anything and nothing broke.
  *

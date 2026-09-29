@@ -55,16 +55,16 @@ const REQUEST_ID = "apr_0m4xq7bd91kz";
 
 /** The turn that ends waiting: a denial, the escalation, and the reply. */
 const BLOCKED: ChatEvent[] = [
-  { kind: "tool-call", tool: "Loan_ApproveLoan", inputs: { loan_id: "LN-2291", amount: 95000 } },
+  { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
   {
     kind: "denied",
-    tool: "Loan_ApproveLoan",
+    tool: "Deals_ApproveDiscount",
     reason:
-      "DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000. " +
+      "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. " +
       "[ref evt_4k7xq2m9hz]",
     ref: "evt_4k7xq2m9hz",
   },
-  { kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "LN-2291" } },
+  { kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } },
   { kind: "tool-result", tool: "Approvals_RequestApproval", result: { request_id: REQUEST_ID, approver: "Charlie" } },
   {
     kind: "waiting",
@@ -73,13 +73,13 @@ const BLOCKED: ChatEvent[] = [
     approver: "Charlie",
     approver_id: "charlie@bank.example",
   },
-  { kind: "text", text: "Approval requested from Charlie, VP Credit. Waiting." },
+  { kind: "text", text: "Approval requested from Charlie, VP Sales. Waiting." },
   { kind: "done", calls: 2 },
 ];
 
 /** The resumed turn, as the server would answer it. */
 const RESUME_MESSAGE =
-  `Approval request ${REQUEST_ID} — approve_loan on LN-2291 for 95000 — was approved by Charlie at ` +
+  `Approval request ${REQUEST_ID} — approve_discount on DL-2291 for 95000 — was approved by Charlie at ` +
   "2026-09-14T10:00:00.000Z.";
 
 const RESUMED: ChatEvent[] = [
@@ -90,9 +90,9 @@ const RESUMED: ChatEvent[] = [
     decided_by: "charlie@bank.example",
     message: RESUME_MESSAGE,
   },
-  { kind: "tool-call", tool: "Loan_ApproveLoan", inputs: { loan_id: "LN-2291", amount: 95000 } },
-  { kind: "tool-result", tool: "Loan_ApproveLoan", result: { loan_id: "LN-2291", status: "approved" } },
-  { kind: "text", text: "Approved: LN-2291 for $95,000." },
+  { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
+  { kind: "tool-result", tool: "Deals_ApproveDiscount", result: { deal_id: "DL-2291", status: "approved" } },
+  { kind: "text", text: "Approved: DL-2291 for $95,000." },
   { kind: "done", calls: 1 },
 ];
 
@@ -107,8 +107,8 @@ function notice(overrides: Partial<ApprovalNotice> = {}): ApprovalNotice {
     request_id: REQUEST_ID,
     requester_id: DANA,
     status: "approved",
-    action: "approve_loan",
-    resource_id: "LN-2291",
+    action: "approve_discount",
+    resource_id: "DL-2291",
     amount: 95_000,
     decided_by: "charlie@bank.example",
     decided_at: "2026-09-14T10:00:00.000Z",
@@ -409,9 +409,9 @@ describe("approval.granted starts the next turn", () => {
         role: "user",
         content: "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
       },
-      { role: "assistant", content: "Approval requested from Charlie, VP Credit. Waiting." },
+      { role: "assistant", content: "Approval requested from Charlie, VP Sales. Waiting." },
       { role: "user", content: RESUME_MESSAGE },
-      { role: "assistant", content: "Approved: LN-2291 for $95,000." },
+      { role: "assistant", content: "Approved: DL-2291 for $95,000." },
     ]);
   });
 
@@ -513,7 +513,7 @@ describe("approval.granted starts the next turn", () => {
     expect(container.querySelector('[data-kind="waiting"]')).not.toBeNull();
     // And underneath it, the resumed turn.
     expect(container.querySelector('[data-kind="resumed"]')).not.toBeNull();
-    expect(text).toContain("Approved: LN-2291 for $95,000.");
+    expect(text).toContain("Approved: DL-2291 for $95,000.");
   });
 
   test("a second notice for the same request starts nothing more", async () => {

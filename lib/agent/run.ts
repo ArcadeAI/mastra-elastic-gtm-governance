@@ -31,12 +31,12 @@
  * **Nothing here waits for an approval, and the turn really does end.** #20's
  * `waiting` event is emitted after `Approvals_RequestApproval` returns, and
  * from that point the turn is *closing*: the model's last words still stream —
- * *"Approval requested from Charlie, VP Credit. Waiting."* is what the issue
+ * *"Approval requested from Charlie, VP Sales. Waiting."* is what the issue
  * asks for by name — but the first tool call after it ends the reading and
  * aborts the agent loop.
  *
  * Round 1 of #110's review found this half-done: `waiting` was emitted and the
- * loop carried on, so a model that called `Loan_ApproveLoan` straight after the
+ * loop carried on, so a model that called `Deals_ApproveDiscount` straight after the
  * escalation got that call executed, against a control plane holding no grant.
  * The guarantee is not here — it is in `escalation.ts`, which shuts the turn's
  * toolset synchronously with the escalation's own return, so a later call
@@ -195,7 +195,7 @@ export async function runTurn(options: RunOptions): Promise<void> {
    * matters: it stops Mastra before the next step, so the model is never asked
    * again and no further tool is executed. Breaking out of the loop below only
    * stops us reading — on its own it would leave the agent running in a
-   * detached pipeline, still free to call `Loan_ApproveLoan` against a control
+   * detached pipeline, still free to call `Deals_ApproveDiscount` against a control
    * plane that has no grant yet. Round 1 of this PR's review reproduced exactly
    * that: a later `tool-call` after the `waiting` event.
    */
@@ -209,7 +209,7 @@ export async function runTurn(options: RunOptions): Promise<void> {
    * closing words are still welcome.
    *
    * Text still streams — the model's last step is where *"Approval requested
-   * from Charlie, VP Credit. Waiting."* comes from, and issue #20 asks for
+   * from Charlie, VP Sales. Waiting."* comes from, and issue #20 asks for
    * that sentence by name. What does not is another tool call, and the first
    * one ends the reading here. It cannot execute in any case
    * (`closeTurnOnEscalation` shut the toolset the moment the escalation
@@ -322,7 +322,7 @@ export async function runTurn(options: RunOptions): Promise<void> {
         // rather than somebody else's, and the next turn is a new one.
         //
         // Ending here is the acceptance criterion, not a tidiness: a turn that
-        // carried on could call `Loan_ApproveLoan` again while the approval is
+        // carried on could call `Deals_ApproveDiscount` again while the approval is
         // still pending, which is a governed write attempted on an authority
         // nobody has granted yet. The hook would refuse it — that is what the
         // hook is for — but the demo's claim is that the *agent stops*, and an

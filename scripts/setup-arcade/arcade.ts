@@ -44,7 +44,7 @@
  *   failure mode are reported. **Created disabled** (#48): `status` is
  *   `plugins.PluginStatus` and each endpoint's `plugins.HookPointStatus`, both
  *   `["inactive", "active"]` in the live swagger. Active hooks also filter the
- *   tool list the dashboard's gateway form shows, so the Loan and Approvals
+ *   tool list the dashboard's gateway form shows, so the Deals and Approvals
  *   tools could not be picked there while they were on. The hooks are
  *   `PATCH`ed to `active` only once a gateway under the slug exists.
  *
@@ -98,7 +98,7 @@ export function providerBody(registration: Registration) {
   return {
     id: PROVIDER_ID,
     type: "oauth2",
-    description: "The Loan Approval Limits app's own identity provider (hop 2)",
+    description: "The Deals Approval Limits app's own identity provider (hop 2)",
     oauth2: {
       client_id: registration.arcadeClientId,
       client_secret: registration.arcadeClientSecret,
@@ -325,7 +325,7 @@ export type HooksStatus = "inactive" | "active";
 export function pluginBody(origin: string, hookToken: string, status: HooksStatus) {
   return {
     name: HOOKS_NAME,
-    description: "The Loan Approval Limits control plane: /hooks/access, /hooks/pre, /hooks/post",
+    description: "The Deals Approval Limits control plane: /hooks/access, /hooks/pre, /hooks/post",
     plugin_type: "webhook",
     status,
     webhook_config: webhookConfig(origin, hookToken, status),
@@ -427,7 +427,7 @@ export function unverifiedLine({ path, sent }: { path: string; sent: string }): 
 /** The six tools the agent is given, as a gateway's `tool_filter` names them: `Toolkit.Tool`. */
 export function gatewayTools(loanToolkit: string, approvalsToolkit: string): string[] {
   return [
-    ...["SearchLoans", "GetLoan", "ApproveLoan", "DenyLoan"].map((tool) => `${loanToolkit}.${tool}`),
+    ...["SearchDeals", "GetDeal", "ApproveDiscount", "DenyDiscount"].map((tool) => `${loanToolkit}.${tool}`),
     ...["RequestApproval", "Decide"].map((tool) => `${approvalsToolkit}.${tool}`),
   ];
 }
@@ -489,8 +489,8 @@ export interface GatewaySpec {
 
 export function gatewayBody(spec: GatewaySpec) {
   return {
-    name: "Loan Approval Limits",
-    description: "The loan officer's agent",
+    name: "Deals Approval Limits",
+    description: "The account executive's agent",
     slug: spec.slug,
     auth_type: GATEWAY_AUTH_TYPE,
     user_source_id: spec.userSourceId,

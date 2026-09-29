@@ -320,7 +320,7 @@ if (scope !== null) {
 if (scope !== null) {
   out(`  coordinator   ${coordinatorBase.url ?? `none: ${"why" in coordinatorBase ? coordinatorBase.why : "unknown"}`}`);
 }
-const loanToolkit = effective("ARCADE_LOAN_TOOLKIT") || "Loan";
+const loanToolkit = effective("ARCADE_LOAN_TOOLKIT") || "Deals";
 const approvalsToolkit = effective("ARCADE_APPROVALS_TOOLKIT") || "Approvals";
 
 const configuredClients = fromFile("IDP_OAUTH_CLIENTS");
@@ -833,7 +833,7 @@ if (scope === null) {
   const existing = listedPlugins.find((each) => objectField(each, "name") === HOOKS_NAME);
   let id = typeof objectField(existing, "id") === "string" ? (objectField(existing, "id") as string) : "";
   if (existing === undefined) {
-    // Disabled (#48): active hooks hide the Loan and Approvals tools from the
+    // Disabled (#48): active hooks hide the Deals and Approvals tools from the
     // dashboard's gateway form, which the developer fills in after this run.
     const created = await step(
       "creating the contextual access hooks",
@@ -962,7 +962,7 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
         `the gateway ${slug} does not authenticate through the User Source:\n  - ${check.authType}\n` +
           `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Hop 1 is the access model, and this template never runs a ` +
           "gateway on Arcade Headers or on Arcade accounts. In the dashboard, set its Authentication to Non-Arcade Users → User Source → " +
-          "Loan Approval Limits, or delete it and fill in the gateway form again, then run this again.",
+          "Deals Approval Limits, or delete it and fill in the gateway form again, then run this again.",
       );
     }
     out(`  gateway: found ${slug}, through a User Source`);
@@ -1221,7 +1221,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
         `the gateway ${slug} does not authenticate through this app's User Source:\n  - ${check.authType ?? other}\n` +
           `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Hop 1 is the access model, and this template never runs a ` +
           "gateway on Arcade Headers or on Arcade accounts. In the dashboard, set its Authentication to Non-Arcade Users → User Source → " +
-          "Loan Approval Limits, or delete it and run this again.",
+          "Deals Approval Limits, or delete it and run this again.",
       );
     }
     out(`  gateway: found ${slug}, through the User Source ${source.id}`);

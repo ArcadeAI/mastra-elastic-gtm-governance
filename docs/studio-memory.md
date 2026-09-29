@@ -1,6 +1,6 @@
 # Studio's thread memory
 
-In Mastra Studio the loan-operations agent remembers earlier turns of a thread, so "get me the 95k loan" followed by "do it" acts on LN-2291. Studio sends one message and a thread id per turn and relies on the agent's memory for the rest. The web UI works differently: the browser sends its bounded history with every request (`lib/agent/conversation.ts`), so the chat route's agent has no memory. Added on #36.
+In Mastra Studio the loan-operations agent remembers earlier turns of a thread, so "get me the 95k loan" followed by "do it" acts on DL-2291. Studio sends one message and a thread id per turn and relies on the agent's memory for the rest. The web UI works differently: the browser sends its bounded history with every request (`lib/agent/conversation.ts`), so the chat route's agent has no memory. Added on #36.
 
 ## The storage choice
 
@@ -40,7 +40,7 @@ Studio is a local, single-developer surface, and the file belongs to the checkou
 
 ## Resetting
 
-`bun run reset` empties the memory store, and so does `bun run reset --hard`. `--hard` does nothing more to it than the default does. The store holds conversations, not people, sessions or grants, so there is nothing to reserve for a hard reset. Leaving it alone between takes would start the next take with the agent remembering an approval the loan book no longer has.
+`bun run reset` empties the memory store, and so does `bun run reset --hard`. `--hard` does nothing more to it than the default does. The store holds conversations, not people, sessions or grants, so there is nothing to reserve for a hard reset. Leaving it alone between takes would start the next take with the agent remembering an approval the deal book no longer has.
 
 The reset empties the file in place with `bun:sqlite`, every `mastra_` table in one transaction, and prints what it removed:
 

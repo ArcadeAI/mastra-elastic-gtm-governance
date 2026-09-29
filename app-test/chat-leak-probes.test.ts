@@ -53,8 +53,8 @@ async function resultOnTheWire(result: unknown): Promise<{ wire: string; events:
     stream: async () => ({
       fullStream: new ReadableStream({
         start(controller) {
-          controller.enqueue({ type: "tool-call", payload: { toolName: "Loan_GetLoan", args: { loan_id: "LN-2291" } } });
-          controller.enqueue({ type: "tool-result", payload: { toolName: "Loan_GetLoan", result } });
+          controller.enqueue({ type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: "DL-2291" } } });
+          controller.enqueue({ type: "tool-result", payload: { toolName: "Deals_GetDeal", result } });
           controller.close();
         },
       }),
@@ -73,14 +73,14 @@ function nested(depth: number, leaf: unknown): unknown {
 
 describe("probe 1: app-held secrets under innocuous keys", () => {
   test("the provider's signing secret, as a diagnostic note, is withheld", async () => {
-    const { wire } = await resultOnTheWire({ loan_id: "LN-2291", diagnostic_note: `configured with ${PROVIDER_SECRET}` });
+    const { wire } = await resultOnTheWire({ deal_id: "DL-2291", diagnostic_note: `configured with ${PROVIDER_SECRET}` });
     expect(wire).not.toContain(PROVIDER_SECRET);
     expect(wire).toContain(`configured with ${WITHHELD}`);
   });
 
   test("every token in the sealed session, as trace ids, is withheld", async () => {
     const { wire } = await resultOnTheWire({
-      loan_id: "LN-2291",
+      deal_id: "DL-2291",
       trace_id: REFRESH,
       span_id: IDP_ACCESS,
       parent_id: IDP_REFRESH,

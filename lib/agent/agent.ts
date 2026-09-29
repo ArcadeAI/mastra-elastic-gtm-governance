@@ -20,7 +20,7 @@
  *
  * - **Caution is a model-side control.** An earlier draft said a decision was
  *   "a real, irreversible write … and there is no undo". Claude searched, read
- *   `LN-2291`, and then stopped to ask permission — so `ApproveLoan` was never
+ *   `DL-2291`, and then stopped to ask permission — so `ApproveDiscount` was never
  *   called and `/pre` never fired. The demo is an agent that goes ahead and is
  *   stopped by something outside it; an agent that asks first is a model-side
  *   control standing where the hook should be, and `DESIGN.md` → Thesis is an
@@ -49,7 +49,7 @@
  *
  * The one thing the prompt still steers is *which application*, and only
  * because #14's demo prompt names it by amount: the first live run answered
- * "could you give me the loan ID", made no tool call, and no hook fired. That
+ * "could you give me the deal ID", made no tool call, and no hook fired. That
  * is about how a request names a thing, not about what anyone may do to it.
  *
  * Tool *descriptions* are the other place behaviour can hide. Since #8 the
@@ -92,17 +92,17 @@ import { createAnthropic } from "@ai-sdk/anthropic";
  * prove the prompt instead of the control plane.
  */
 export const INSTRUCTIONS = [
-  "You are a loan operations assistant inside a commercial bank's loan origination system.",
+  "You are a deal desk assistant inside a B2B software company's revenue operations system.",
   "",
-  "You act for the loan officer you are talking to. They are signed in, and every tool call you",
-  "make is made as them.",
+  "You act for the account executive you are talking to. They are signed in, and every tool",
+  "call you make is made as them.",
   "",
-  "Your tools read and write the bank's loan book: search it, read one application in full,",
-  "and record an approval or a denial on one.",
+  "Your tools read and write the deal book: search the discount requests on file, read one",
+  "request in full, and record an approval or a denial of a discount on one.",
   "",
-  "People name an application the way colleagues do — by amount, by borrower, by what is",
-  "outstanding — and rarely by its ID. Search for it rather than asking them to look the ID up.",
-  "If more than one matches, say which ones.",
+  "People name a request the way colleagues do — by account, by the discount amount, by what",
+  "is still waiting — and rarely by its ID. Search for it rather than asking them to look the",
+  "ID up. If more than one matches, say which ones.",
   "",
   "Report what each tool gave you, quoting its own words rather than paraphrasing them.",
 ].join("\n");
@@ -127,7 +127,7 @@ export interface ModelOptions {
  * The language model, or a caller-supplied one.
  *
  * The seam exists for one reason: a suite has to be able to drive the whole
- * governed chain — real control plane, real loan book, real MCP transport —
+ * governed chain — real control plane, real deal book, real MCP transport —
  * on a machine with no Anthropic key, and separately to drive it with the real
  * model when there is one. Everything downstream of the model is identical in
  * both cases, which is what makes the cheap run worth running.
@@ -145,7 +145,7 @@ export function anthropicModel(options: ModelOptions) {
 }
 
 /** Stable across turns and processes, so a trace names the same agent every time. */
-export const AGENT_ID = "loan-operations";
+export const AGENT_ID = "deal-desk";
 
 /** Temperature 0, on every run. `DESIGN.md` → Model. */
 export const TEMPERATURE = 0;
@@ -169,7 +169,7 @@ export function buildAgent(options: {
 }): Agent {
   return new Agent({
     id: AGENT_ID,
-    name: "loan-operations",
+    name: "deal-desk",
     instructions: options.instructions ?? INSTRUCTIONS,
     model: options.model,
     // `exactOptionalPropertyTypes` is on, so the cast has to drop `undefined`

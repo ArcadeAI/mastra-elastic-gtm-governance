@@ -1,15 +1,15 @@
 /**
- * The app's `/health` carries the loan book (#5), under the one-response shape
+ * The app's `/health` carries the deal book (#5), under the one-response shape
  * `DESIGN.md` → Readiness describes: one field per capability, `status:
  * ok|degraded`, HTTP 200 either way.
  *
  * `loans` is never a bare count. `cg-loan-app` answered `loans: <n>`, and `0`
  * read the same whether the book was empty or the database never opened — the
- * zero that means "broken" rather than "absent". So a loan book that did not
+ * zero that means "broken" rather than "absent". So a deal book that did not
  * open says `failed`, names why, has no count at all, and makes the whole
  * answer `degraded`.
  *
- * Through the route itself, in-process, against the app's one loan book: first
+ * Through the route itself, in-process, against the app's one deal book: first
  * in memory, then deliberately unopenable.
  */
 import { afterAll, describe, expect, test } from "bun:test";
@@ -41,7 +41,7 @@ async function health(): Promise<{ status: number; body: Record<string, unknown>
   return { status: response.status, body: (await response.json()) as Record<string, unknown> };
 }
 
-describe("/health reports the loan book", () => {
+describe("/health reports the deal book", () => {
   test("an open book is ok, with the number of loans it holds", async () => {
     closeLoanModule();
     process.env.LOANS_DB_PATH = ":memory:";

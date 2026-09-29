@@ -41,7 +41,7 @@ function stripComments(source: string): string {
 
 /**
  * Source only. `fixtures/loans.json` is exempt on purpose: it is domain
- * data, and one of its `underwriter_notes` deliberately contains an
+ * data, and one of its `crm_notes` deliberately contains an
  * instruction aimed at whatever model reads the record — that is act 4's
  * payload, and it has to survive here to be stripped downstream.
  */
@@ -58,7 +58,7 @@ async function sourceFiles(): Promise<{ path: string; text: string }[]> {
 
 /**
  * Each word is one of the vocabularies this service must not have. A match is
- * not automatically a bug — but it means someone taught the loan book
+ * not automatically a bug — but it means someone taught the deal book
  * something it is not allowed to know, and the fix is almost always to move
  * the code to the control plane.
  */

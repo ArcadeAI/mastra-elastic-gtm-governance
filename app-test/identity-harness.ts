@@ -324,7 +324,7 @@ export interface ArcadeStandIn {
     effective_user_id: string | null;
     finalized: boolean;
   }>;
-  /** The later Loan_SearchLoans auth decision, with no credential material. */
+  /** The later Deals_SearchDeals auth decision, with no credential material. */
   loanSearchCalls: Array<{
     user_id: string;
     grant_flow_id: string | null;
@@ -369,7 +369,7 @@ export interface ArcadeStandIn {
  * Faithful where it matters and no further: the discovery chain is the one
  * measured on #04, PKCE is verified rather than accepted, `confirm_user`
  * demands the project API key, and the grant is only recorded once something
- * fetches `next_uri`. The focused `Loan_SearchLoans` probe below is the one
+ * fetches `next_uri`. The focused `Deals_SearchDeals` probe below is the one
  * tool path modeled here; all other tool execution remains absent because this
  * harness does not attempt to model the whole gateway.
  */
@@ -532,12 +532,12 @@ export function startArcadeStandIn(): ArcadeStandIn {
             result: {
               tools: [
                 {
-                  name: "Loan_GetLoan",
-                  description: "Read one loan file.",
+                  name: "Deals_GetDeal",
+                  description: "Read one deal record.",
                   inputSchema: {
                     type: "object",
-                    properties: { loan_id: { type: "string" } },
-                    required: ["loan_id"],
+                    properties: { deal_id: { type: "string" } },
+                    required: ["deal_id"],
                     additionalProperties: false,
                   },
                 },
@@ -547,7 +547,7 @@ export function startArcadeStandIn(): ArcadeStandIn {
         }
         if (body.method === "tools/call") {
           const toolName = body.params?.name;
-          if (toolName === "Loan_SearchLoans") {
+          if (toolName === "Deals_SearchDeals") {
             const actor = actors.get(bearer) ?? "";
             const grantFlowId = grantsByUser.get(actor) ?? null;
             state.loanSearchCalls.push({
@@ -565,7 +565,7 @@ export function startArcadeStandIn(): ArcadeStandIn {
                     {
                       type: "text",
                       text: JSON.stringify({
-                        authorization_url: `${state.url}/oauth/authorize?tool=Loan_SearchLoans`,
+                        authorization_url: `${state.url}/oauth/authorize?tool=Deals_SearchDeals`,
                         llm_instructions: "Authorize the tool and try again.",
                       }),
                     },
@@ -577,14 +577,14 @@ export function startArcadeStandIn(): ArcadeStandIn {
               jsonrpc: "2.0",
               id: body.id,
               result: {
-                content: [{ type: "text", text: JSON.stringify({ count: 1, loans: [{ loan_id: "LN-2291" }] }) }],
+                content: [{ type: "text", text: JSON.stringify({ count: 1, loans: [{ deal_id: "DL-2291" }] }) }],
               },
             });
           }
           return Response.json({
             jsonrpc: "2.0",
             id: body.id,
-            result: { content: [{ type: "text", text: `{"loan_id":"LN-2291","status":"pending"}` }] },
+            result: { content: [{ type: "text", text: `{"deal_id":"DL-2291","status":"pending"}` }] },
           });
         }
         // `capabilities` and `serverInfo` are not decoration: the MCP client

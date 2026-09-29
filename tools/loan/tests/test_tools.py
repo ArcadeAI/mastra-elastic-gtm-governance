@@ -3,7 +3,7 @@
 import pytest
 from arcade_core.errors import ToolExecutionError
 
-from loan import IDP_PROVIDER_ID, LoanStatus, app, approve_loan, deny_loan, get_loan, search_loans
+from loan import IDP_PROVIDER_ID, DealStatus, app, approve_discount, deny_discount, get_deal, search_deals
 from tests.conftest import DANA, RILEY
 
 
@@ -12,7 +12,7 @@ class TestDefinition:
 
     def test_exposes_exactly_the_four_loan_tools(self) -> None:
         names = sorted(t.definition.name for t in app._catalog)
-        assert names == ["ApproveLoan", "DenyLoan", "GetLoan", "SearchLoans"]
+        assert names == ["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals"]
 
     def test_every_tool_requires_the_idp_token_and_the_api_host(self) -> None:
         for tool in app._catalog:
@@ -33,10 +33,10 @@ class TestDefinition:
             for t in app._catalog
         }
         assert required == {
-            "SearchLoans": [],
-            "GetLoan": ["loan_id"],
-            "ApproveLoan": ["amount", "loan_id"],
-            "DenyLoan": ["loan_id", "reason"],
+            "SearchDeals": [],
+            "GetDeal": ["deal_id"],
+            "ApproveDiscount": ["amount", "deal_id"],
+            "DenyDiscount": ["deal_id", "reason"],
         }
 
     def test_carries_the_previous_surface_annotations_as_behavior(self) -> None:
@@ -49,54 +49,54 @@ class TestDefinition:
         read = {"read_only": True, "destructive": False, "idempotent": True, "open_world": False}
         write = {"read_only": False, "destructive": False, "idempotent": False, "open_world": False}
         assert behavior == {
-            "SearchLoans": read,
-            "GetLoan": read,
-            "ApproveLoan": write,
-            "DenyLoan": write,
+            "SearchDeals": read,
+            "GetDeal": read,
+            "ApproveDiscount": write,
+            "DenyDiscount": write,
         }
 
     def test_status_is_an_enum_on_the_wire(self) -> None:
-        tool = next(t for t in app._catalog if t.definition.name == "SearchLoans")
+        tool = next(t for t in app._catalog if t.definition.name == "SearchDeals")
         status = next(p for p in tool.definition.input.parameters if p.name == "status")
         assert status.value_schema.enum == ["pending", "approved", "denied"]
 
 
 class TestSearchLoans:
     async def test_returns_plausible_surrounding_loans_with_no_filter(self, as_dana) -> None:
-        body = await search_loans(as_dana)
+        body = await search_deals(as_dana)
         assert body["count"] > 4
-        assert "LN-2291" in [loan["loan_id"] for loan in body["loans"]]
+        assert "DL-2291" in [loan["deal_id"] for loan in body["loans"]]
 
     async def test_honours_the_filters(self, as_dana) -> None:
-        body = await search_loans(
-            as_dana, status=LoanStatus.PENDING, min_amount=90_000, max_amount=100_000
+        body = await search_deals(
+            as_dana, status=DealStatus.PENDING, min_amount=90_000, max_amount=100_000
         )
-        assert [loan["loan_id"] for loan in body["loans"]] == ["LN-2291"]
+        assert [loan["deal_id"] for loan in body["loans"]] == ["DL-2291"]
         assert body["loans"][0]["amount"] == 95_000
 
 
 class TestGetLoan:
     async def test_returns_the_full_record_unredacted(self, as_dana) -> None:
-        loan = await get_loan(as_dana, loan_id="LN-2291")
+        loan = await get_deal(as_dana, deal_id="DL-2291")
 
-        assert loan["borrower_name"] == "Northwind Bakery LLC"
+        assert loan["account_name"] == "Northwind Robotics"
         assert loan["amount"] == 95_000
         # Acts 3 and 4 depend on all of this arriving intact. Whatever the post
         # hook does to it, it does downstream of here.
         assert len(loan["bank_account_number"]) == 16
         assert loan["tax_id"][2] == "-"
-        assert "approve_loan" in loan["underwriter_notes"]
+        assert "approve_discount" in loan["crm_notes"]
         assert "[REDACTED]" not in str(loan)
 
     async def test_errors_on_an_unknown_loan_naming_it(self, as_dana) -> None:
-        with pytest.raises(ToolExecutionError, match="LN-0000"):
-            await get_loan(as_dana, loan_id="LN-0000")
+        with pytest.raises(ToolExecutionError, match="DL-0000"):
+            await get_deal(as_dana, deal_id="DL-0000")
 
 
 class TestIdentity:
     async def test_a_token_the_provider_rejects_fails_the_call(self, as_nobody) -> None:
         with pytest.raises(ToolExecutionError, match="rejected"):
-            await search_loans(as_nobody)
+            await search_deals(as_nobody)
 
     async def test_the_tool_has_no_way_to_say_who_is_acting(self) -> None:
         # The actor is whoever holds the token. No tool takes one as an argument.
@@ -107,17 +107,17 @@ class TestIdentity:
 
 class TestDecisions:
     async def test_approving_twice_is_visible_and_attributed(self, as_dana, as_riley) -> None:
-        first = await approve_loan(as_dana, loan_id="LN-2292", amount=15_500)
+        first = await approve_discount(as_dana, deal_id="DL-2292", amount=15_500)
         assert first["status"] == "approved"
         assert [d["decided_by"] for d in first["decisions"]] == [DANA]
 
-        second = await approve_loan(as_riley, loan_id="LN-2292", amount=9_000)
+        second = await approve_discount(as_riley, deal_id="DL-2292", amount=9_000)
         assert [d["amount"] for d in second["decisions"]] == [15_500, 9_000]
         assert [d["decided_by"] for d in second["decisions"]] == [DANA, RILEY]
 
     async def test_deny_records_the_reason_verbatim(self, as_dana) -> None:
         reason = "Collateral appraisal is more than twelve months old."
-        loan = await deny_loan(as_dana, loan_id="LN-2299", reason=reason)
+        loan = await deny_discount(as_dana, deal_id="DL-2299", reason=reason)
 
         assert loan["status"] == "denied"
         assert loan["decisions"][-1] == {
@@ -129,9 +129,9 @@ class TestDecisions:
         }
 
     async def test_the_loan_book_is_the_only_state(self, as_riley) -> None:
-        loan = await get_loan(as_riley, loan_id="LN-2299")
+        loan = await get_deal(as_riley, deal_id="DL-2299")
         assert loan["status"] == "denied"
 
     async def test_an_unknown_loan_is_an_error(self, as_dana) -> None:
-        with pytest.raises(ToolExecutionError, match="LN-0000"):
-            await approve_loan(as_dana, loan_id="LN-0000", amount=1)
+        with pytest.raises(ToolExecutionError, match="DL-0000"):
+            await approve_discount(as_dana, deal_id="DL-0000", amount=1)

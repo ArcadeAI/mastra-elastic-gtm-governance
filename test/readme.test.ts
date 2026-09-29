@@ -120,7 +120,7 @@ function boldTitles(markdown: string): number[] {
  * The fallback's steps (#48), from step 5, in the one order the dashboard
  * allows (#28, #30, #48): Arcade reads the User Source's issuer through the
  * tunnel, so the form comes after it; the gateway authenticates through the
- * User Source, so its form comes next; and its form lists the Loan and
+ * User Source, so its form comes next; and its form lists the Deals and
  * Approvals tools only while the hooks are disabled, so the second
  * `setup-arcade` run that turns them on comes last. Since #52 they are the
  * fallback of step 4's one run. `setup-arcade`'s "Then:" list is held to the
@@ -213,7 +213,7 @@ function quickstartOrder(markdown: string): string[] {
 
 describe("README.md follows Mastra's outline", () => {
   test("one H1, the template's title", () => {
-    expect(headings(README).filter((h) => h.level === 1).map((h) => h.title)).toEqual(["Loan Approval Limits with Arcade"]);
+    expect(headings(README).filter((h) => h.level === 1).map((h) => h.title)).toEqual(["Discount Approval Limits with Arcade"]);
   });
 
   test("the required H2s come first and in order, and About Mastra templates is last", () => {
@@ -267,7 +267,7 @@ describe("README.md follows Mastra's outline", () => {
     expect(register).toContain("the contextual access hooks through Arcade's API");
     expect(register).toContain("it runs `arcade deploy` in `tools/loan` and then in `tools/approvals`");
     expect(register).toContain("It creates the hooks disabled, and turns them on last.");
-    expect(register).toContain("with exactly the four Loan tools and the two Approvals tools, never Arcade Headers");
+    expect(register).toContain("with exactly the four Deals tools and the two Approvals tools, never Arcade Headers");
     expect(register).toContain("Run it again, and it says everything is already in place.");
     // The mismatch stops, and every fallback trigger is named, with what it prints.
     expect(register).toContain("If a User Source for this app already exists and differs, it names each difference and stops before the gateway");
@@ -287,7 +287,7 @@ describe("README.md follows Mastra's outline", () => {
     ]);
     const forms = quickstart.slice(quickstart.indexOf(FORMS_STEP), quickstart.indexOf(HOOKS_STEP));
     expect(forms).toContain("never Arcade Headers");
-    expect(forms).toContain("exactly the four Loan tools and the two Approvals tools");
+    expect(forms).toContain("exactly the four Deals tools and the two Approvals tools");
     const second = quickstart.slice(quickstart.indexOf(HOOKS_STEP), quickstart.indexOf("7. **"));
     expect(second).toContain("turns the hooks on and reads them back, and fails unless Arcade reports them active");
     expect(second).toContain("leaves the hooks disabled");
@@ -377,7 +377,7 @@ const MOVED: Array<{ page: string; headings: string[]; facts: string[] }> = [
     facts: [
       "| 3 | Whether you have the authority for *this* call | identity + policy | `/hooks/pre` → `CHECK_FAILED` |",
       "Arcade evaluates auth requirements before `/hooks/pre`, so a refusal there fires no hook, writes no audit row and shows nothing on the panel.",
-      "A rule keyed on `get_loan` matches nothing, and a rule that matches nothing is indistinguishable from a rule that permits.",
+      "A rule keyed on `get_deal` matches nothing, and a rule that matches nothing is indistinguishable from a rule that permits.",
       "`app-test/loans/knows-nothing-about-governance.test.ts` fails if governance vocabulary",
       "`packages/governance-core/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package",
       "The custom verifier covers custom providers only.",
@@ -408,7 +408,7 @@ const MOVED: Array<{ page: string; headings: string[]; facts: string[] }> = [
       "Why are the limits enforced in hooks rather than in the agent's prompt?",
       "Do the hooks fire for toolkits shipped with `arcade deploy`?",
       "Why does the chat show some failed tool calls as a denial and others as a fault?",
-      "Why does the $95K approval depend on stripping the note pasted into `LN-2291`?",
+      "Why does the $95K approval depend on stripping the note pasted into `DL-2291`?",
       "Why does Charlie's Slack DM come from Alice and not from a bot?",
       "Why two OAuth hops?",
       "Can the control plane see an OAuth misconfiguration?",

@@ -24,7 +24,7 @@ import {
 } from "../../lib/control-plane/policy-store.ts";
 import { DEMO_PEOPLE, seedDemoSubjects } from "../demo-cast.ts";
 
-const OPTIONS: SeedOptions = { loanToolkit: "Loan", approvalsToolkit: "Approvals" };
+const OPTIONS: SeedOptions = { loanToolkit: "Deals", approvalsToolkit: "Approvals" };
 
 /** A first boot: the policy, and nobody in it (#33). */
 const bare = () => openGovernance(":memory:", OPTIONS);
@@ -42,7 +42,7 @@ const anEvent = (overrides: Partial<Parameters<typeof record>[1][number]> = {}) 
   execution_id: "tc_1",
   hook: "pre" as const,
   user_id: "alice@bank.example",
-  tool: "Loan.ApproveLoan",
+  tool: "Deals.ApproveDiscount",
   decision: "deny" as const,
   reason: "because",
   rule_id: "pre.approve-within-clearance",
@@ -73,10 +73,10 @@ describe("the seed", () => {
     db.query(
       `UPDATE policy_rules SET reason = ? WHERE id = 'pre.approve-within-clearance'`,
     ).run(
-      "DENIED: approving {{inputs.loan_id}} for {{inputs.amount}} exceeds your approval " +
+      "DENIED: approving {{inputs.deal_id}} for {{inputs.amount}} exceeds your approval " +
         "authority of {{subject.clearance}}. To proceed, call Approvals.RequestApproval with " +
-        "action=approve_loan, resource_id={{inputs.loan_id}}, amount={{inputs.amount}} and " +
-        "justification=<why this loan should be approved>.",
+        "action=approve_discount, resource_id={{inputs.deal_id}}, amount={{inputs.amount}} and " +
+        "justification=<why this discount should be approved>.",
     );
     // The edit landed and the cache would notice it.
     expect(readRevision(db)).toBeGreaterThan(before);
@@ -88,10 +88,10 @@ describe("the seed", () => {
 
   test("carries the cast with the limits DESIGN.md names", () => {
     const byName = Object.fromEntries(loadSeed(OPTIONS).subjects.map((s) => [s.display_name, s]));
-    expect(byName["Alice"]).toMatchObject({ role: "loan_officer", clearance: 50_000 });
-    expect(byName["Bob"]).toMatchObject({ role: "credit_analyst", clearance: 0 });
-    expect(byName["Charlie"]).toMatchObject({ role: "vp_credit", clearance: 250_000 });
-    expect(byName["Michael"]).toMatchObject({ role: "chief_credit_officer", clearance: 5_000_000 });
+    expect(byName["Alice"]).toMatchObject({ role: "account_executive", clearance: 50_000 });
+    expect(byName["Bob"]).toMatchObject({ role: "sdr", clearance: 0 });
+    expect(byName["Charlie"]).toMatchObject({ role: "vp_sales", clearance: 250_000 });
+    expect(byName["Michael"]).toMatchObject({ role: "cro", clearance: 5_000_000 });
   });
 
   // #33: the fixture's own addresses are how the reset and the drift check
@@ -112,7 +112,7 @@ describe("the seed", () => {
     const data = loadSeed({ ...OPTIONS, loanToolkit: "LoanBook", approvalsToolkit: "Escalations" });
     expect(Object.keys(data.catalogue).sort()).toEqual(["Escalations", "LoanBook"]);
     // Every rule is keyed on one of the two configured names and on no
-    // literal: a rule left pointing at "$LOAN", or at the default "Loan" when
+    // literal: a rule left pointing at "$LOAN", or at the default "Deals" when
     // the deployment calls it something else, would match nothing.
     expect([...new Set(data.policy_rules.map((r) => r.match.toolkit))].sort()).toEqual([
       "Escalations",
@@ -126,17 +126,17 @@ describe("the seed", () => {
     // silently. `match` above stays dot-free and split in two; the reason is
     // the only place the separator is a decision.
     expect(escalation?.reason).toContain("Escalations_RequestApproval");
-    expect(escalation?.reason).toContain("LoanBook_ApproveLoan");
+    expect(escalation?.reason).toContain("LoanBook_ApproveDiscount");
     expect(escalation?.reason).not.toContain("Escalations.RequestApproval");
-    expect(escalation?.reason).not.toContain("LoanBook.ApproveLoan");
+    expect(escalation?.reason).not.toContain("LoanBook.ApproveDiscount");
     expect(JSON.stringify(data)).not.toContain("$LOAN");
     expect(JSON.stringify(data)).not.toContain("$APPROVALS");
     expect(() => compilePolicy({ catalogue: data.catalogue, rules: data.policy_rules })).not.toThrow();
   });
 
   test("keys tools on the PascalCase names arcade-mcp actually produces", () => {
-    const tools = Object.keys(loadSeed(OPTIONS).catalogue.Loan ?? {}).sort();
-    expect(tools).toEqual(["ApproveLoan", "DenyLoan", "GetLoan", "SearchLoans"]);
+    const tools = Object.keys(loadSeed(OPTIONS).catalogue.Deals ?? {}).sort();
+    expect(tools).toEqual(["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals"]);
   });
 });
 
@@ -152,10 +152,10 @@ describe("seeding", () => {
       approval_requests: 0,
       audit_log: 0,
     });
-    // Two since #16: the borrower-identifier fields, conditioned on clearance,
+    // Two since #16: the customer-identifier fields, conditioned on clearance,
     // and the injected-instruction sweep, which is conditioned on nobody.
     expect(readOutputRules(db).map((rule) => rule.id)).toEqual([
-      "post.redact-borrower-identifiers",
+      "post.redact-customer-identifiers",
       "post.strip-injected-instructions",
     ]);
   });
@@ -211,7 +211,7 @@ describe("the revision counter", () => {
     const r1 = readRevision(db);
     db.run("UPDATE policy_rules SET enabled = 0 WHERE id = 'access.analysts-cannot-see-approve'");
     const r2 = readRevision(db);
-    db.run("INSERT INTO catalogue (toolkit, tool, arguments) VALUES ('Loan', 'Ping', '[]')");
+    db.run("INSERT INTO catalogue (toolkit, tool, arguments) VALUES ('Deals', 'Ping', '[]')");
     const r3 = readRevision(db);
 
     expect(r1).toBeGreaterThan(r0);
@@ -247,7 +247,7 @@ describe("the revision counter", () => {
 describe("readPolicy", () => {
   test("refuses a hand-edited row that no longer conforms, loudly", () => {
     const db = fresh();
-    db.run(`UPDATE policy_rules SET subjects = '{"role": ["credit_analyst"]}' WHERE hook = 'access'`);
+    db.run(`UPDATE policy_rules SET subjects = '{"role": ["sdr"]}' WHERE hook = 'access'`);
     // `role` is not `roles`; the strict schema refuses it rather than treating
     // the rule as applying to everyone.
     expect(() => readPolicy(db)).toThrow(/role/);
@@ -294,7 +294,7 @@ describe("the audit log", () => {
         `INSERT INTO audit_log
            (id, ts, execution_id, hook, user_id, tool, decision, reason, rule_id, before, after)
          VALUES ('evt_legacy', '2026-01-01T00:00:00.000Z', 'tc_legacy', 'post', 'alice@example.test',
-                 'Loan.GetLoan', 'modify', 'Sensitive field masked.', 'rule.redact', ?, ?)`,
+                 'Deals.GetDeal', 'modify', 'Sensitive field masked.', 'rule.redact', ?, ?)`,
         [JSON.stringify({ acct: "4738299104857" }), JSON.stringify({ acct: "***" })],
       ),
     ).toThrow(/no column named before/);

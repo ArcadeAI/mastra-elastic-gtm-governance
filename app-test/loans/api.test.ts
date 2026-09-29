@@ -139,16 +139,16 @@ describe("health", () => {
 
 describe("identity", () => {
   test("every loan route needs a bearer token", async () => {
-    for (const path of ["/loans", "/loans/LN-2291"]) {
+    for (const path of ["/loans", "/loans/DL-2291"]) {
       expect((await fetch(`${baseUrl}${path}`)).status).toBe(401);
     }
-    expect((await fetch(`${baseUrl}/loans/LN-2291/approve`, { method: "POST" })).status).toBe(401);
+    expect((await fetch(`${baseUrl}/loans/DL-2291/approve`, { method: "POST" })).status).toBe(401);
   });
 
   test("a wrong verb is a 405 before anyone asks for a token", async () => {
-    expect((await fetch(`${baseUrl}/loans/LN-2291`, { method: "DELETE" })).status).toBe(405);
+    expect((await fetch(`${baseUrl}/loans/DL-2291`, { method: "DELETE" })).status).toBe(405);
     expect((await fetch(`${baseUrl}/loans`, { method: "POST" })).status).toBe(405);
-    expect((await fetch(`${baseUrl}/loans/LN-2291/approve`)).status).toBe(405);
+    expect((await fetch(`${baseUrl}/loans/DL-2291/approve`)).status).toBe(405);
   });
 
   test("a token the identity provider does not recognise is refused", async () => {
@@ -159,14 +159,14 @@ describe("identity", () => {
   });
 
   test("the actor comes from the token — a body that names one is refused", async () => {
-    const response = await post("tok-dana", "/loans/LN-2292/approve", {
+    const response = await post("tok-dana", "/loans/DL-2292/approve", {
       amount: 1_000,
       actor: RILEY,
     });
 
     expect(response.status).toBe(400);
     const loan = (await (
-      await fetch(`${baseUrl}/loans/LN-2292`, as("tok-dana"))
+      await fetch(`${baseUrl}/loans/DL-2292`, as("tok-dana"))
     ).json()) as LoanRecord;
     expect(loan.decisions).toHaveLength(0);
   });
@@ -181,7 +181,7 @@ describe("identity", () => {
 describe("an actor named outside the body is ignored, and the token's owner is recorded", () => {
   test("?actor=, ?decided_by= and X-Actor all name Charlie; Alice's token is what is recorded", async () => {
     const response = await fetch(
-      `${baseUrl}/loans/LN-2295/approve?actor=${encodeURIComponent(RILEY)}&decided_by=${encodeURIComponent(RILEY)}`,
+      `${baseUrl}/loans/DL-2295/approve?actor=${encodeURIComponent(RILEY)}&decided_by=${encodeURIComponent(RILEY)}`,
       as("tok-dana", {
         method: "POST",
         headers: { "content-type": "application/json", "x-actor": RILEY },
@@ -215,8 +215,8 @@ describe("the identity provider is not asked twice for the same token", () => {
     await (await fetch(`${baseUrl}/loans`, as("tok-writer"))).json();
     const before = userinfoCalls;
 
-    expect((await post("tok-writer", "/loans/LN-2293/deny", { reason: "First." })).status).toBe(200);
-    expect((await post("tok-writer", "/loans/LN-2293/deny", { reason: "Second." })).status).toBe(200);
+    expect((await post("tok-writer", "/loans/DL-2293/deny", { reason: "First." })).status).toBe(200);
+    expect((await post("tok-writer", "/loans/DL-2293/deny", { reason: "Second." })).status).toBe(200);
 
     expect(userinfoCalls - before).toBe(2);
   });
@@ -227,7 +227,7 @@ describe("GET /loans", () => {
     const body = (await (await fetch(`${baseUrl}/loans`, as("tok-dana"))).json()) as SearchBody;
 
     expect(body.count).toBeGreaterThan(4);
-    expect(body.loans.map((loan) => loan.loan_id)).toContain("LN-2291");
+    expect(body.loans.map((loan) => loan.deal_id)).toContain("DL-2291");
   });
 
   test("honours the filters", async () => {
@@ -239,7 +239,7 @@ describe("GET /loans", () => {
     ).json()) as SearchBody;
 
     expect(body.loans).toHaveLength(1);
-    expect(body.loans[0]).toMatchObject({ loan_id: "LN-2291", amount: 95_000 });
+    expect(body.loans[0]).toMatchObject({ deal_id: "DL-2291", amount: 95_000 });
   });
 
   test("rejects a filter of the wrong type", async () => {
@@ -250,15 +250,15 @@ describe("GET /loans", () => {
   });
 });
 
-describe("GET /loans/:loan_id", () => {
+describe("GET /loans/:deal_id", () => {
   test("returns the full record, unredacted", async () => {
-    const response = await fetch(`${baseUrl}/loans/LN-2291`, as("tok-dana"));
+    const response = await fetch(`${baseUrl}/loans/DL-2291`, as("tok-dana"));
     const text = await response.text();
     const loan = JSON.parse(text) as LoanRecord;
 
     expect(loan).toMatchObject({
-      loan_id: "LN-2291",
-      borrower_name: "Northwind Bakery LLC",
+      deal_id: "DL-2291",
+      account_name: "Northwind Robotics",
       amount: 95_000,
     });
 
@@ -266,29 +266,29 @@ describe("GET /loans/:loan_id", () => {
     // hook does to it, it does downstream of here.
     expect(loan.bank_account_number).toMatch(/^\d{16}$/);
     expect(loan.tax_id).toMatch(/^\d{2}-\d{7}$/);
-    expect(loan.underwriter_notes).toContain("approve_loan");
+    expect(loan.crm_notes).toContain("approve_discount");
     expect(text).not.toContain("[REDACTED]");
   });
 
   test("404s on an unknown loan, naming it", async () => {
-    const response = await fetch(`${baseUrl}/loans/LN-0000`, as("tok-dana"));
+    const response = await fetch(`${baseUrl}/loans/DL-0000`, as("tok-dana"));
 
     expect(response.status).toBe(404);
-    expect(((await response.json()) as ErrorBody).error).toContain("LN-0000");
+    expect(((await response.json()) as ErrorBody).error).toContain("DL-0000");
   });
 });
 
 describe("decisions", () => {
   test("approve records the approval under the token's owner, and a second one is visible", async () => {
     const first = (await (
-      await post("tok-dana", "/loans/LN-2292/approve", { amount: 15_500 })
+      await post("tok-dana", "/loans/DL-2292/approve", { amount: 15_500 })
     ).json()) as LoanRecord;
     expect(first.status).toBe("approved");
     expect(first.decisions).toHaveLength(1);
     expect(first.decisions[0]).toMatchObject({ amount: 15_500, decided_by: DANA });
 
     const second = (await (
-      await post("tok-riley", "/loans/LN-2292/approve", { amount: 9_000 })
+      await post("tok-riley", "/loans/DL-2292/approve", { amount: 9_000 })
     ).json()) as LoanRecord;
     expect(second.decisions).toHaveLength(2);
     expect(second.decisions.map((d) => d.amount)).toEqual([15_500, 9_000]);
@@ -297,7 +297,7 @@ describe("decisions", () => {
 
   test("an actor the provider capitalises is recorded in one case, not two (#58)", async () => {
     const loan = (await (
-      await post("tok-morgan", "/loans/LN-2292/approve", { amount: 2_500 })
+      await post("tok-morgan", "/loans/DL-2292/approve", { amount: 2_500 })
     ).json()) as LoanRecord;
 
     const latest = loan.decisions.at(-1)!;
@@ -313,7 +313,7 @@ describe("decisions", () => {
   test("deny records the reason verbatim", async () => {
     const reason = "Collateral appraisal is more than twelve months old.";
     const loan = (await (
-      await post("tok-dana", "/loans/LN-2299/deny", { reason })
+      await post("tok-dana", "/loans/DL-2299/deny", { reason })
     ).json()) as LoanRecord;
 
     expect(loan.status).toBe("denied");
@@ -326,20 +326,20 @@ describe("decisions", () => {
   });
 
   test("validates the body", async () => {
-    expect((await post("tok-dana", "/loans/LN-2292/approve", { amount: -5 })).status).toBe(400);
-    expect((await post("tok-dana", "/loans/LN-2292/approve", {})).status).toBe(400);
-    expect((await post("tok-dana", "/loans/LN-2299/deny", { reason: "" })).status).toBe(400);
+    expect((await post("tok-dana", "/loans/DL-2292/approve", { amount: -5 })).status).toBe(400);
+    expect((await post("tok-dana", "/loans/DL-2292/approve", {})).status).toBe(400);
+    expect((await post("tok-dana", "/loans/DL-2299/deny", { reason: "" })).status).toBe(400);
   });
 
   test("404s on an unknown loan and writes nothing", async () => {
-    const response = await post("tok-dana", "/loans/LN-0000/approve", { amount: 1 });
+    const response = await post("tok-dana", "/loans/DL-0000/approve", { amount: 1 });
 
     expect(response.status).toBe(404);
   });
 
-  test("survives across requests — the loan book is the only state", async () => {
+  test("survives across requests — the deal book is the only state", async () => {
     const loan = (await (
-      await fetch(`${baseUrl}/loans/LN-2299`, as("tok-riley"))
+      await fetch(`${baseUrl}/loans/DL-2299`, as("tok-riley"))
     ).json()) as LoanRecord;
 
     expect(loan.status).toBe("denied");

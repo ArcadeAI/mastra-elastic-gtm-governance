@@ -33,7 +33,7 @@
  *   honest way available: it re-evaluates the call the requester was refused
  *   and reports the rule that refused it. Not a lookup table — the same engine,
  *   the same policy, the same answer.
- * - **Resolving the action.** `approve_loan` is a bare name; a grant needs a
+ * - **Resolving the action.** `approve_discount` is a bare name; a grant needs a
  *   tool, an argument that names the resource and an argument the ceiling
  *   applies to. `action-binding.ts` derives all three and refuses rather than
  *   guesses, and the result is pinned on the row so a catalogue edited between

@@ -151,8 +151,8 @@ export async function startHarness(): Promise<Harness> {
 /** Act 2's escalation, as `tools/approvals` sends it. */
 export const ESCALATION = {
   requester_id: DANA,
-  action: "approve_loan",
-  resource_id: "LN-2291",
+  action: "approve_discount",
+  resource_id: "DL-2291",
   amount: 95_000,
   justification: "Eleven years in business, 742 credit score, $1.4M annual revenue.",
   approver_id: RILEY,
@@ -187,7 +187,7 @@ export async function startHooks(
   if (!own) {
     scratch = mkdtempSync(join(tmpdir(), "cg-harness-hooks-"));
     seedDemoGovernance(join(scratch, "governance.db"), {
-      loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? "Loan",
+      loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? "Deals",
       approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT ?? "Approvals",
     });
   }
@@ -202,7 +202,7 @@ export async function startHooks(
       GOVERNANCE_DB_PATH: scratch === null ? ":memory:" : join(scratch, "governance.db"),
       ARCADE_HOOK_SIGNING_SECRET: HOOK_SECRET,
       APPROVALS_STORE_TOKEN: STORE_TOKEN,
-      ARCADE_LOAN_TOOLKIT: "Loan",
+      ARCADE_LOAN_TOOLKIT: "Deals",
       ARCADE_APPROVALS_TOOLKIT: "Approvals",
       NODE_ENV: "test",
       ...env,

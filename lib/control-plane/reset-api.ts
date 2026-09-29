@@ -37,7 +37,7 @@
  * system's storage, which is the exact coupling the split in DESIGN.md exists
  * to prevent. Approved loans are reset by that service's own endpoint (#23).
  * The response says so, so a presenter reading it is not left believing the
- * loan book moved.
+ * deal book moved.
  *
  * ## Authorization
  *
@@ -202,7 +202,7 @@ export async function handleReset(
   return Response.json({
     ...result,
     // Named on every response, in both modes, because the alternative is a
-    // presenter who ran "demo" and believes the loan book is back to seed.
+    // presenter who ran "demo" and believes the deal book is back to seed.
     not_reset: {
       "loans.db": "owned by the loan module; reset with POST /bank/admin/reset",
       "idp.db": "never reset from here — it holds the OAuth client Arcade is registered against",

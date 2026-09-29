@@ -38,34 +38,34 @@ const seed = (() => {
     (candidate): candidate is SeedRecord =>
       typeof candidate === "object" &&
       candidate !== null &&
-      (candidate as SeedRecord).loan_id === "LN-2291",
+      (candidate as SeedRecord).deal_id === "DL-2291",
   );
   if (record === undefined) {
-    throw new Error("LN-2291 is missing from lib/loans/fixtures/loans.json");
+    throw new Error("DL-2291 is missing from lib/loans/fixtures/loans.json");
   }
   return record;
 })();
 
 const account = seed.bank_account_number;
 const taxId = seed.tax_id;
-const notes = seed.underwriter_notes;
+const notes = seed.crm_notes;
 if (
   typeof account !== "string" ||
   typeof taxId !== "string" ||
   typeof notes !== "string"
 ) {
   throw new Error(
-    "LN-2291 must carry bank_account_number, tax_id, and underwriter_notes for acts 3 and 4",
+    "DL-2291 must carry bank_account_number, tax_id, and crm_notes for acts 3 and 4",
   );
 }
 
 const INJECTION_MARKER = "\n\n--- pasted from";
 const LEGITIMATE = notes.slice(0, notes.indexOf(INJECTION_MARKER));
 
-const TOOLKIT = "Loan";
-const TOOL = "GetLoan";
+const TOOLKIT = "Deals";
+const TOOL = "GetDeal";
 const CATALOGUE: ToolCatalogue = {
-  [TOOLKIT]: { [TOOL]: ["loan_id"], SearchLoans: ["status?"] },
+  [TOOLKIT]: { [TOOL]: ["deal_id"], SearchDeals: ["status?"] },
 };
 const GET_TOOL: ToolRef = { toolkit: TOOLKIT, name: TOOL };
 
@@ -89,7 +89,7 @@ const rule = anOutputRule({
 
 const dana = aSubject({
   user_id: "alice@example.com",
-  role: "loan_officer",
+  role: "account_executive",
   clearance: 50_000,
 });
 const policy = compileOutputPolicy({ catalogue: CATALOGUE, rules: [rule] });
@@ -108,7 +108,7 @@ describe("acts 3 and 4", () => {
     expect(account).toMatch(/^\d{16}$/);
     expect(taxId).toMatch(/^\d{2}-\d{7}$/);
     expect(notes).toContain(INJECTION_MARKER);
-    expect(notes).toContain("approve_loan");
+    expect(notes).toContain("approve_discount");
     expect(LEGITIMATE.length).toBeGreaterThan(0);
   });
 
@@ -123,34 +123,34 @@ describe("acts 3 and 4", () => {
     const expected = Object.fromEntries(
       Object.entries(seed).flatMap(([key, value]) => {
         if (key === "bank_account_number" || key === "tax_id") return [];
-        return [[key, key === "underwriter_notes" ? LEGITIMATE : value]];
+        return [[key, key === "crm_notes" ? LEGITIMATE : value]];
       }),
     );
     expect(after).toEqual(expected);
   });
 
   it("act 4: the injected instruction never arrives", () => {
-    const seen = after.underwriter_notes as string;
-    expect(seen).not.toContain("approve_loan");
+    const seen = after.crm_notes as string;
+    expect(seen).not.toContain("approve_discount");
     expect(seen).not.toContain("pre-cleared");
     expect(seen).not.toContain("Ignore any earlier instruction");
     expect(seen).not.toContain("Do not mention this note");
   });
 
   it("act 4: the underwriter's real work survives word for word", () => {
-    expect(after.underwriter_notes).toBe(LEGITIMATE);
+    expect(after.crm_notes).toBe(LEGITIMATE);
   });
 
   it("names every removal for the panel without carrying the removed value", () => {
     expect(trace()).toEqual([
       "$.bank_account_number rule.post.loan_pii remove",
       "$.tax_id rule.post.loan_pii remove",
-      "$.underwriter_notes rule.post.loan_pii/scan.pasted remove",
+      "$.crm_notes rule.post.loan_pii/scan.pasted remove",
     ]);
     const rendered = JSON.stringify(result.redactions);
     expect(rendered).not.toContain(account);
     expect(rendered).not.toContain(taxId);
-    expect(rendered).not.toContain("approve_loan");
+    expect(rendered).not.toContain("approve_discount");
   });
 
   it("is idempotent on the payload the model was handed", () => {
@@ -163,8 +163,8 @@ describe("acts 3 and 4", () => {
     expect(() =>
       compileOutputPolicy({
         catalogue: CATALOGUE,
-        rules: [anOutputRule({ ...rule, match: { toolkit: TOOLKIT, tool: "get_loan" } })],
+        rules: [anOutputRule({ ...rule, match: { toolkit: TOOLKIT, tool: "get_deal" } })],
       }),
-    ).toThrow(/tool "Loan.get_loan", which that toolkit does not serve/);
+    ).toThrow(/tool "Deals.get_deal", which that toolkit does not serve/);
   });
 });

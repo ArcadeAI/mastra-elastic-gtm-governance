@@ -1,12 +1,12 @@
 /**
  * Studio shows a layer-2 challenge as readable text carrying the authorization link (#30).
  *
- * On the third live run (#7) the Loan toolkit's hop-2 challenge reached Studio
+ * On the third live run (#7) the Deals toolkit's hop-2 challenge reached Studio
  * as the tool error "authorization challenge requires URL elicitation", with
  * the result drawn as `[object Object]`, so the person had no link to follow.
  *
  * Each test drives one turn through the agent Studio registers
- * (`studioAgent`), against the gateway stand-in answering `Loan_GetLoan` with
+ * (`studioAgent`), against the gateway stand-in answering `Deals_GetDeal` with
  * one of the challenge shapes the chat route already reads. The chunk for that
  * call is sent through JSON, as Studio's server streams it, and drawn with the
  * function Studio's own page draws a tool error with, read out of the Studio
@@ -26,7 +26,7 @@ import { scriptedModel } from "./model.ts";
 import { forgetStudioGrant, holdGatewayGrant, studioAgent } from "../lib/agent/studio.ts";
 
 const ROOT = join(import.meta.dir, "..");
-const TOOL = "Loan_GetLoan";
+const TOOL = "Deals_GetDeal";
 
 /**
  * Studio's own "error text" function, out of the bundle `mastra dev` serves.
@@ -91,10 +91,10 @@ afterAll(async () => {
   rmSync(memoryDir, { recursive: true, force: true });
 });
 
-/** One Studio turn in which the model reads LN-2291; what Studio draws for the call, and what the model read next. */
+/** One Studio turn in which the model reads DL-2291; what Studio draws for the call, and what the model read next. */
 async function studioTurn(): Promise<{ shown: string; type: string; modelRead: string }> {
   holdGatewayGrant({ access_token: harness.tokenFor(DANA), expires_at: Date.now() + 3_600_000, client_id: "studio-authorization-tests" });
-  const script = scriptedModel([{ call: TOOL, input: { loan_id: OVER_LIMIT_LOAN } }, { say: "Noted." }]);
+  const script = scriptedModel([{ call: TOOL, input: { deal_id: OVER_LIMIT_LOAN } }, { say: "Noted." }]);
   const agent = studioAgent({ port: 4999 });
   agent.__updateModel({ model: script.model as never });
   const streamed = await agent.stream(`Read ${OVER_LIMIT_LOAN}.`);
@@ -108,14 +108,14 @@ async function studioTurn(): Promise<{ shown: string; type: string; modelRead: s
   return { shown, type: outcome!.type, modelRead: JSON.stringify(script.prompts.at(-1)) };
 }
 
-describe("a Loan tool that needs authorizing, in Studio", () => {
+describe("a Deals tool that needs authorizing, in Studio", () => {
   test("the legacy authorization_url challenge is drawn as text with its link", async () => {
     const url = "https://cloud.arcade.dev/oauth/authorize?flow=legacy-studio";
     harness.gateway.requireAuthorizationFor(TOOL, url);
     const { shown, type, modelRead } = await studioTurn();
     expect(shown).not.toContain("[object Object]");
     expect(type).toBe("tool-result");
-    expect(shown).toContain(`${TOOL} did not run: Arcade needs you to authorize the Loan toolkit first.`);
+    expect(shown).toContain(`${TOOL} did not run: Arcade needs you to authorize the Deals toolkit first.`);
     expect(shown).toContain(url);
     expect(modelRead).toContain(url);
   }, 60_000);
@@ -138,7 +138,7 @@ describe("a Loan tool that needs authorizing, in Studio", () => {
     expect(shown).toContain(url);
   }, 60_000);
 
-  test("with no link anywhere, the text says to authorize Loan in the web UI first", async () => {
+  test("with no link anywhere, the text says to authorize Deals in the web UI first", async () => {
     harness.gateway.requireProtocolAuthorizationFor(TOOL);
     const { shown, type } = await studioTurn();
     expect(shown).not.toContain("[object Object]");
@@ -149,13 +149,13 @@ describe("a Loan tool that needs authorizing, in Studio", () => {
 
   test("a hook denial is still a tool error, and Studio draws it as the hook's own words", async () => {
     holdGatewayGrant({ access_token: harness.tokenFor(DANA), expires_at: Date.now() + 3_600_000, client_id: "studio-authorization-tests" });
-    const script = scriptedModel([{ call: "Loan_ApproveLoan", input: { loan_id: OVER_LIMIT_LOAN, amount: 95_000 } }, { say: "Noted." }]);
+    const script = scriptedModel([{ call: "Deals_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 } }, { say: "Noted." }]);
     const agent = studioAgent({ port: 4999 });
     agent.__updateModel({ model: script.model as never });
     const streamed = await agent.stream("Approve the loan for $95K.");
     const outcomes: Array<{ type: string; shown: string }> = [];
     for await (const chunk of streamed.fullStream as AsyncIterable<{ type: string; payload: Record<string, unknown> }>) {
-      if (chunk.payload?.toolName === "Loan_ApproveLoan" && /^tool-(error|result)$/.test(chunk.type)) {
+      if (chunk.payload?.toolName === "Deals_ApproveDiscount" && /^tool-(error|result)$/.test(chunk.type)) {
         outcomes.push({ type: chunk.type, shown: drawn(chunk, errorText) });
       }
     }
@@ -163,7 +163,7 @@ describe("a Loan tool that needs authorizing, in Studio", () => {
     // A failed call, which is how the model has to read a refusal.
     expect(outcomes.map((each) => each.type)).toEqual(["tool-error"]);
     const [{ shown }] = outcomes as [{ type: string; shown: string }];
-    expect(shown).toStartWith("Tool execution was denied by an extension policy: DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000.");
+    expect(shown).toStartWith("Tool execution was denied by an extension policy: DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000.");
     expect(shown).toMatch(/\[ref evt_[a-z0-9]+\]$/);
     // And the model reads exactly the text it always did, as an error.
     const read = script.prompts.at(-1)!.at(-1) as { content: Array<{ output: { type: string; value: string } }> };

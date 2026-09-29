@@ -3,7 +3,7 @@
  *
  * In the human's screenshot on 2026-09-19 the top chrome read `SIGNED IN AS
  * bob@megaforce.tech`, the assistant read *"Acting as bob@megaforce.tech —
- * every tool call is made as this person"*, and between them the loan book read
+ * every tool call is made as this person"*, and between them the deal book read
  * *"The loan system did not accept this browser's sign-in as
  * bob@megaforce.tech."*
  *
@@ -23,8 +23,8 @@
  * render and says nothing about whether anything ever produces the value.
  *
  * So the state comes out of `readLoanBook` — the real module the server
- * component calls — against a loan book that answers a real `401` to a real
- * `Authorization: Bearer …`. The one thing standing in is the loan book
+ * component calls — against a deal book that answers a real `401` to a real
+ * `Authorization: Bearer …`. The one thing standing in is the deal book
  * itself, at the module edge (it is in-process since #5), because *that* half
  * is measured against the real loan module with a real sign-in in
  * `app-test/api-loans.test.ts` ("a token the identity provider refuses is the
@@ -53,7 +53,7 @@ const BOB = "bob@megaforce.tech";
 /** Every request the stand-in saw, so the 401 is known to have been a real ask. */
 let seen: Array<{ path: string; authorization: string | null }> = [];
 /**
- * The loan book, refusing this browser's bearer.
+ * The deal book, refusing this browser's bearer.
  *
  * Handed to `readLoanBook` in-process, the way the app's own loan module is
  * since #5 (`lib/loans/`): a request handler, not an address. Until #5 this was
@@ -113,7 +113,7 @@ function text(html: string): string {
 }
 
 describe("the expired state, reached rather than assumed", () => {
-  test("a 401 from the loan book is an expired sign-in, and the read really happened", async () => {
+  test("a 401 from the deal book is an expired sign-in, and the read really happened", async () => {
     seen = [];
     const book = await readLoanBook(staleSession(), { loans: loanBook });
 
@@ -137,7 +137,7 @@ describe("the expired state, reached rather than assumed", () => {
   });
 });
 
-describe("the chrome and the assistant, with the loan book expired", () => {
+describe("the chrome and the assistant, with the deal book expired", () => {
   let expired: LoanBookState;
   let markup: string;
 
@@ -189,7 +189,7 @@ describe("the chrome and the assistant, with the loan book expired", () => {
     expect(reading).not.toContain("Acting as");
     expect(reading).not.toContain("every tool call is made as this person");
     // Said three times, once by each surface that was contradicting the others
-    // in the screenshot: the chrome, the loan book's own card, and the
+    // in the screenshot: the chrome, the deal book's own card, and the
     // assistant. Every one of them repeats the sentence rather than any one of
     // them being the only place a reader could learn it — and repeating *this*
     // sentence is the point, because the thing all three must not imply is a
@@ -206,7 +206,7 @@ describe("the chrome and the assistant, with the loan book expired", () => {
   });
 });
 
-describe("the same screen with a loan book that answers", () => {
+describe("the same screen with a deal book that answers", () => {
   /**
    * The other direction, so "stale" cannot quietly become the only thing this
    * screen knows how to say. A control that fires on everything is

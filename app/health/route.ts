@@ -46,10 +46,10 @@
  * version) is under `control_plane`, with its own roll-up in
  * `control_plane.status`, which is what the panel's strip reads.
  *
- * **Since #5 it is the loan book's `/health` too**, because the loan module is
+ * **Since #5 it is the deal book's `/health` too**, because the loan module is
  * part of this app (`lib/loans/`). `loans` is `{ status: "ok", count }`, or
  * `{ status: "failed", count: null, error }` when `loans.db` did not open, and
- * a failed loan book is `degraded`. Never a bare count: `cg-loan-app` answered
+ * a failed deal book is `degraded`. Never a bare count: `cg-loan-app` answered
  * `loans: <n>`, and `0` read the same whether the book was empty or the
  * database never opened. The module's own answer, with the count as a number,
  * is still at `/bank/health`. `reset` covers `POST /bank/admin/reset` too: the

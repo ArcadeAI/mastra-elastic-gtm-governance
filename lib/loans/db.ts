@@ -1,5 +1,5 @@
 /**
- * `loans.db` — the loan book. Plain domain persistence: a `loans` table and an
+ * `loans.db` — the deal book. Plain domain persistence: a `loans` table and an
  * append-only `loan_decisions` table.
  *
  * Nothing here inspects who is asking or what they are allowed to do. Every
@@ -31,31 +31,31 @@ export interface LoanDecision {
   decided_at: string;
 }
 
-/** What `search_loans` returns per hit: the list-view columns. */
+/** What `search_deals` returns per hit: the list-view columns. */
 export interface LoanSummary {
-  loan_id: string;
-  borrower_name: string;
+  deal_id: string;
+  account_name: string;
   amount: number;
   status: LoanStatus;
   purpose: string;
-  submitted_at: string;
+  requested_at: string;
 }
 
 /**
- * What `get_loan` returns: the whole record.
+ * What `get_deal` returns: the whole record.
  *
- * `bank_account_number`, `tax_id` and `underwriter_notes` are in here on
- * purpose. A loan origination system's detail view holds them, so ours does
+ * `bank_account_number`, `tax_id` and `crm_notes` are in here on
+ * purpose. A deal desk's detail view holds them, so ours does
  * too — a service that withheld them would be doing the control plane's job
  * and there would be nothing left to demonstrate.
  */
 export interface LoanRecord extends LoanSummary {
   credit_score: number;
-  annual_revenue: number;
-  years_in_business: number;
+  arr: number;
+  years_as_customer: number;
   bank_account_number: string;
   tax_id: string;
-  underwriter_notes: string;
+  crm_notes: string;
   decisions: LoanDecision[];
 }
 
@@ -68,24 +68,24 @@ const decisionFixtureSchema = z.object({
 });
 
 const loanFixtureSchema = z.object({
-  loan_id: z.string(),
-  borrower_name: z.string(),
+  deal_id: z.string(),
+  account_name: z.string(),
   amount: z.number(),
   status: z.enum(["pending", "approved", "denied"]),
   purpose: z.string(),
-  submitted_at: z.string(),
+  requested_at: z.string(),
   credit_score: z.number(),
-  annual_revenue: z.number(),
-  years_in_business: z.number(),
+  arr: z.number(),
+  years_as_customer: z.number(),
   bank_account_number: z.string(),
   tax_id: z.string(),
-  underwriter_notes: z.string(),
+  crm_notes: z.string(),
   decisions: z.array(decisionFixtureSchema),
 });
 
 // The fixture is hand-edited — by us now and by forkers later — so it is
 // parsed rather than trusted. A typo should fail at boot with a field path,
-// not surface as a loan that quietly has no borrower.
+// not surface as a loan that quietly has no customer.
 const fixtureSchema = z.object({ loans: z.array(loanFixtureSchema).min(1) });
 
 /**
@@ -96,18 +96,18 @@ const fixtureSchema = z.object({ loans: z.array(loanFixtureSchema).min(1) });
  */
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS loans (
-    loan_id             TEXT    PRIMARY KEY,
-    borrower_name       TEXT    NOT NULL,
+    deal_id             TEXT    PRIMARY KEY,
+    account_name       TEXT    NOT NULL,
     amount              INTEGER NOT NULL,
     status              TEXT    NOT NULL CHECK (status IN ('pending', 'approved', 'denied')),
     purpose             TEXT    NOT NULL,
-    submitted_at        TEXT    NOT NULL,
+    requested_at        TEXT    NOT NULL,
     credit_score        INTEGER NOT NULL,
-    annual_revenue      INTEGER NOT NULL,
-    years_in_business   INTEGER NOT NULL,
+    arr      INTEGER NOT NULL,
+    years_as_customer   INTEGER NOT NULL,
     bank_account_number TEXT    NOT NULL,
     tax_id              TEXT    NOT NULL,
-    underwriter_notes   TEXT    NOT NULL
+    crm_notes   TEXT    NOT NULL
   );
 
   -- Append-only. An approval is an event, not a flag, so approving the same
@@ -115,7 +115,7 @@ const SCHEMA = `
   -- into an accidental no-op.
   CREATE TABLE IF NOT EXISTS loan_decisions (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
-    loan_id    TEXT    NOT NULL REFERENCES loans(loan_id),
+    deal_id    TEXT    NOT NULL REFERENCES loans(deal_id),
     decision   TEXT    NOT NULL CHECK (decision IN ('approved', 'denied')),
     amount     INTEGER,
     reason     TEXT,
@@ -123,12 +123,12 @@ const SCHEMA = `
     decided_at TEXT    NOT NULL
   );
 
-  CREATE INDEX IF NOT EXISTS idx_loan_decisions_loan_id ON loan_decisions(loan_id);
+  CREATE INDEX IF NOT EXISTS idx_loan_decisions_loan_id ON loan_decisions(deal_id);
   CREATE INDEX IF NOT EXISTS idx_loans_status ON loans(status);
 `;
 
 /**
- * Opens the loan book, bootstrapping it from the fixture only when it has no
+ * Opens the deal book, bootstrapping it from the fixture only when it has no
  * schema.
  *
  * Seed-if-empty rather than seed-on-boot: `loans.db` lives on a persistent disk
@@ -255,7 +255,7 @@ function hasSchema(db: Database): boolean {
 
 /**
  * `bun:sqlite` matches named parameters on the `$name` form, so a plain
- * `{ loan_id }` binds nothing and every column arrives NULL — which surfaces
+ * `{ deal_id }` binds nothing and every column arrives NULL — which surfaces
  * as a constraint violation on a different column than the one you forgot.
  */
 type NamedBindings = Record<string, string | number | boolean | null>;
@@ -288,7 +288,7 @@ export function fixtureLoans(): LoanSeed[] {
  * and wrapping only the inserts produces the one failure that cannot recover
  * on its own: a database holding a schema and no rows, which `hasSchema`
  * reads as already seeded. The service then comes up green and empty — and on
- * a disk that persists, it stays that way. A forker who duplicates a loan_id
+ * a disk that persists, it stays that way. A forker who duplicates a deal_id
  * in the fixture is one boot away from that.
  *
  * Exported for the test that holds this line.
@@ -305,19 +305,19 @@ export function seed(db: Database, loans: LoanSeed[]): void {
     // not fighting open statements over tables it is about to drop.
     const insertLoan = db.prepare<unknown, NamedBindings>(`
       INSERT INTO loans (
-        loan_id, borrower_name, amount, status, purpose, submitted_at,
-        credit_score, annual_revenue, years_in_business,
-        bank_account_number, tax_id, underwriter_notes
+        deal_id, account_name, amount, status, purpose, requested_at,
+        credit_score, arr, years_as_customer,
+        bank_account_number, tax_id, crm_notes
       ) VALUES (
-        $loan_id, $borrower_name, $amount, $status, $purpose, $submitted_at,
-        $credit_score, $annual_revenue, $years_in_business,
-        $bank_account_number, $tax_id, $underwriter_notes
+        $deal_id, $account_name, $amount, $status, $purpose, $requested_at,
+        $credit_score, $arr, $years_as_customer,
+        $bank_account_number, $tax_id, $crm_notes
       )
     `);
 
     const insertDecision = db.prepare<unknown, NamedBindings>(`
-      INSERT INTO loan_decisions (loan_id, decision, amount, reason, decided_by, decided_at)
-      VALUES ($loan_id, $decision, $amount, $reason, $decided_by, $decided_at)
+      INSERT INTO loan_decisions (deal_id, decision, amount, reason, decided_by, decided_at)
+      VALUES ($deal_id, $decision, $amount, $reason, $decided_by, $decided_at)
     `);
 
     try {
@@ -326,7 +326,7 @@ export function seed(db: Database, loans: LoanSeed[]): void {
         insertLoan.run(bind(columns));
 
         for (const decision of decisions) {
-          insertDecision.run(bind({ loan_id: loan.loan_id, ...decision }));
+          insertDecision.run(bind({ deal_id: loan.deal_id, ...decision }));
         }
       }
     } finally {
@@ -344,12 +344,12 @@ export function searchLoans(
   // own parameter rather than by concatenating SQL.
   return db
     .query<LoanSummary, { $status: string | null; $min: number | null; $max: number | null }>(
-      `SELECT loan_id, borrower_name, amount, status, purpose, submitted_at
+      `SELECT deal_id, account_name, amount, status, purpose, requested_at
          FROM loans
         WHERE ($status IS NULL OR status = $status)
           AND ($min    IS NULL OR amount >= $min)
           AND ($max    IS NULL OR amount <= $max)
-        ORDER BY submitted_at DESC, loan_id DESC`,
+        ORDER BY requested_at DESC, deal_id DESC`,
     )
     .all({
       $status: filters.status ?? null,
@@ -360,21 +360,21 @@ export function searchLoans(
 
 export function getLoan(db: Database, loanId: string): LoanRecord | null {
   const loan = db
-    .query<Omit<LoanRecord, "decisions">, { $loan_id: string }>(
-      "SELECT * FROM loans WHERE loan_id = $loan_id",
+    .query<Omit<LoanRecord, "decisions">, { $deal_id: string }>(
+      "SELECT * FROM loans WHERE deal_id = $deal_id",
     )
-    .get({ $loan_id: loanId });
+    .get({ $deal_id: loanId });
 
   if (loan === null) return null;
 
   const decisions = db
-    .query<LoanDecision, { $loan_id: string }>(
+    .query<LoanDecision, { $deal_id: string }>(
       `SELECT decision, amount, reason, decided_by, decided_at
          FROM loan_decisions
-        WHERE loan_id = $loan_id
+        WHERE deal_id = $deal_id
         ORDER BY id ASC`,
     )
-    .all({ $loan_id: loanId });
+    .all({ $deal_id: loanId });
 
   return { ...loan, decisions };
 }
@@ -392,7 +392,7 @@ export function getLoan(db: Database, loanId: string): LoanRecord | null {
 export function recordDecision(
   db: Database,
   input: {
-    loan_id: string;
+    deal_id: string;
     decision: "approved" | "denied";
     amount: number | null;
     reason: string | null;
@@ -404,19 +404,19 @@ export function recordDecision(
 
   const applied = db.transaction(() => {
     const exists = db
-      .query<{ loan_id: string }, { $loan_id: string }>(
-        "SELECT loan_id FROM loans WHERE loan_id = $loan_id",
+      .query<{ deal_id: string }, { $deal_id: string }>(
+        "SELECT deal_id FROM loans WHERE deal_id = $deal_id",
       )
-      .get({ $loan_id: input.loan_id });
+      .get({ $deal_id: input.deal_id });
 
     if (exists === null) return false;
 
     db.query<unknown, NamedBindings>(
-      `INSERT INTO loan_decisions (loan_id, decision, amount, reason, decided_by, decided_at)
-       VALUES ($loan_id, $decision, $amount, $reason, $decided_by, $decided_at)`,
+      `INSERT INTO loan_decisions (deal_id, decision, amount, reason, decided_by, decided_at)
+       VALUES ($deal_id, $decision, $amount, $reason, $decided_by, $decided_at)`,
     ).run(
       bind({
-        loan_id: input.loan_id,
+        deal_id: input.deal_id,
         decision: input.decision,
         amount: input.amount,
         reason: input.reason,
@@ -425,15 +425,15 @@ export function recordDecision(
       }),
     );
 
-    db.query("UPDATE loans SET status = $status WHERE loan_id = $loan_id").run({
+    db.query("UPDATE loans SET status = $status WHERE deal_id = $deal_id").run({
       $status: input.decision,
-      $loan_id: input.loan_id,
+      $deal_id: input.deal_id,
     });
 
     return true;
   })();
 
-  return applied ? getLoan(db, input.loan_id) : null;
+  return applied ? getLoan(db, input.deal_id) : null;
 }
 
 export function countLoans(db: Database): number {

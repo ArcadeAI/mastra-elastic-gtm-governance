@@ -177,7 +177,7 @@ describe("conversation turns", () => {
 describe("authorization continuation", () => {
   const challenge: ChatEvent = {
     kind: "authorization",
-    tool: "Loan_GetLoan",
+    tool: "Deals_GetDeal",
     url: "https://provider.example/authorize/request-1",
     instructions: "Authorize the provider, then continue.",
   };

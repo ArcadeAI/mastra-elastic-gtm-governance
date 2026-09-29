@@ -2,7 +2,7 @@
  * The turn ends on the escalation — round 1 of #110's review, as a test.
  *
  * The finding: `runTurn` emitted `waiting` and kept consuming the model stream,
- * so a model that called `Loan_ApproveLoan` straight after
+ * so a model that called `Deals_ApproveDiscount` straight after
  * `Approvals_RequestApproval` got that call executed, against a control plane
  * that had no grant yet. The reviewer reproduced it on a hand-built stream, and
  * the first test below is that stream, verbatim.
@@ -91,26 +91,26 @@ describe("the stream stops at the escalation", () => {
       { type: "tool-result", payload: { toolName: ESCALATION, result: ESCALATION_RESULT } },
       {
         type: "tool-call",
-        payload: { toolName: "Loan_ApproveLoan", args: { loan_id: "LN-2291", amount: 95000 } },
+        payload: { toolName: "Deals_ApproveDiscount", args: { deal_id: "DL-2291", amount: 95000 } },
       },
       { type: "text-delta", payload: { text: "continued" } },
     ]);
 
     expect(events.map((event) => event.kind)).toEqual(["tool-result", "waiting", "done"]);
-    // Nothing about `Loan_ApproveLoan` reached the wire — not as a call, not as
+    // Nothing about `Deals_ApproveDiscount` reached the wire — not as a call, not as
     // a denial, not as a fault. No hook fired, so there is no decision to
     // render and the three kinds that describe a tool which did not return
     // would each be a claim nothing here can make.
-    expect(JSON.stringify(events)).not.toContain("Loan_ApproveLoan");
+    expect(JSON.stringify(events)).not.toContain("Deals_ApproveDiscount");
     // It is recorded where a person debugging a turn can find it.
-    expect(logs.join("\n")).toContain("Loan_ApproveLoan");
+    expect(logs.join("\n")).toContain("Deals_ApproveDiscount");
     expect(logs.join("\n")).toContain("nothing reached the gateway");
   });
 
   test("the abort signal reaches the agent, so the loop stops rather than detaching", async () => {
     const { options } = await drive([
       { type: "tool-result", payload: { toolName: ESCALATION, result: ESCALATION_RESULT } },
-      { type: "tool-call", payload: { toolName: "Loan_ApproveLoan", args: {} } },
+      { type: "tool-call", payload: { toolName: "Deals_ApproveDiscount", args: {} } },
     ]);
     const signal = options[0]?.abortSignal;
     expect(signal).toBeInstanceOf(AbortSignal);
@@ -122,7 +122,7 @@ describe("the stream stops at the escalation", () => {
   test("an aborted turn is not reported as an error", async () => {
     const { events } = await drive([
       { type: "tool-result", payload: { toolName: ESCALATION, result: ESCALATION_RESULT } },
-      { type: "tool-call", payload: { toolName: "Loan_ApproveLoan", args: {} } },
+      { type: "tool-call", payload: { toolName: "Deals_ApproveDiscount", args: {} } },
     ]);
     expect(events.filter((event) => event.kind === "error")).toHaveLength(0);
     expect(events.at(-1)).toEqual({ kind: "done", calls: 0 });
@@ -136,8 +136,8 @@ describe("the stream stops at the escalation", () => {
       {
         type: "tool-error",
         payload: {
-          toolName: "Loan_ApproveLoan",
-          error: { message: "Loan_ApproveLoan was not called: this turn ended…" },
+          toolName: "Deals_ApproveDiscount",
+          error: { message: "Deals_ApproveDiscount was not called: this turn ended…" },
         },
       },
     ]);
@@ -156,7 +156,7 @@ describe("the model still gets its last word", () => {
     const { events } = await drive([
       { type: "tool-result", payload: { toolName: ESCALATION, result: ESCALATION_RESULT } },
       { type: "text-delta", payload: { text: "Approval requested from Charlie, " } },
-      { type: "text-delta", payload: { text: "VP Credit. Waiting." } },
+      { type: "text-delta", payload: { text: "VP Sales. Waiting." } },
     ]);
 
     expect(events.map((event) => event.kind)).toEqual([
@@ -171,7 +171,7 @@ describe("the model still gets its last word", () => {
         .filter((event): event is Extract<ChatEvent, { kind: "text" }> => event.kind === "text")
         .map((event) => event.text)
         .join(""),
-    ).toBe("Approval requested from Charlie, VP Credit. Waiting.");
+    ).toBe("Approval requested from Charlie, VP Sales. Waiting.");
   });
 
   test("the waiting event names the approver off the tool's result, not the reply", async () => {
@@ -193,7 +193,7 @@ describe("the model still gets its last word", () => {
     // to wait on, so the turn is an ordinary one and carries on.
     const { events } = await drive([
       { type: "tool-result", payload: { toolName: ESCALATION, result: { note: "no id here" } } },
-      { type: "tool-call", payload: { toolName: "Loan_SearchLoans", args: {} } },
+      { type: "tool-call", payload: { toolName: "Deals_SearchDeals", args: {} } },
     ]);
     expect(events.map((event) => event.kind)).toEqual(["tool-result", "tool-call", "done"]);
   });
@@ -221,23 +221,23 @@ describe("the turn's toolset shuts when the escalation returns", () => {
     const closure = closeTurnOnEscalation(
       {
         [ESCALATION]: tool(ESCALATION, ESCALATION_RESULT, calls),
-        Loan_ApproveLoan: tool("Loan_ApproveLoan", { ok: true }, calls),
+        Deals_ApproveDiscount: tool("Deals_ApproveDiscount", { ok: true }, calls),
       },
       { escalationTool: ESCALATION },
     );
 
     const tools = closure.tools as Record<string, { execute: (input: unknown) => Promise<unknown> }>;
-    await tools[ESCALATION]!.execute({ resource_id: "LN-2291" });
+    await tools[ESCALATION]!.execute({ resource_id: "DL-2291" });
     expect(closure.closed).toBe(true);
 
-    await expect(tools.Loan_ApproveLoan!.execute({ loan_id: "LN-2291" })).rejects.toThrow(
+    await expect(tools.Deals_ApproveDiscount!.execute({ deal_id: "DL-2291" })).rejects.toThrow(
       /this turn ended when the approval request was raised/,
     );
 
     // The whole claim, in one assertion: the underlying tool was never called,
     // so nothing left this process for the gateway and `/pre` was never asked.
-    expect(calls).toEqual([`${ESCALATION}({"resource_id":"LN-2291"})`]);
-    expect(closure.refused).toEqual(["Loan_ApproveLoan"]);
+    expect(calls).toEqual([`${ESCALATION}({"resource_id":"DL-2291"})`]);
+    expect(closure.refused).toEqual(["Deals_ApproveDiscount"]);
   });
 
   test("before the escalation, every tool calls through as it always did", async () => {
@@ -245,15 +245,15 @@ describe("the turn's toolset shuts when the escalation returns", () => {
     const closure = closeTurnOnEscalation(
       {
         [ESCALATION]: tool(ESCALATION, ESCALATION_RESULT, calls),
-        Loan_GetLoan: tool("Loan_GetLoan", { loan_id: "LN-2291" }, calls),
+        Deals_GetDeal: tool("Deals_GetDeal", { deal_id: "DL-2291" }, calls),
       },
       { escalationTool: ESCALATION },
     );
     const tools = closure.tools as Record<string, { execute: (input: unknown) => Promise<unknown> }>;
 
-    await tools.Loan_GetLoan!.execute({ loan_id: "LN-2291" });
+    await tools.Deals_GetDeal!.execute({ deal_id: "DL-2291" });
     expect(closure.closed).toBe(false);
-    expect(calls).toEqual(['Loan_GetLoan({"loan_id":"LN-2291"})']);
+    expect(calls).toEqual(['Deals_GetDeal({"deal_id":"DL-2291"})']);
   });
 
   test("the escalation itself always runs, and its result is passed through unchanged", async () => {
@@ -272,14 +272,14 @@ describe("the turn's toolset shuts when the escalation returns", () => {
     const closure = closeTurnOnEscalation(
       {
         [ESCALATION]: tool(ESCALATION, { note: "no id" }, calls),
-        Loan_ApproveLoan: tool("Loan_ApproveLoan", { ok: true }, calls),
+        Deals_ApproveDiscount: tool("Deals_ApproveDiscount", { ok: true }, calls),
       },
       { escalationTool: ESCALATION },
     );
     const tools = closure.tools as Record<string, { execute: (input: unknown) => Promise<unknown> }>;
 
     await tools[ESCALATION]!.execute({});
-    await tools.Loan_ApproveLoan!.execute({});
+    await tools.Deals_ApproveDiscount!.execute({});
     expect(closure.closed).toBe(false);
     expect(calls).toHaveLength(2);
   });
@@ -289,7 +289,7 @@ describe("the turn's toolset shuts when the escalation returns", () => {
     const closure = closeTurnOnEscalation(
       {
         [ESCALATION]: tool(ESCALATION, ESCALATION_RESULT, calls),
-        Loan_ApproveLoan: tool("Loan_ApproveLoan", { ok: true }, calls),
+        Deals_ApproveDiscount: tool("Deals_ApproveDiscount", { ok: true }, calls),
       },
       { escalationTool: ESCALATION },
     );
@@ -297,7 +297,7 @@ describe("the turn's toolset shuts when the escalation returns", () => {
     await tools[ESCALATION]!.execute({});
 
     const thrown = await tools
-      .Loan_ApproveLoan!.execute({})
+      .Deals_ApproveDiscount!.execute({})
       .then(() => null)
       .catch((cause: Error) => cause.message);
 
@@ -312,12 +312,12 @@ describe("the turn's toolset shuts when the escalation returns", () => {
   test("a deployment with no approvals toolkit is unaffected", async () => {
     const calls: string[] = [];
     const closure = closeTurnOnEscalation(
-      { Loan_ApproveLoan: tool("Loan_ApproveLoan", { ok: true }, calls) },
+      { Deals_ApproveDiscount: tool("Deals_ApproveDiscount", { ok: true }, calls) },
       { escalationTool: ESCALATION },
     );
     const tools = closure.tools as Record<string, { execute: (input: unknown) => Promise<unknown> }>;
-    await tools.Loan_ApproveLoan!.execute({});
-    await tools.Loan_ApproveLoan!.execute({});
+    await tools.Deals_ApproveDiscount!.execute({});
+    await tools.Deals_ApproveDiscount!.execute({});
     expect(closure.closed).toBe(false);
     expect(calls).toHaveLength(2);
   });

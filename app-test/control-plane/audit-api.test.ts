@@ -38,7 +38,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 250,
@@ -109,7 +109,7 @@ function seed(count: number, fields: SeedFields = {}): string[] {
       execution_id: `tc_seed_${index}`,
       hook: fields.hook ?? "access",
       user_id: fields.user_id ?? DANA,
-      tool: fields.tool ?? "Loan.GetLoan",
+      tool: fields.tool ?? "Deals.GetDeal",
       decision: fields.decision ?? "allow",
       reason: "seeded",
       rule_id: null,
@@ -127,8 +127,8 @@ const denyDana = (executionId: string) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: "LN-2291", amount: 95_000 },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),
   });
@@ -172,7 +172,7 @@ describe("the rows are the audit rows", () => {
       hook: "pre",
       execution_id: "tc_audit_read",
       user_id: DANA,
-      tool: "Loan.ApproveLoan",
+      tool: "Deals.ApproveDiscount",
       decision: "deny",
       rule_id: "pre.approve-within-clearance",
     });
@@ -194,7 +194,7 @@ describe("the rows are the audit rows", () => {
     const records = [
       {
         path: "$.bank_account_number",
-        rule_id: "post.redact-borrower-identifiers",
+        rule_id: "post.redact-customer-identifiers",
         pattern_id: null,
         kind: "mask" as const,
       },
@@ -212,9 +212,9 @@ describe("the rows are the audit rows", () => {
 
 describe("the filters", () => {
   beforeEach(() => {
-    seed(2, { user_id: DANA, hook: "pre", decision: "deny", tool: "Loan.ApproveLoan" });
-    seed(3, { user_id: SAM, hook: "access", decision: "deny", tool: "Loan.ApproveLoan" });
-    seed(4, { user_id: DANA, hook: "access", decision: "allow", tool: "Loan.GetLoan" });
+    seed(2, { user_id: DANA, hook: "pre", decision: "deny", tool: "Deals.ApproveDiscount" });
+    seed(3, { user_id: SAM, hook: "access", decision: "deny", tool: "Deals.ApproveDiscount" });
+    seed(4, { user_id: DANA, hook: "access", decision: "allow", tool: "Deals.GetDeal" });
   });
 
   test("user_id narrows to one persona", async () => {
@@ -230,15 +230,15 @@ describe("the filters", () => {
   });
 
   test("tool is the stored Toolkit.Tool", async () => {
-    const page = await body(await audit("?tool=Loan.ApproveLoan"));
+    const page = await body(await audit("?tool=Deals.ApproveDiscount"));
     expect(page.total).toBe(5);
-    expect(page.rows.every((row) => row.tool === "Loan.ApproveLoan")).toBe(true);
+    expect(page.rows.every((row) => row.tool === "Deals.ApproveDiscount")).toBe(true);
   });
 
   test("a tool nobody called returns nothing, and says nothing matched", async () => {
-    // The PascalCase trap: `approve_loan` is not a tool this control plane
+    // The PascalCase trap: `approve_discount` is not a tool this control plane
     // ever decided about, and the answer has to be zero rather than everything.
-    const page = await body(await audit("?tool=Loan.approve_loan"));
+    const page = await body(await audit("?tool=Deals.approve_discount"));
     expect(page.total).toBe(0);
     expect(page.rows).toEqual([]);
   });
@@ -314,7 +314,7 @@ describe("the limit is a bound, not a suggestion", () => {
 describe("a filter that cannot mean anything is refused, never ignored", () => {
   test("an unknown query parameter is a 400 naming the ones that exist", async () => {
     seed(3);
-    const response = await audit("?toolname=Loan.GetLoan");
+    const response = await audit("?toolname=Deals.GetDeal");
     expect(response.status).toBe(400);
     const { error } = (await response.json()) as { error: string };
     expect(error).toContain("toolname");
@@ -411,7 +411,7 @@ describe("reading the log is not on the hook path", () => {
             execution_id: "tc_isolated",
             hook: "access",
             user_id: DANA,
-            tool: "Loan.GetLoan",
+            tool: "Deals.GetDeal",
             decision: "allow",
             reason: "seeded",
             rule_id: null,

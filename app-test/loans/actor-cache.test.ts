@@ -75,7 +75,7 @@ function read(token: string): Request {
 }
 
 function write(token: string): Request {
-  return new Request("http://loan-app.test/loans/LN-2291/approve", {
+  return new Request("http://loan-app.test/loans/DL-2291/approve", {
     method: "POST",
     headers: { authorization: `Bearer ${token}` },
   });
@@ -115,7 +115,7 @@ describe("how often the provider is asked", () => {
     expect(await actorFromRequest(write("tok-alice"), idpHost)).toBe(ALICE);
     expect(await actorFromRequest(write("tok-alice"), idpHost)).toBe(ALICE);
 
-    // No entry in the loan book's decision history is taken on a remembered
+    // No entry in the deal book's decision history is taken on a remembered
     // token; that is what keeps the staleness bound from mattering.
     expect(calls).toBe(3);
   });
@@ -204,7 +204,7 @@ describe("what is never remembered", () => {
 
     // The moment the provider answers again, so does this service. A refusal
     // kept for a minute would have turned the provider's own one-minute
-    // refusal window into a second minute of the loan book refusing everyone,
+    // refusal window into a second minute of the deal book refusing everyone,
     // which is worse than the thing being fixed.
     status = null;
     expect(await actorFromRequest(read("tok-alice"), idpHost)).toBe(ALICE);

@@ -4,10 +4,10 @@
  * Read off the stream's own events and nothing else, so it cannot say anything
  * the stream did not. Two kinds, decided by the human on #37:
  *
- * - **Running.** "Thinking…" and "Calling Loan_SearchLoans…". Only while a
+ * - **Running.** "Thinking…" and "Calling Deals_SearchDeals…". Only while a
  *   turn is streaming, and cleared by `done`, `error` or `fault`.
  * - **Held.** "Waiting for Charlie's approval…" and "Waiting for you to
- *   authorize Loan_GetLoan…". The turn has ended (`DESIGN.md` → The wait:
+ *   authorize Deals_GetDeal…". The turn has ended (`DESIGN.md` → The wait:
  *   nothing polls), so these are static text, with no animation. They stay
  *   until the resume, Continue, or a new message, which is when the latest
  *   turn stops being the one that ended on them. A fault or an error clears

@@ -62,7 +62,7 @@ beforeAll(async () => {
       "--name",
       "Alice",
       "--role",
-      "loan_officer",
+      "account_executive",
       "--clearance",
       "50000",
       "--password",

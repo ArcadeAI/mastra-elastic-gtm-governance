@@ -28,34 +28,34 @@ const clearanceRule = (toolkit: string, tool: string, input: string) =>
     priority: 100,
   });
 
-const policyOf = (catalogue: ToolCatalogue, rules = [clearanceRule("Loan", "ApproveLoan", "amount")]) =>
+const policyOf = (catalogue: ToolCatalogue, rules = [clearanceRule("Deals", "ApproveDiscount", "amount")]) =>
   compilePolicy({ catalogue, rules });
 
 const LOAN: ToolCatalogue = {
-  Loan: {
-    ApproveLoan: ["loan_id", "amount"],
-    DenyLoan: ["loan_id", "reason"],
-    SearchLoans: ["status?"],
+  Deals: {
+    ApproveDiscount: ["deal_id", "amount"],
+    DenyDiscount: ["deal_id", "reason"],
+    SearchDeals: ["status?"],
   },
 };
 
 describe("naming the tool", () => {
   test("applies the PascalCase rule arcade-mcp applies to every tool it deploys", () => {
-    // A binding keyed on `approve_loan` would match nothing, and a binding
+    // A binding keyed on `approve_discount` would match nothing, and a binding
     // that matches nothing issues a grant that authorises nothing.
-    expect(pascalCase("approve_loan")).toBe("ApproveLoan");
-    expect(pascalCase("get_loan")).toBe("GetLoan");
+    expect(pascalCase("approve_discount")).toBe("ApproveDiscount");
+    expect(pascalCase("get_deal")).toBe("GetDeal");
     expect(pascalCase("decide")).toBe("Decide");
   });
 
   test("resolves the action the demo escalates", () => {
-    const resolved = resolveAction("approve_loan", LOAN, policyOf(LOAN));
+    const resolved = resolveAction("approve_discount", LOAN, policyOf(LOAN));
     expect(resolved).toEqual({
       outcome: "resolved",
       binding: {
-        toolkit: "Loan",
-        tool: "ApproveLoan",
-        resourceInput: "loan_id",
+        toolkit: "Deals",
+        tool: "ApproveDiscount",
+        resourceInput: "deal_id",
         amountInput: "amount",
       },
     });
@@ -68,8 +68,8 @@ describe("naming the tool", () => {
   });
 
   test("refuses an action two toolkits both serve", () => {
-    const ambiguous: ToolCatalogue = { ...LOAN, Legacy: { ApproveLoan: ["loan_id", "amount"] } };
-    const resolved = resolveAction("approve_loan", ambiguous, policyOf(ambiguous));
+    const ambiguous: ToolCatalogue = { ...LOAN, Legacy: { ApproveDiscount: ["deal_id", "amount"] } };
+    const resolved = resolveAction("approve_discount", ambiguous, policyOf(ambiguous));
     expect(resolved).toHaveProperty("problem", expect.stringContaining("2 governed"));
   });
 });
@@ -94,16 +94,16 @@ describe("naming the bounded input", () => {
   });
 
   test("an action nothing bounds gets no ceiling, and that is not an error", () => {
-    const resolved = resolveAction("deny_loan", LOAN, policyOf(LOAN));
-    // DenyLoan takes loan_id and reason and nothing bounds either, so there
+    const resolved = resolveAction("deny_discount", LOAN, policyOf(LOAN));
+    // DenyDiscount takes deal_id and reason and nothing bounds either, so there
     // are two candidates for the resource and the control plane will not pick.
     expect(resolved).toHaveProperty("problem", expect.stringContaining("2 required arguments"));
   });
 
   test("refuses when two rules bound two different inputs of the same tool", () => {
-    const resolved = resolveAction("approve_loan", LOAN, policyOf(LOAN, [
-      clearanceRule("Loan", "ApproveLoan", "amount"),
-      clearanceRule("Loan", "ApproveLoan", "loan_id"),
+    const resolved = resolveAction("approve_discount", LOAN, policyOf(LOAN, [
+      clearanceRule("Deals", "ApproveDiscount", "amount"),
+      clearanceRule("Deals", "ApproveDiscount", "deal_id"),
     ]));
     expect(resolved).toHaveProperty("problem", expect.stringContaining("2 inputs bounded by clearance"));
   });

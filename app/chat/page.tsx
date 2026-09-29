@@ -43,7 +43,7 @@ export default async function ChatPage() {
 
   return (
     <main style={{ maxWidth: "42rem", margin: "0 auto", padding: "3rem 1.5rem" }}>
-      <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem" }}>Loan operations</h1>
+      <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem" }}>Deals operations</h1>
       <p style={{ color: "var(--muted)", marginTop: 0, fontSize: "0.875rem" }}>
         The agent reaches its tools through the Arcade gateway as the person signed in here. Every
         call passes the control plane first.

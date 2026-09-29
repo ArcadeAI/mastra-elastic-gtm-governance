@@ -84,7 +84,7 @@ function recordingModel(say: string) {
   return { model, requests };
 }
 
-const PROMPT = "Which loan applications are waiting for a decision?";
+const PROMPT = "Which discount requests are waiting for a decision?";
 
 describe("one agent, two entries", () => {
   let harness: AgentHarness;
@@ -198,10 +198,10 @@ describe("one agent, two entries", () => {
     expect(fromChat!.tools.map((tool) => tool.name)).toEqual([
       "Approvals_Decide",
       "Approvals_RequestApproval",
-      "Loan_ApproveLoan",
-      "Loan_DenyLoan",
-      "Loan_GetLoan",
-      "Loan_SearchLoans",
+      "Deals_ApproveDiscount",
+      "Deals_DenyDiscount",
+      "Deals_GetDeal",
+      "Deals_SearchDeals",
     ]);
     expect(fromStudio).toEqual(fromChat!);
 
@@ -294,7 +294,7 @@ describe("Studio's hop 1, over loopback", () => {
     config = readIdentitySurface({
       ARCADE_API_URL: arcade.url,
       ARCADE_GATEWAY_ID: GATEWAY_ID,
-      ARCADE_LOAN_TOOLKIT: "Loan",
+      ARCADE_LOAN_TOOLKIT: "Deals",
       ARCADE_APPROVALS_TOOLKIT: "Approvals",
       ANTHROPIC_API_KEY: "anthropic-key-for-studio-tests",
     });
@@ -344,7 +344,7 @@ describe("Studio's hop 1, over loopback", () => {
     expect(arcade.issued.length).toBe(before + 1);
 
     const tools = await studioTools(config, `http://localhost:${studio.port}`);
-    expect(Object.keys(tools)).toEqual(["Loan_GetLoan"]);
+    expect(Object.keys(tools)).toEqual(["Deals_GetDeal"]);
     // The bearer that went out is the one the token endpoint issued to Studio.
     expect(arcade.bearers.at(-1)).toBe(arcade.issued.at(-1));
   });
@@ -363,7 +363,7 @@ describe("Studio's hop 1, over loopback", () => {
     arcade.expireIssuedTokens();
 
     const tools = await studioTools(config, `http://localhost:${studio.port}`);
-    expect(Object.keys(tools)).toEqual(["Loan_GetLoan"]);
+    expect(Object.keys(tools)).toEqual(["Deals_GetDeal"]);
     expect(arcade.refreshes).toBe(refreshes + 1);
     expect(arcade.bearers.at(-1)).toBe(arcade.issued.at(-1));
   });

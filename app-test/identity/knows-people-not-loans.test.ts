@@ -22,7 +22,7 @@ const REPO = join(import.meta.dir, "..", "..");
 const ROOT = join(REPO, "lib", "identity", "provider");
 
 /**
- * Comments are stripped before matching, as in the loan book's sibling test:
+ * Comments are stripped before matching, as in the deal book's sibling test:
  * a comment's job here is partly to say what this service does *not* know.
  * Block comments and whole-line `//` comments only.
  */
@@ -49,7 +49,7 @@ async function sourceFiles(): Promise<{ path: string; text: string }[]> {
 describe("the identity provider knows people, not loans", () => {
   test.each([
     ["loan", /\bloans?\b/i],
-    ["borrower", /\bborrower/i],
+    ["customer", /\bborrower/i],
     ["underwriter", /\bunderwrit/i],
     ["approve", /\bapprov(e|al)/i],
   ])("no source file mentions %s", async (_word, pattern) => {

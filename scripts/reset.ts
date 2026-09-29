@@ -1,7 +1,7 @@
 /**
  * `bun run reset` — the demo back to the seeded state, in seconds.
  *
- *     bun run reset          # between takes: the loan book and the control plane
+ *     bun run reset          # between takes: the deal book and the control plane
  *     bun run reset --hard   # ...and the IdP, which signs every persona out
  *
  * Three databases, three modules of the one app — but **not on every run**:
@@ -11,7 +11,7 @@
  *                                         grants, approval requests and the
  *                                         audit log emptied (`apps/hooks`
  *                                         until #4)
- *     loan module     POST /bank/admin/reset   the loan book, LN-2291 unapproved
+ *     loan module     POST /bank/admin/reset   the deal book, DL-2291 unapproved
  *                                         (`apps/loan-app` until #5)
  *     identity        POST /identity/admin/reset   everyone's sessions,
  *                                         tokens and consents — `--hard` only
@@ -27,7 +27,7 @@
  * it, and neither deletes the file. It holds conversations, not people,
  * sessions or grants, so there is no second tier of it to reserve for a hard
  * reset, and a take that left last take's thread in Studio would start with
- * the agent remembering an approval that no longer exists in the loan book.
+ * the agent remembering an approval that no longer exists in the deal book.
  *
  * **Neither scope deletes a user** (#32, #33). Somebody added with
  * `bun run users` keeps their `subjects` row through both, and their
@@ -52,7 +52,7 @@
  * fixture, nothing in a take edits them, so re-seeding them puts back
  * something that was never disturbed.
  *
- * What a take *does* disturb is the loan book and the control plane, and those
+ * What a take *does* disturb is the deal book and the control plane, and those
  * are what the default run puts back.
  *
  * (#123 was filed for a worse story — a dead grant Arcade would present
@@ -537,7 +537,7 @@ export async function runReset(options: ResetOptions): Promise<ResetOutcome> {
   const specs = servicesFor(hard);
 
   // Only the addresses this run will actually use. A soft run that demanded
-  // IDENTITY_HOST would refuse to put the loan book back because of a
+  // IDENTITY_HOST would refuse to put the deal book back because of a
   // variable it was never going to read.
   log(
     `[reset] ${APP_HOST} ${requireHost(resolved)}, scope ${hard ? "hard (includes the IdP)" : "between-takes"} — ` +

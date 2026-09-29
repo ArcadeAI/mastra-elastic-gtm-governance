@@ -3,8 +3,8 @@
  *
  * Served by the loan module (`lib/loans/`), in-process, since #5 folded
  * `apps/loan-app` into the app. Under `/bank` because the board page is
- * `/loans`: the service served `/loans`, `/loans/:loan_id`,
- * `/loans/:loan_id/approve`, `/loans/:loan_id/deny`, `/health` and
+ * `/loans`: the service served `/loans`, `/loans/:deal_id`,
+ * `/loans/:deal_id/approve`, `/loans/:deal_id/deny`, `/health` and
  * `/admin/reset` at its root, and `mountedFetch` hands the module that path.
  * This is what `tools/loan` calls.
  */

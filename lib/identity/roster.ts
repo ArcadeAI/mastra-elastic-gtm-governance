@@ -58,7 +58,7 @@ export type PersonLookup =
   | { status: "unavailable"; reason: string };
 
 /**
- * `loan_officer` → `Loan Officer`. The demo cast's roles read the way
+ * `account_executive` → `Account Executive`. The demo cast's roles read the way
  * `DESIGN.md` → Cast writes them; any other role is its key, title-cased, so a
  * role a forker adds still reads as words rather than as a column value.
  */

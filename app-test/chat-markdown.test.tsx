@@ -7,7 +7,7 @@
  *    paragraphs. The model emitted `[Authorize access](…)` on the stage demo's deployment
  *    and the screen showed the brackets.
  * 2. **Nothing else renders.** The reply is the one surface on this screen that
- *    a prompt injection gets to write — act 4 is a loan file trying to — so an
+ *    a prompt injection gets to write — act 4 is a deal record trying to — so an
  *    HTML payload in a `text` event is shown as text, and a link the parser will
  *    not vouch for is shown as text too. That second half is the one people
  *    forget: escaping every tag and then emitting `javascript:` in an `href` has
@@ -61,7 +61,7 @@ describe("the safe subset renders", () => {
     expect(render("it is *not* a denial")).toContain("<em>not</em>");
     expect(render("it is _not_ a denial")).toContain("<em>not</em>");
     expect(render("it is **not** a denial")).toContain("<strong>not</strong>");
-    expect(render("call `Loan_GetLoan` first")).toContain("Loan_GetLoan</code>");
+    expect(render("call `Deals_GetDeal` first")).toContain("Deals_GetDeal</code>");
   });
 
   test("a blank line starts a paragraph and a single newline does not", () => {
@@ -152,7 +152,7 @@ describe("nothing outside the subset renders", () => {
     // the brackets, and the two screens would describe different events.
     const reason = "DENIED: *check* the [ref evt_kbfcdksrpk] row before retrying.";
     const markup = renderToStaticMarkup(
-      <EventView event={{ kind: "denied", tool: "Loan_ApproveLoan", reason, ref: "evt_kbfcdksrpk" }} />,
+      <EventView event={{ kind: "denied", tool: "Deals_ApproveDiscount", reason, ref: "evt_kbfcdksrpk" }} />,
     );
 
     expect(markup).toContain("[ref evt_kbfcdksrpk]");
@@ -167,13 +167,13 @@ describe("consecutive text events are one block", () => {
       transcript([
         { kind: "text", text: "Rea" },
         { kind: "text", text: "ding." },
-        { kind: "tool-call", tool: "Loan_GetLoan", inputs: {} },
+        { kind: "tool-call", tool: "Deals_GetDeal", inputs: {} },
         { kind: "text", text: "Don" },
         { kind: "text", text: "e." },
       ]),
     ).toEqual([
       { kind: "reply", text: "Reading." },
-      { kind: "event", event: { kind: "tool-call", tool: "Loan_GetLoan", inputs: {} } },
+      { kind: "event", event: { kind: "tool-call", tool: "Deals_GetDeal", inputs: {} } },
       { kind: "reply", text: "Done." },
     ]);
   });
@@ -204,7 +204,7 @@ describe("the authorization card is a name and a link", () => {
     <EventView
       event={{
         kind: "authorization",
-        tool: "Loan_GetLoan",
+        tool: "Deals_GetDeal",
         url: "https://cloud.arcade.dev/api/v1/oauth/flow/abc",
         instructions: LLM_INSTRUCTIONS,
       }}
@@ -212,7 +212,7 @@ describe("the authorization card is a name and a link", () => {
   );
 
   test("the tool is named and the link is the only link", () => {
-    expect(layer2).toContain("Loan_GetLoan");
+    expect(layer2).toContain("Deals_GetDeal");
     expect(layer2).toContain(`href="https://cloud.arcade.dev/api/v1/oauth/flow/abc"`);
     expect([...layer2.matchAll(/<a /g)]).toHaveLength(1);
   });

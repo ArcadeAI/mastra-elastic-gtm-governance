@@ -21,7 +21,7 @@ import { writeSession, type Session } from "../lib/identity/session.ts";
 import loans from "../lib/loans/fixtures/loans.json" with { type: "json" };
 
 const LOAN = (loans.loans as Array<Record<string, unknown>>).find(
-  (loan) => loan.loan_id === OVER_LIMIT_LOAN,
+  (loan) => loan.deal_id === OVER_LIMIT_LOAN,
 ) as Record<string, string>;
 
 let harness: AgentHarness;
@@ -98,10 +98,10 @@ function toolResultsTheModelSaw(model: ScriptedModel): Array<{ toolName: string;
 }
 
 describe("streaming: a reply of N deltas is N text events", () => {
-  const DELTAS = ["Loan ", "LN-2291 ", "is ", "for ", "$95,000 ", "and ", "pending."];
+  const DELTAS = ["Deals ", "DL-2291 ", "is ", "for ", "$95,000 ", "and ", "pending."];
 
   test("the real handler forwards each delta as its own event, in order", async () => {
-    const { events } = await turn("How much is LN-2291 for?", [{ say: DELTAS }]);
+    const { events } = await turn("How much is DL-2291 for?", [{ say: DELTAS }]);
 
     const texts = of(events, "text").map((event) => event.text);
     expect(texts).toEqual(DELTAS);
@@ -116,17 +116,17 @@ describe("the tool result on the stream is what the model received", () => {
 
   beforeAll(async () => {
     ({ events } = await turn(`Read loan ${OVER_LIMIT_LOAN}.`, [
-      { call: "Loan_GetLoan", input: { loan_id: OVER_LIMIT_LOAN } },
+      { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
       { say: "Read." },
     ]));
   }, 30_000);
 
   test("the tool-result event deep-equals the tool result in the model's next prompt", () => {
     const results = of(events, "tool-result");
-    expect(results.map((event) => event.tool)).toEqual(["Loan_GetLoan"]);
+    expect(results.map((event) => event.tool)).toEqual(["Deals_GetDeal"]);
 
     const saw = toolResultsTheModelSaw(scripted);
-    expect(saw.map((part) => part.toolName)).toEqual(["Loan_GetLoan"]);
+    expect(saw.map((part) => part.toolName)).toEqual(["Deals_GetDeal"]);
     // The claim of AC5, as one assertion.
     expect(results[0]?.result).toEqual(saw[0]?.value);
     expect(results[0]?.withheld).toBeUndefined();
@@ -135,8 +135,8 @@ describe("the tool result on the stream is what the model received", () => {
   test("and it is the post-hook output, not what the toolkit returned", () => {
     const result = of(events, "tool-result")[0]?.result as Record<string, unknown>;
     // A present value, so the equality above is not two empty objects agreeing.
-    expect(result.loan_id).toBe(OVER_LIMIT_LOAN);
-    expect(result.borrower_name).toBe("Northwind Bakery LLC");
+    expect(result.deal_id).toBe(OVER_LIMIT_LOAN);
+    expect(result.account_name).toBe("Northwind Robotics");
     // `/post` masked these. The fixture's real values are nowhere on the stream.
     expect(result.bank_account_number).toBe("[REDACTED]");
     expect(result.tax_id).toBe("[REDACTED]");
@@ -146,7 +146,7 @@ describe("the tool result on the stream is what the model received", () => {
 
   test("the arguments on the tool-call are the model's own", () => {
     expect(of(events, "tool-call")).toEqual([
-      { kind: "tool-call", tool: "Loan_GetLoan", inputs: { loan_id: OVER_LIMIT_LOAN } },
+      { kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: OVER_LIMIT_LOAN } },
     ]);
   });
 });
@@ -157,19 +157,19 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     // concrete: a call whose argument happens to carry it, which the loan
     // module will also echo back in its error. Neither may reach the page.
     const { events: turned, bearer } = await turn("Read it.", (bearer) => [
-      { call: "Loan_GetLoan", input: { loan_id: `LN-${bearer}` } },
+      { call: "Deals_GetDeal", input: { deal_id: `DL-${bearer}` } },
       { say: "That loan does not exist." },
     ]);
 
     // The call happened, with the bearer in it, as far as the model knows.
     expect(JSON.stringify(scripted.prompts)).toContain(bearer);
     const call = of(turned, "tool-call")[0];
-    expect(call?.inputs).toEqual({ loan_id: `LN-${WITHHELD}` });
+    expect(call?.inputs).toEqual({ deal_id: `DL-${WITHHELD}` });
     expect(call?.withheld).toBe(1);
     // The loan module's error echoed the id back. Measured, not assumed: the
     // fault is there, and the bearer inside it is withheld.
     const fault = of(turned, "fault")[0];
-    expect(fault?.message).toContain(`No loan application found with ID LN-${WITHHELD}`);
+    expect(fault?.message).toContain(`No discount requests found with ID DL-${WITHHELD}`);
     expect(JSON.stringify(turned)).not.toContain(bearer);
   }, 30_000);
 
@@ -186,7 +186,7 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     const jwt =
       "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhbGljZUBiYW5rLmV4YW1wbGUifQ.c2lnbmF0dXJlLW9mLXRoZS10b2tlbg";
     const leaky = {
-      loan_id: OVER_LIMIT_LOAN,
+      deal_id: OVER_LIMIT_LOAN,
       status: "pending",
       debug: `called the store with ${env.APPROVALS_STORE_TOKEN} and ${STORE_TOKEN}`,
       upstream: { access_token: "oauth-access-token-arcade-holds-9f8e7d", token_type: "Bearer" },
@@ -197,8 +197,8 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
       stream: async () => ({
         fullStream: new ReadableStream({
           start(controller) {
-            controller.enqueue({ type: "tool-call", payload: { toolName: "Loan_GetLoan", args: { loan_id: bearer } } });
-            controller.enqueue({ type: "tool-result", payload: { toolName: "Loan_GetLoan", result: leaky } });
+            controller.enqueue({ type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: bearer } } });
+            controller.enqueue({ type: "tool-result", payload: { toolName: "Deals_GetDeal", result: leaky } });
             controller.close();
           },
         }),
@@ -213,7 +213,7 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     }
     const result = of(events, "tool-result")[0];
     expect(result?.result).toEqual({
-      loan_id: OVER_LIMIT_LOAN,
+      deal_id: OVER_LIMIT_LOAN,
       status: "pending",
       debug: `called the store with ${WITHHELD} and ${WITHHELD}`,
       upstream: { access_token: WITHHELD, token_type: "Bearer" },
@@ -223,8 +223,8 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     expect(result?.withheld).toBe(5);
     expect(of(events, "tool-call")[0]).toEqual({
       kind: "tool-call",
-      tool: "Loan_GetLoan",
-      inputs: { loan_id: WITHHELD },
+      tool: "Deals_GetDeal",
+      inputs: { deal_id: WITHHELD },
       withheld: 1,
     });
     // The original is not touched: the escalation reads it after the copy is made.
@@ -249,6 +249,6 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
   test("a value shorter than eight characters is not treated as a secret", () => {
     // Otherwise a three-character "secret" would mask every loan id with those characters in it.
     expect(secretValues(["2291"])).toEqual([]);
-    expect(withholdSecrets({ loan_id: "LN-2291" }, secretValues(["2291"])).withheld).toBe(0);
+    expect(withholdSecrets({ deal_id: "DL-2291" }, secretValues(["2291"])).withheld).toBe(0);
   });
 });

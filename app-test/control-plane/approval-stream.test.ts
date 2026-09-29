@@ -17,7 +17,7 @@
  *    against a grant that is still `pending` and therefore still refused —
  *    round 1 of #52's review, one layer up. This is checked by making the
  *    *retry itself* the assertion: the moment the frame lands, a `/pre` on
- *    `Loan.ApproveLoan` is fired and must be allowed.
+ *    `Deals.ApproveDiscount` is fired and must be allowed.
  * 4. The panel is unaffected: a client filtering on `event: governance` — which
  *    is what `lib/governance/subscribe.ts` does — never sees one.
  */
@@ -53,7 +53,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Loan",
+  loanToolkit: "Deals",
   approvalsToolkit: "Approvals",
   deadlineMs: 2500,
   policyPollMs: 10_000,
@@ -65,8 +65,8 @@ const config: HooksConfig = {
 /** Act 2's escalation, as `tools/approvals` sends it. */
 const ESCALATION = {
   requester_id: DANA,
-  action: "approve_loan",
-  resource_id: "LN-2291",
+  action: "approve_discount",
+  resource_id: "DL-2291",
   amount: 95_000,
   justification: "Eleven years in business, 742 credit score, $1.4M annual revenue.",
   approver_id: RILEY,
@@ -140,7 +140,7 @@ async function pre(
  * to the database.
  */
 async function upToTheClick(): Promise<ApprovalRecord> {
-  const refused = await pre(DANA, "Loan", "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+  const refused = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
   expect(refused.code).toBe("CHECK_FAILED");
 
   const request = await escalate();
@@ -181,8 +181,8 @@ describe("a recorded decision announces itself on the stream", () => {
     // that browser.
     expect(notice.requester_id).toBe(DANA);
     expect(notice.status).toBe("approved");
-    expect(notice.action).toBe("approve_loan");
-    expect(notice.resource_id).toBe("LN-2291");
+    expect(notice.action).toBe("approve_discount");
+    expect(notice.resource_id).toBe("DL-2291");
     expect(notice.amount).toBe(95_000);
     expect(notice.decided_by).toBe(RILEY);
     expect(notice.grants_activated).toBe(1);
@@ -322,7 +322,7 @@ describe("the notice is published after the grant is usable, not before", () => 
     // The retry, made as a browser would make it: on the frame, with no wait
     // and no poll in between. The assertion is the whole ordering claim — if
     // the notice could ever precede the commit, this is the call that fails.
-    const retry = await pre(DANA, "Loan", "ApproveLoan", { loan_id: "LN-2291", amount: 95_000 });
+    const retry = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(retry.code).toBe("OK");
 
     reader.abort();

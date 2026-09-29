@@ -63,7 +63,7 @@ async function bootApp(env: Record<string, string> = {}): Promise<App> {
         // A first boot seeds nobody (#33): the demo cast this file acts as goes
         // into both files first, the way `bun run users seed-demo` writes it.
         seedDemoGovernance(join(dir, "governance.db"), {
-          loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? process.env.ARCADE_LOAN_TOOLKIT?.trim() ?? "Loan",
+          loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? process.env.ARCADE_LOAN_TOOLKIT?.trim() ?? "Deals",
           approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT ?? process.env.ARCADE_APPROVALS_TOOLKIT?.trim() ?? "Approvals",
         });
         await seedDemoIdentity(join(dir, "idp.db"));
@@ -76,7 +76,7 @@ async function bootApp(env: Record<string, string> = {}): Promise<App> {
             PORT: String(port),
             CG_NEXT_DIST_DIR: distDir,
             GOVERNANCE_DB_PATH: join(dir, "governance.db"),
-            // The app holds the loan book too since #5; this one's, not a loans.db
+            // The app holds the deal book too since #5; this one's, not a loans.db
             // in the repo.
             LOANS_DB_PATH: join(dir, "loans.db"),
             // And the identity provider since #6: not a `./idp.db` in the repo.
@@ -122,8 +122,8 @@ const hook = (app: App, path: string, body: unknown, token: string | null = HOOK
 
 const approveLoan = (amount: number, execution_id: string) => ({
   execution_id,
-  tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-  inputs: { loan_id: "LN-2299", amount },
+  tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+  inputs: { deal_id: "DL-2299", amount },
   context: { authorization: [{}], user_id: ALICE },
 });
 
@@ -138,7 +138,7 @@ describe("the control plane, on the app's own port", () => {
     await stopApp(app);
   });
 
-  test("/pre refuses Alice's $95K on LN-2299 with the remediation, and lets $50K through", async () => {
+  test("/pre refuses Alice's $95K on DL-2299 with the remediation, and lets $50K through", async () => {
     const refused = await hook(app!, "/hooks/pre", approveLoan(95_000, "tc_app_95k"));
     expect(refused.status).toBe(200);
     const body = (await refused.json()) as { code: string; error_message: string };
@@ -157,7 +157,7 @@ describe("the control plane, on the app's own port", () => {
     const response = await hook(app!, "/hooks/pre", {
       execution_id: "tc_app_route",
       tool: { name: "RequestApproval", toolkit: "Approvals", version: "1.0.0" },
-      inputs: { action: "approve_loan", resource_id: "LN-2299", amount: 95_000, justification: "cash flow" },
+      inputs: { action: "approve_discount", resource_id: "DL-2299", amount: 95_000, justification: "cash flow" },
       context: { authorization: [{}], user_id: ALICE },
     });
     expect(await response.json()).toEqual({ code: "OK" });
@@ -171,14 +171,14 @@ describe("the control plane, on the app's own port", () => {
     expect(rows[0]?.reason).toContain("also sufficient and not asked: Michael (5000000)");
   }, 60_000);
 
-  test.each(["GetLoan", "ApproveLoan", "DenyLoan"])(
+  test.each(["GetDeal", "ApproveDiscount", "DenyDiscount"])(
     "/post redacts the account number and tax id from %s's record",
     async (name) => {
-      const loan = loanFixture("LN-2291");
+      const loan = loanFixture("DL-2291");
       const response = await hook(app!, "/hooks/post", {
         execution_id: `tc_app_post_${name}`,
-        tool: { name, toolkit: "Loan", version: "1.0.0" },
-        inputs: { loan_id: "LN-2291" },
+        tool: { name, toolkit: "Deals", version: "1.0.0" },
+        inputs: { deal_id: "DL-2291" },
         success: true,
         output: loan,
         context: { user_id: ALICE },
@@ -203,7 +203,7 @@ describe("the control plane, on the app's own port", () => {
         hook: "pre",
         execution_id: "tc_app_sse",
         user_id: ALICE,
-        tool: "Loan.ApproveLoan",
+        tool: "Deals.ApproveDiscount",
         decision: "deny",
         rule_id: "pre.approve-within-clearance",
       });

@@ -1,5 +1,5 @@
 /**
- * The app's one loan book, per process (#5).
+ * The app's one deal book, per process (#5).
  *
  * The routes under `app/bank/`, the bank's own screens and the app's `/health`
  * reach the loan module through here. It lives on `globalThis` rather than in
@@ -7,7 +7,7 @@
  * process: route bundles and `instrumentation.ts` can each evaluate this file,
  * and two instances would be two `loans.db` handles and two actor caches.
  *
- * `instrumentation.ts` opens it when the server starts, so a loan book that
+ * `instrumentation.ts` opens it when the server starts, so a deal book that
  * cannot open — a fixture that does not parse, a seed that fails, a disk
  * written by a newer build, an identity address nothing can reach — says so on
  * the first lines the server prints rather than on the first request. The lazy
@@ -38,7 +38,7 @@ type Opened = { ok: true; module: LoanModule; dbPath: string } | { ok: false; er
 type Holder = { [KEY]?: Opened };
 
 /**
- * A loan book that did not open. Thrown by {@link loanModule}, so a caller
+ * A deal book that did not open. Thrown by {@link loanModule}, so a caller
  * that forgets to handle it fails loudly rather than showing an empty bank.
  */
 export class LoanBookUnavailable extends Error {
@@ -80,7 +80,7 @@ function open(): Opened {
 }
 
 /**
- * Close the loan book and forget it, so the next call opens it again from the
+ * Close the deal book and forget it, so the next call opens it again from the
  * environment. For tests, which share one process across files and each point
  * `LOANS_DB_PATH` at a throwaway file of their own; nothing in the app calls it.
  */
@@ -91,7 +91,7 @@ export function closeLoanModule(): void {
   delete holder[KEY];
 }
 
-/** Why the loan book is not open, or `null` when it is. */
+/** Why the deal book is not open, or `null` when it is. */
 export function loanModuleFailure(): string | null {
   const opened = open();
   return opened.ok ? null : opened.error;
@@ -105,7 +105,7 @@ export function loanModule(): LoanModule {
 }
 
 /**
- * What the app's `/health` says about the loan book: the count, or the reason
+ * What the app's `/health` says about the deal book: the count, or the reason
  * there is none. Never a bare number, because `0` would read the same whether
  * the book is empty or the database never opened.
  */
@@ -126,7 +126,7 @@ export function serve(request: Request): Promise<Response> {
   if (!opened.ok) {
     return Promise.resolve(
       Response.json(
-        { error: `The loan book did not open, so no loan route can answer: ${opened.error}` },
+        { error: `The deal book did not open, so no loan route can answer: ${opened.error}` },
         { status: 503 },
       ),
     );

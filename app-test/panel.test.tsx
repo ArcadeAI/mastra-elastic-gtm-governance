@@ -139,12 +139,12 @@ describe("a denial shows the specific rule that fired", () => {
 
   test("so is the reason, in full rather than truncated", () => {
     const reason =
-      "DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000. " +
-      "To proceed, call Approvals.RequestApproval then retry Loan.ApproveLoan unchanged.";
+      "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. " +
+      "To proceed, call Approvals.RequestApproval then retry Deals.ApproveDiscount unchanged.";
     const markup = render([aGovernanceEvent({ id: "evt_1", decision: "deny", reason })]);
 
     expect(markup).toContain("exceeds your approval authority of 50000");
-    expect(markup).toContain("retry Loan.ApproveLoan unchanged");
+    expect(markup).toContain("retry Deals.ApproveDiscount unchanged");
   });
 
   test("and the tool, and who was refused", () => {
@@ -152,12 +152,12 @@ describe("a denial shows the specific rule that fired", () => {
       aGovernanceEvent({
         id: "evt_1",
         decision: "deny",
-        tool: "Loan.ApproveLoan",
+        tool: "Deals.ApproveDiscount",
         user_id: "alice@northwind.test",
       }),
     ]);
 
-    expect(markup).toContain("Loan.ApproveLoan");
+    expect(markup).toContain("Deals.ApproveDiscount");
     expect(markup).toContain("alice@northwind.test");
   });
 
@@ -250,7 +250,7 @@ describe("a modification shows what was taken, and never the value", () => {
         redactions: [
           {
             path: "$.bank_account_number",
-            rule_id: "post.redact-borrower-identifiers",
+            rule_id: "post.redact-customer-identifiers",
             pattern_id: null,
             kind: "mask",
           },
@@ -279,16 +279,16 @@ describe("a redaction event, which carries no payload to diff", () => {
     id: "evt_payloadless",
     hook: "post",
     decision: "modify",
-    tool: "Loan.GetLoan",
-    // Null because two rules fired, which is the ordinary case for LN-2291: the
+    tool: "Deals.GetDeal",
+    // Null because two rules fired, which is the ordinary case for DL-2291: the
     // per-leaf ids are on the records, and rendering them is the point.
     rule_id: null,
     reason: "Output rewritten before it reached the model; 3 redaction(s) by 2 rule(s).",
     redactions: [
-      { path: "$.bank_account_number", rule_id: "post.redact-borrower-identifiers", pattern_id: null, kind: "mask" },
-      { path: "$.tax_id", rule_id: "post.redact-borrower-identifiers", pattern_id: null, kind: "mask" },
+      { path: "$.bank_account_number", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" },
+      { path: "$.tax_id", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" },
       {
-        path: "$.underwriter_notes",
+        path: "$.crm_notes",
         rule_id: "post.strip-injected-instructions",
         pattern_id: "pattern.injected-instruction",
         kind: "remove",
@@ -304,7 +304,7 @@ describe("a redaction event, which carries no payload to diff", () => {
 
     expect(diff).toContain("$.bank_account_number");
     expect(diff).toContain("$.tax_id");
-    expect(diff).toContain("$.underwriter_notes");
+    expect(diff).toContain("$.crm_notes");
   });
 
   test("each path shows a mask where the value was", () => {
@@ -322,7 +322,7 @@ describe("a redaction event, which carries no payload to diff", () => {
   test("both rules that fired are named, per leaf", () => {
     const diff = diffOf(render([redaction]));
 
-    expect(diff).toContain('class="cg-diff-rule">post.redact-borrower-identifiers');
+    expect(diff).toContain('class="cg-diff-rule">post.redact-customer-identifiers');
     // The pattern sweep names the scanner as well as the rule, because "which
     // regex found this" is what act 4 gets asked from the audience.
     expect(diff).toContain("post.strip-injected-instructions · pattern.injected-instruction");
@@ -359,7 +359,7 @@ describe("a redaction event, which carries no payload to diff", () => {
         id: "evt_untouched",
         hook: "post",
         decision: "modify",
-        tool: "Loan.SearchLoans",
+        tool: "Deals.SearchDeals",
         redactions: [],
       }),
     ]);
@@ -406,18 +406,18 @@ describe("the fixture replay renders the same card the live Post lane does", () 
     id: "evt_live",
     hook: "post",
     decision: "modify",
-    tool: "Loan.GetLoan",
+    tool: "Deals.GetDeal",
     rule_id: null,
     reason: "Output rewritten before it reached the model; 2 redaction(s) by 2 rule(s).",
     redactions: [
       {
         path: "$.bank_account_number",
-        rule_id: "post.redact-borrower-identifiers",
+        rule_id: "post.redact-customer-identifiers",
         pattern_id: null,
         kind: "mask",
       },
       {
-        path: "$.underwriter_notes",
+        path: "$.crm_notes",
         rule_id: "post.strip-injected-instructions",
         pattern_id: "pattern.injected-instruction",
         kind: "remove",
@@ -455,7 +455,7 @@ describe("nothing is hidden behind a hover", () => {
       aGovernanceEvent({
         id: "evt_1",
         decision: "deny",
-        tool: "Loan.ApproveLoan",
+        tool: "Deals.ApproveDiscount",
         user_id: "alice@northwind.test",
         rule_id: "rule.clearance",
         reason: "Exceeds your authority.",
@@ -463,7 +463,7 @@ describe("nothing is hidden behind a hover", () => {
     ]);
 
     for (const text of [
-      "Loan.ApproveLoan",
+      "Deals.ApproveDiscount",
       "alice@northwind.test",
       "rule.clearance",
       "Exceeds your authority.",
@@ -779,7 +779,7 @@ describe("the type hierarchy the card is read through", () => {
   const event = aGovernanceEvent({
     id: "evt_1",
     decision: "deny",
-    tool: "Loan.ApproveLoan",
+    tool: "Deals.ApproveDiscount",
     user_id: "alice@northwind.test",
     rule_id: "rule.clearance",
     reason: "Exceeds your approval authority of 50000.",

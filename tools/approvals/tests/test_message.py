@@ -21,15 +21,15 @@ ACT_TWO = ApprovalMessage(
     requester_display_name="Alice",
     requester_id="alice@example.com",
     approver_display_name="Charlie",
-    action="approve_loan",
-    resource_id="LN-2291",
+    action="approve_discount",
+    resource_id="DL-2291",
     amount=95_000,
     justification=(
-        "Northwind Bakery has 11 years in business, a 742 credit score and "
+        "Northwind Robotics has 11 years in business, a 742 credit score and "
         "$1.4M annual revenue; the requested amount is within their coverage."
     ),
     rule_tripped=(
-        "approve_loan for $95,000.00 exceeds Alice's approval authority "
+        "approve_discount for $95,000.00 exceeds Alice's approval authority "
         "of $50,000.00."
     ),
     approval_url="https://cg-web.example.test/approvals/apr_7f3c1a9e42b8",
@@ -76,7 +76,7 @@ class TestItIsBlockKit:
     def test_carries_a_fallback_text_for_notifications(self) -> None:
         text = build_fallback_text(ACT_TWO)
         assert "Alice" in text
-        assert "LN-2291" in text
+        assert "DL-2291" in text
         assert "$95,000.00" in text
 
 
@@ -86,11 +86,11 @@ class TestItSaysEverythingTheApproverNeeds:
         [
             ("requester", "Alice"),
             ("requester identity", "alice@example.com"),
-            ("action", "approve_loan"),
-            ("resource", "LN-2291"),
+            ("action", "approve_discount"),
+            ("resource", "DL-2291"),
             ("amount", "$95,000.00"),
             ("rule tripped", "exceeds Alice's approval authority"),
-            ("justification", "Northwind Bakery has 11 years in business"),
+            ("justification", "Northwind Robotics has 11 years in business"),
         ],
     )
     def test_states_the(self, what: str, expected: str) -> None:

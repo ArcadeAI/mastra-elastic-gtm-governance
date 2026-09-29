@@ -97,7 +97,7 @@ test("a fresh clone with nothing filled boots, and /health names every missing c
   const health = (await response.json()) as Record<string, any>;
   expect(health.status).toBe("degraded");
   for (const capability of ["signin", "gateway", "verifier", "agent"]) expect(health[capability], capability).toBe("missing");
-  // What does work, works: the policy, the loan book and the identity provider all came up.
+  // What does work, works: the policy, the deal book and the identity provider all came up.
   expect(health.policy.status).toBe("ready");
   expect(health.loans).toMatchObject({ status: "ok" });
   // Nobody is seeded (#33): the identity provider is up with nobody in it, and

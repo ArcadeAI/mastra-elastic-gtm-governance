@@ -60,7 +60,7 @@ const CONFIGURED: Record<string, string> = {
   IDP_CLIENT_SECRET: "not-used-by-this-test",
   ARCADE_GATEWAY_ID: "cg-demo-us",
   ARCADE_API_KEY: "not-used-by-this-test",
-  ARCADE_LOAN_TOOLKIT: "Loan",
+  ARCADE_LOAN_TOOLKIT: "Deals",
   ARCADE_APPROVALS_TOOLKIT: "Approvals",
   ANTHROPIC_API_KEY: "not-used-by-this-test",
   MODEL_ID: "claude-sonnet-5",
@@ -80,7 +80,7 @@ interface Browser {
  * No session cookie and no stand-ins. Every page under test answers without a
  * network call when nobody is signed in — `homeSurface` and `readLoanBook` both
  * short-circuit on a `null` session — so the frame can be measured against the
- * real App Router without an IdP, a gateway or a loan book behind it. The
+ * real App Router without an IdP, a gateway or a deal book behind it. The
  * surfaces' own tests own the rest.
  */
 async function withBrowser(
@@ -103,7 +103,7 @@ async function withBrowser(
         // The app's origin, which is also its identity provider's issuer since
         // #6 (it replaced `PUBLIC_URL`).
         APP_PUBLIC_HOST: `127.0.0.1:${webPort}`,
-        // The app holds the loan book since #5 (until then this pointed the
+        // The app holds the deal book since #5 (until then this pointed the
         // loan API's own host variable at a port nothing listened on). A
         // throwaway one: it may not default to `./loans.db`, which is the
         // developer's own.
@@ -362,7 +362,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       const html = await evaluate<string>(browser.cdp, `document.documentElement.outerHTML`);
       expect(html).not.toMatch(/class="[^"]*\bcg-[a-z]/);
       // The bank chrome, unchanged inside the frame.
-      expect(html).toContain("Loan Origination System");
+      expect(html).toContain("Deal Desk");
       expect(html).toContain("Rel. 7.2.1");
     });
   },
@@ -424,7 +424,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       // own chrome. Not a screenshot — the order itself.
       const bar = html.indexOf("frame-bar");
       const banner = html.indexOf("This deployment is not fully configured");
-      const chrome = html.indexOf("Loan Origination System");
+      const chrome = html.indexOf("Deal Desk");
       expect({ barBeforeBanner: bar < banner, bannerBeforeChrome: banner < chrome }).toEqual({
         barBeforeBanner: true,
         bannerBeforeChrome: true,

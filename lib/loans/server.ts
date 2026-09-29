@@ -1,18 +1,18 @@
 /**
- * The bank's system of record. Owns `loans.db` and serves the loan book over
+ * The bank's system of record. Owns `loans.db` and serves the deal book over
  * plain HTTP:
  *
  *     GET  /loans?status=&min_amount=&max_amount=
- *     GET  /loans/:loan_id
- *     POST /loans/:loan_id/approve   { amount }
- *     POST /loans/:loan_id/deny      { reason }
+ *     GET  /loans/:deal_id
+ *     POST /loans/:deal_id/approve   { amount }
+ *     POST /loans/:deal_id/deny      { reason }
  *     GET  /health
  *     POST /admin/reset              the seeded book back (bearer RESET_TOKEN)
  *
  * Those are the module's own paths. The app mounts them under {@link MOUNT}
  * since #5, because the board page is `/loans` too: `GET /bank/loans`,
- * `GET /bank/loans/:loan_id`, `POST /bank/loans/:loan_id/approve`,
- * `POST /bank/loans/:loan_id/deny`, `GET /bank/health`,
+ * `GET /bank/loans/:deal_id`, `POST /bank/loans/:deal_id/approve`,
+ * `POST /bank/loans/:deal_id/deny`, `GET /bank/health`,
  * `POST /bank/admin/reset`. {@link mountedFetch} is the one place the prefix
  * is known, and both the app's route (`app/bank/[...path]/route.ts`) and the
  * runner (`scripts/loans.ts`) answer through it, so a client pointed at either
@@ -46,7 +46,7 @@ export const SERVICE = "loan-app";
 export const MOUNT = "/bank";
 
 export interface LoanModuleOptions {
-  /** The open loan book. See `openLoanBook`. */
+  /** The open deal book. See `openLoanBook`. */
   db: Database;
   /** HOST-form. Where bearers are presented, at `/oauth2/userinfo`. */
   idpHost: string;
@@ -94,7 +94,7 @@ function error(status: number, message: string, issues?: unknown): Response {
 }
 
 function noSuchLoan(loanId: string): Response {
-  return error(404, `No loan application found with ID ${loanId}.`);
+  return error(404, `No discount requests found with ID ${loanId}.`);
 }
 
 async function readJson(request: Request): Promise<unknown> {
@@ -147,7 +147,7 @@ async function handleLoans(
     if (!body.success) return error(400, "Invalid body", body.error.issues);
 
     const loan = recordDecision(db, {
-      loan_id: loanId,
+      deal_id: loanId,
       decision: "approved",
       amount: body.data.amount,
       reason: null,
@@ -160,7 +160,7 @@ async function handleLoans(
   if (!body.success) return error(400, "Invalid body", body.error.issues);
 
   const loan = recordDecision(db, {
-    loan_id: loanId,
+    deal_id: loanId,
     decision: "denied",
     amount: null,
     reason: body.data.reason,
@@ -169,7 +169,7 @@ async function handleLoans(
   return loan === null ? noSuchLoan(loanId) : Response.json(loan);
 }
 
-/** The module over an open loan book. Opening it is the caller's; see `instance.ts`. */
+/** The module over an open deal book. Opening it is the caller's; see `instance.ts`. */
 export function createLoanModule(options: LoanModuleOptions): LoanModule {
   const { db, resetToken } = options;
 

@@ -31,8 +31,8 @@ from tests.conftest import (
 )
 
 ACT_TWO = {
-    "action": "approve_loan",
-    "resource_id": "LN-2291",
+    "action": "approve_discount",
+    "resource_id": "DL-2291",
     "amount": 95_000.0,
     "justification": "Eleven years in business, 742 credit score, $1.4M annual revenue.",
 }
@@ -152,8 +152,8 @@ class TestRequestApproval:
         assert written["approver_id"] == RILEY.user_id
         assert written["candidate_approver_ids"] == [RILEY.user_id, MORGAN.user_id]
         # The scope of what was asked for: the action, the resource, the amount.
-        assert written["action"] == "approve_loan"
-        assert written["resource_id"] == "LN-2291"
+        assert written["action"] == "approve_discount"
+        assert written["resource_id"] == "DL-2291"
         assert written["amount"] == 95_000.0
         assert written["required_clearance"] == 95_000.0
         assert written["justification"] == ACT_TWO["justification"]
@@ -314,8 +314,8 @@ class TestTheSlackMessage:
         rendered = json.dumps(posted["blocks"])
         for expected in (
             DANA.display_name,          # requester
-            "approve_loan",             # action
-            "LN-2291",                  # resource
+            "approve_discount",             # action
+            "DL-2291",                  # resource
             "$95,000.00",               # amount
             "approval authority",       # the rule tripped
             ACT_TWO["justification"],   # justification
@@ -427,11 +427,11 @@ class TestTheSlackMessage:
 
         diagnostic = raised.value.developer_message
         assert "detail=needed=chat:write; provided=users:read,users:read.email" in diagnostic
-        for forbidden in (SLACK_TOKEN, "U_RILEY", "D_RILEY", "LN-2291", "approve_loan"):
+        for forbidden in (SLACK_TOKEN, "U_RILEY", "D_RILEY", "DL-2291", "approve_discount"):
             assert forbidden not in diagnostic
         # The user-facing text contains only the method, code, safe request
         # status, and recovery instruction; it never carries response detail.
-        for forbidden in (SLACK_TOKEN, "U_RILEY", "D_RILEY", "chat:write", "LN-2291"):
+        for forbidden in (SLACK_TOKEN, "U_RILEY", "D_RILEY", "chat:write", "DL-2291"):
             assert forbidden not in str(raised.value)
 
     async def test_a_slack_200_that_says_ok_false_is_a_failure_not_a_delivery(

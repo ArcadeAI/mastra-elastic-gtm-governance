@@ -74,7 +74,7 @@ export interface Session {
   /** Absent between sign-in and hop 1 completing, and after the gateway refuses what hop 1 produced. */
   gateway?: GatewayToken;
   /**
-   * The IdP bearer the bank's own screens read the loan book with (#157).
+   * The IdP bearer the bank's own screens read the deal book with (#157).
    *
    * Absent on a session sealed before #157 shipped, which is a real state on a
    * browser that was signed in across the deploy: the cookie unseals, the

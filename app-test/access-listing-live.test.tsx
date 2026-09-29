@@ -12,11 +12,11 @@
  *
  * 1. **One page load's listing is one Access card.** Six governed tools are
  *    decided for one person in one burst, and the room sees one card.
- * 2. **It names what act 1 took away.** Sam is a credit analyst, so
- *    `Loan.ApproveLoan` is hidden, and the card carries the tool by name and
+ * 2. **It names what act 1 took away.** Sam is a SDR, so
+ *    `Deals.ApproveDiscount` is hidden, and the card carries the tool by name and
  *    the rule id that hid it. A card that only counted would let a rule that
  *    matched nothing look exactly like a rule that permitted.
- * 3. **The `/pre` and `/post` lanes are untouched.** Two `Loan.GetLoan` calls
+ * 3. **The `/pre` and `/post` lanes are untouched.** Two `Deals.GetDeal` calls
  *    are two decisions at each of those layers, and they stay two cards each —
  *    grouping is the Access lane's alone, because a `/pre` retry is the beat
  *    act 2 turns on. Those two calls used to be made by a page load; since #157
@@ -77,7 +77,7 @@ async function loadAndRecord(email: string): Promise<GovernanceEvent[]> {
 }
 
 /**
- * Two real governed `Loan_GetLoan` calls, and the rows they wrote.
+ * Two real governed `Deals_GetDeal` calls, and the rows they wrote.
  *
  * The same path the chat takes: `sessionSurface` lists the persona's tools
  * through `/access` and runs the calls against that listing. A page load made
@@ -91,11 +91,11 @@ async function readTwoLoansAndRecord(email: string): Promise<GovernanceEvent[]> 
     const { inside } = await sessionSurface(
       session,
       async (listing) => {
-        const tool = listing.tools["Loan_GetLoan"] as
+        const tool = listing.tools["Deals_GetDeal"] as
           | { execute: (input: unknown) => Promise<unknown> }
           | undefined;
-        if (tool === undefined) throw new Error("the gateway advertised no Loan_GetLoan");
-        for (const loanId of ["LN-2291", "LN-2299"]) await tool.execute({ loan_id: loanId });
+        if (tool === undefined) throw new Error("the gateway advertised no Deals_GetDeal");
+        for (const loanId of ["DL-2291", "DL-2299"]) await tool.execute({ deal_id: loanId });
         return true;
       },
       { config: harness.config },
@@ -158,7 +158,7 @@ describe("one page load's listing, through the real control plane", () => {
     expect(cards).toHaveLength(1);
     expect(cards[0]).toContain("tools/list");
     expect(cards[0]).toContain(SAM);
-    expect(cards[0]).toContain("Loan.ApproveLoan");
+    expect(cards[0]).toContain("Deals.ApproveDiscount");
     expect(cards[0]).toContain("access.analysts-cannot-see-approve");
     expect(cards[0]).toContain("1 tool hidden");
   });
@@ -172,10 +172,10 @@ describe("one page load's listing, through the real control plane", () => {
     const list = harness.lists[before];
 
     expect(list?.user_id).toBe(SAM);
-    expect(list?.hidden).toEqual(["Loan_ApproveLoan"]);
+    expect(list?.hidden).toEqual(["Deals_ApproveDiscount"]);
   });
 
-  test("the loan officer's listing is one card too, and hides nothing", async () => {
+  test("the account executive's listing is one card too, and hides nothing", async () => {
     const events = await loadAndRecord(DANA);
     const cards = cardsIn(panel(events).markup, "access");
 
@@ -206,7 +206,7 @@ describe("one page load's listing, through the real control plane", () => {
     }
   });
 
-  test("the Loan.GetLoan pre and post cards are unaffected — one card per call", async () => {
+  test("the Deals.GetDeal pre and post cards are unaffected — one card per call", async () => {
     const events = await readTwoLoansAndRecord(DANA);
     const { markup } = panel(events);
 
@@ -216,7 +216,7 @@ describe("one page load's listing, through the real control plane", () => {
     expect(pre.length).toBeGreaterThanOrEqual(2);
     expect(cardsIn(markup, "pre")).toHaveLength(pre.length);
     expect(cardsIn(markup, "post")).toHaveLength(post.length);
-    expect(lane(markup, "pre")).toContain("Loan.GetLoan");
+    expect(lane(markup, "pre")).toContain("Deals.GetDeal");
   });
 });
 

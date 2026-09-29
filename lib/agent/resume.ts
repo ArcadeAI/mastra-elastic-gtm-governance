@@ -24,7 +24,7 @@
  * remediation instruction, not the system prompt — and a message the UI slips
  * into the conversation is the system prompt wearing a different hat. The
  * agent already holds the hook's own sentence from the turn that was refused
- * (*"…then wait for the approval and retry Loan_ApproveLoan with loan_id=…
+ * (*"…then wait for the approval and retry Deals_ApproveDiscount with deal_id=…
  * unchanged"*); what this adds is the single fact that sentence was waiting
  * on. If the model does not act on it, the remediation text is what is wrong,
  * and it is fixed in the policy row rather than here.
@@ -153,7 +153,7 @@ function endsWithMessages(messages: readonly TurnMessage[], suffix: readonly Tur
  * The injected message, built from the record and from nothing else.
  *
  * Read it as a sentence a colleague would say, because that is exactly what it
- * is: *"Charlie decided approval request apr_… — approve_loan on LN-2291 for
+ * is: *"Charlie decided approval request apr_… — approve_discount on DL-2291 for
  * 95000 — as approved at …"*. It names who, what, how much and when. It does
  * not say what follows from that, in either direction.
  */

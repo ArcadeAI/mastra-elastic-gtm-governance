@@ -21,7 +21,7 @@
  *
  * The three claims #23 is about, in the order they would go wrong:
  *
- *   1. one command, seconds, and afterwards LN-2291 is unapproved, the grants
+ *   1. one command, seconds, and afterwards DL-2291 is unapproved, the grants
  *      and approval requests and the audit log are empty, and the four policy
  *      tables are the fixture's;
  *   2. it is safe to run repeatedly — run it twice, assert identical state;
@@ -51,10 +51,10 @@ const ROOT = join(import.meta.dir, "..");
 const RESET_TOKEN = "root-reset-token-for-tests";
 const HOOK_SECRET = "root-reset-hook-secret-for-tests";
 const DANA = "alice@example.test";
-const OVER_LIMIT_LOAN = "LN-2291";
+const OVER_LIMIT_LOAN = "DL-2291";
 
 interface LoanBody {
-  loan_id: string;
+  deal_id: string;
   status: string;
   decisions: unknown[];
 }
@@ -136,8 +136,8 @@ async function governedCall(executionId: string): Promise<Response> {
     headers: { authorization: `Bearer ${HOOK_SECRET}`, "content-type": "application/json" },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveLoan", toolkit: "Loan", version: "1.0.0" },
-      inputs: { loan_id: OVER_LIMIT_LOAN, amount: 95_000 },
+      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      inputs: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),
   });
@@ -150,7 +150,7 @@ async function snapshot() {
     idpHealth(),
     loanHealth(),
     loan(OVER_LIMIT_LOAN),
-    loan("LN-2299"),
+    loan("DL-2299"),
   ]);
   return {
     counts: hooksBody.counts,
@@ -186,10 +186,10 @@ beforeAll(async () => {
     IDENTITY_HOST: `127.0.0.1:${userinfo.port}`,
   });
 
-  // A first boot seeds nobody (#33). The loan officer this file acts as is
+  // A first boot seeds nobody (#33). The account executive this file acts as is
   // added the way an operator adds one, into the files the app has open.
   const added = await runUsers(
-    ["add", DANA, "--name", "Alice", "--role", "loan_officer", "--clearance", "50000", "--password", "root-reset-test-password"],
+    ["add", DANA, "--name", "Alice", "--role", "account_executive", "--clearance", "50000", "--password", "root-reset-test-password"],
     { idp: app.databases.idp, governance: app.databases.governance },
   );
   if (added.code !== 0) throw new Error(`users add exited ${added.code}:\n${added.out}\n${added.err}`);
@@ -438,8 +438,8 @@ describe("and Studio's memory, on both scopes", () => {
     try {
       const path = join(dir, "loans.db");
       const db = new Database(path);
-      db.run("CREATE TABLE loans (loan_id TEXT PRIMARY KEY)");
-      db.run("INSERT INTO loans VALUES ('LN-2291')");
+      db.run("CREATE TABLE loans (deal_id TEXT PRIMARY KEY)");
+      db.run("INSERT INTO loans VALUES ('DL-2291')");
       db.close();
 
       const { code, out } = await runResetCommand({ MEMORY_DB_PATH: path });
@@ -448,7 +448,7 @@ describe("and Studio's memory, on both scopes", () => {
       expect(out).toContain("The demo is NOT in a known state");
 
       const after = new Database(path, { readonly: true });
-      expect(after.query("SELECT loan_id FROM loans").all()).toEqual([{ loan_id: "LN-2291" }]);
+      expect(after.query("SELECT deal_id FROM loans").all()).toEqual([{ deal_id: "DL-2291" }]);
       after.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

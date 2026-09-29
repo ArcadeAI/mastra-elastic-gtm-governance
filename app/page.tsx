@@ -1,5 +1,5 @@
 /**
- * `/` — the bank's loan origination system, full-screen.
+ * `/` — the bank's deal desk, full-screen.
  *
  * **No split view (#155, reversing #22).** Until the 2026-09-18 rehearsal this
  * page was two halves: the bank on the left, the control plane on the right.
@@ -21,7 +21,7 @@
  *    boundary and handed down as an element, so only what it prints crosses.
  *    Since #176 that element is the session controls in the bank's top chrome
  *    — the gateway token's expiry, and `Sign out` or `Sign in` — rather than a
- *    card of four "Sign in as …" persona buttons below the loan files. One
+ *    card of four "Sign in as …" persona buttons below the deal records. One
  *    Chrome profile per persona is the real demo shape, so a switcher read as
  *    the most demo-looking thing on a screen arguing that nothing here is a
  *    mock.
@@ -29,12 +29,12 @@
  *    `tools/list` with the session's bearer (#15, `lib/agent/tool-list.ts`).
  *    That is the *whole* cost of this page against the gateway — one listing,
  *    zero governed tool calls — since #157 moved the loan cards off the MCP
- *    path. They used to be two `Loan_GetLoan` reads made here, which put two
+ *    path. They used to be two `Deals_GetDeal` reads made here, which put two
  *    decisions on the control plane before the presenter had said anything and
  *    left the audience unable to tell the agent's calls from the page's chrome.
  *    `app-test/home-surface.test.ts` asserts the counts.
  *
- *    It also reads the loan book, but not from the gateway: `readLoanBook`
+ *    It also reads the deal book, but not from the gateway: `readLoanBook`
  *    calls the loan module in-process with this browser's IdP bearer, so the
  *    first paint is already correct and the cards poll `GET /api/loans` from
  *    then on. `lib/loan-context/loans.ts` has the argument. The two reads are
@@ -61,7 +61,7 @@
  * In the bank pane's tool-list slot, which is what that slot was cut for. #15's
  * `PersonaToolList` says so from its own side — *"everything this component
  * needs arrives as data"* — and this is the line where the two halves of that
- * sentence meet. Act 1 is an absence: as Bob, `Loan_ApproveLoan` is missing
+ * sentence meet. Act 1 is an absence: as Bob, `Deals_ApproveDiscount` is missing
  * from a list the **gateway** answered, not struck through by anything here.
  */
 import type { CSSProperties } from "react";

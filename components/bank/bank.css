@@ -1,5 +1,5 @@
 /*
- * The bank's loan origination system — since #155, the whole of `/`.
+ * The bank's deal desk — since #155, the whole of `/`.
  *
  * **This file is the fork seam.** Everything the enterprise application looks
  * like is here, and nothing here names a `cg-` class or a governance
@@ -27,7 +27,7 @@
  * The one thing it is not allowed to be is illegible. Type is sized in `em` off
  * `.bank`'s own `clamp()`, exactly as `.cg-panel` is (`app/globals.css`), so a
  * column on a projector scales from one root rather than from thirty rules.
- * Measured at 1920x1080: base 20px, the borrower line 30px, the smallest label
+ * Measured at 1920x1080: base 20px, the customer line 30px, the smallest label
  * 15px.
  *
  * ## Colour
@@ -208,7 +208,7 @@
 /* The bank holds an intact session cookie and will not accept it (#176). The
    email stays — it is still who this browser signed in as, and it is still the
    join key — but it stops being drawn as a working sign-in, because the loudest
-   line on the screen saying `SIGNED IN AS bob@…` over a loan book that has just
+   line on the screen saying `SIGNED IN AS bob@…` over a deal book that has just
    refused bob is the screen contradicting itself in favour of the half read
    first.
 
@@ -263,7 +263,7 @@
    1440x900: 466px, 933px and a 910px composer.
 
    The grid itself does not scroll; each column does. A single scroller would
-   move the conversation when the reader scrolled the loan file, which is the
+   move the conversation when the reader scrolled the deal record, which is the
    two-things-at-once problem #155 exists to remove, one level down. */
 .bank-body {
   flex: 1;
@@ -343,7 +343,7 @@
   padding: 0.6em 0.7em 0.7em;
 }
 
-/* --- loan files ----------------------------------------------------------- */
+/* --- deal records ----------------------------------------------------------- */
 
 /* `13.5em` rather than `15em` since #155 gave the conversation two thirds of
    the screen. The records column is 622px at 1920x1080 and its panel body 592px
@@ -416,7 +416,7 @@
   color: #5c1b22;
 }
 
-.bank-file-borrower {
+.bank-file-customer {
   margin: 0.3em 0 0;
   font-size: 1.5em;
   font-weight: 700;
@@ -468,7 +468,7 @@
 
 /* The one line on the card that moves during the demo: what was decided, by
    whom, and when. Ruled off the fields above it so a change in it is visible
-   from the back of the room without being loud about it. `underwriter_notes`
+   from the back of the room without being loud about it. `crm_notes`
    used to sit here and no longer reaches the browser at all (#157) — the
    route's projection never sends it. */
 .bank-file-decision {
@@ -570,7 +570,7 @@
   display: flex;
   flex-direction: column;
   /* Half again the shell's root. A board read from four metres away is the
-     whole reason this page exists; measured at 1920x1080, the borrower line
+     whole reason this page exists; measured at 1920x1080, the customer line
      lands at 40px and the amount at 52px. */
   font-size: clamp(18px, 1.5vw, 30px);
   background: var(--bank-paper);
@@ -652,7 +652,7 @@
   letter-spacing: 0.02em;
 }
 
-.bank-board-card-borrower {
+.bank-board-card-customer {
   margin: 0.25em 0 0;
   font-size: 1.05em;
   font-weight: 700;

@@ -6,7 +6,7 @@
  *
  *   - **between takes** (`bun run reset`) a grant a persona already holds
  *     **still works afterwards**, so nobody is signed out and nobody has to
- *     authorize again — and the loan book and the control plane are still put
+ *     authorize again — and the deal book and the control plane are still put
  *     back, so it is a real reset and not a no-op;
  *   - **`--hard`** invalidates it, **on purpose**, because signing in and
  *     authorizing from clean is the thing that reset exists to make
@@ -23,7 +23,7 @@
  * and Continue clears it. What these tests pin is our own half — which tokens
  * survive which reset — because that is what `scripts/reset.ts` controls.
  *
- * ## Why it joins the real IdP to the real loan book
+ * ## Why it joins the real IdP to the real deal book
  *
  * `test/reset.test.ts` deliberately does not: it points the loan module at a
  * `/oauth2/userinfo` stand-in, because walking a whole authorize flow to read
@@ -64,7 +64,7 @@ const RESET_TOKEN = "reset-grants-token-for-tests";
 const HOOK_SECRET = "reset-grants-hook-secret-for-tests";
 const REDIRECT_URI = "http://127.0.0.1:9/callback";
 const BETTER_AUTH_SECRET = "reset-grants-test-secret-".padEnd(48, "x");
-const OVER_LIMIT_LOAN = "LN-2291";
+const OVER_LIMIT_LOAN = "DL-2291";
 
 const alice = DEMO_CAST.dana;
 
@@ -212,7 +212,7 @@ async function authorizeAlice(): Promise<string> {
 }
 
 /**
- * A governed write, made the way the `Loan` toolkit makes it: the persona's
+ * A governed write, made the way the `Deals` toolkit makes it: the persona's
  * bearer and nothing else. A write rather than a read on purpose — see the
  * note at the top of this file.
  */
@@ -272,7 +272,7 @@ describe("a reset between takes leaves every persona's grant alive", () => {
     expect(after.status).toBe(200);
   });
 
-  test("and it is still a real reset: the loan book and the control plane went back", async () => {
+  test("and it is still a real reset: the deal book and the control plane went back", async () => {
     // Dirty the book through the grant, then put it back with the soft reset.
     expect((await approveAsArcade()).status).toBe(200);
     expect(await loanStatus()).toBe("approved");
@@ -356,7 +356,7 @@ describe("--hard invalidates it, deliberately, and says so", () => {
     expect(await refused.json()).toEqual({ error: "The identity provider rejected the token." });
   });
 
-  test("the IdP's own answer is an OAuth invalid_token, and the loan book drops it", async () => {
+  test("the IdP's own answer is an OAuth invalid_token, and the deal book drops it", async () => {
     expect((await runResetCommand(["--hard"])).code).toBe(0);
 
     // The machine-readable signal exists exactly once, here. Recorded because

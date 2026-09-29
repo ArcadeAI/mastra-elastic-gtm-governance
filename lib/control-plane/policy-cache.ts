@@ -429,7 +429,7 @@ function describeScanners(
 
 /**
  * `user_id` is an email, and the three systems joined on it — Arcade, the OAuth
- * provider, the loan book — do not all promise the same casing. Comparing
+ * provider, the deal book — do not all promise the same casing. Comparing
  * case-insensitively is a strict superset of the exact join and cannot make
  * two different people the same one.
  */

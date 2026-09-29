@@ -51,7 +51,7 @@ const FORBIDDEN_HOST = "experience.arcade.dev";
 export const USER_SOURCE_CALLBACK = "https://cloud.arcade.dev/oauth2/intermediate_callback";
 
 /** The name this app's User Source goes by, the same as the dashboard form's (`forms.ts`). */
-export const USER_SOURCE_NAME = "Loan Approval Limits";
+export const USER_SOURCE_NAME = "Deals Approval Limits";
 
 /** The `code` inside every successful answer, whatever its HTTP status. */
 const SUCCESS_CODE = 200;

@@ -1,12 +1,12 @@
 /**
- * `GET /api/loans` — the loan book, for the bank's own screens.
+ * `GET /api/loans` — the deal book, for the bank's own screens.
  *
  * Cookie-bound and server-side, which is the whole of its security story: the
  * IdP bearer lives in a sealed, HTTP-only cookie this process can open and the
  * browser cannot, so the browser asks this route and this route asks the loan
  * module, in-process (#5), as whoever is signed in. There is no parameter on this route
  * — no persona, no id, no filter — because every one of them would be a way for
- * the caller to name somebody else's loan book.
+ * the caller to name somebody else's deal book.
  *
  * Both surfaces poll it (`lib/loan-context/loans.ts` → `LOAN_POLL_INTERVAL_MS`):
  * the `/` cards beside the chat, and the `/loans` board on the presenter's
@@ -23,7 +23,7 @@ import { readSession, writeSession, type Session } from "../../../lib/identity/s
 import { readIdentitySurface } from "../../../lib/config.ts";
 import { readLoanBook } from "../../../lib/loan-context/read.ts";
 
-/** Reads a cookie and a live loan book. Never prerendered, never cached. */
+/** Reads a cookie and a live deal book. Never prerendered, never cached. */
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
@@ -60,7 +60,7 @@ export async function GET(request: Request): Promise<Response> {
  *
  * A body a browser has to read either way, and a code a proxy, a log and a
  * `curl` can read without parsing JSON. `401` for both ways of having nobody to
- * read as, `503` for a loan book that did not answer — and never `403`, which
+ * read as, `503` for a deal book that did not answer — and never `403`, which
  * would be this route claiming something was refused.
  */
 const STATUS = {

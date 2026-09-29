@@ -11,8 +11,8 @@ import { diffRowsFor, redactionRows } from "../lib/governance/diff.ts";
  */
 describe("rows from redactions[], which is what a /post event carries", () => {
   const records = [
-    { path: "$.bank_account_number", rule_id: "post.redact-borrower-identifiers", pattern_id: null, kind: "mask" as const },
-    { path: "$.underwriter_notes", rule_id: "post.strip-injected-instructions", pattern_id: "pattern.injected-instruction", kind: "remove" as const },
+    { path: "$.bank_account_number", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" as const },
+    { path: "$.crm_notes", rule_id: "post.strip-injected-instructions", pattern_id: "pattern.injected-instruction", kind: "remove" as const },
   ];
 
   test("one row per record, in the order the engine reported them", () => {
@@ -22,10 +22,10 @@ describe("rows from redactions[], which is what a /post event carries", () => {
         change: "changed",
         before: "value withheld",
         after: "masked",
-        annotation: "post.redact-borrower-identifiers",
+        annotation: "post.redact-customer-identifiers",
       },
       {
-        path: "$.underwriter_notes",
+        path: "$.crm_notes",
         change: "removed",
         before: "value withheld",
         after: null,
@@ -93,8 +93,8 @@ describe("rows from redactions[], which is what a /post event carries", () => {
 
 describe("the rows for one event", () => {
   const records = [
-    { path: "$.bank_account_number", rule_id: "post.redact-borrower-identifiers", pattern_id: null, kind: "mask" as const },
-    { path: "$.tax_id", rule_id: "post.redact-borrower-identifiers", pattern_id: null, kind: "mask" as const },
+    { path: "$.bank_account_number", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" as const },
+    { path: "$.tax_id", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" as const },
   ];
 
   test("a modify carrying redactions[] draws one row per record", () => {
@@ -126,7 +126,7 @@ describe("against the fixture replay the panel ships with", () => {
     expect(rows.every((row) => row.path.startsWith("$"))).toBe(true);
     expect(rows.every((row) => row.before === "value withheld")).toBe(true);
     expect(rows.every((row) => row.annotation !== null)).toBe(true);
-    // Both mechanisms, the way a real `Loan.GetLoan` redaction shows them: a
+    // Both mechanisms, the way a real `Deals.GetDeal` redaction shows them: a
     // named field path attributed to its rule alone, and a pattern sweep that
     // also names the scanner that matched.
     expect(rows.map((row) => row.annotation)).toEqual([

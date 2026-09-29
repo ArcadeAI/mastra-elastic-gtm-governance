@@ -98,8 +98,8 @@ let request: ApprovalRecord;
 beforeEach(async () => {
   const response = await store("POST", "/api/approvals", {
     requester_id: DANA,
-    action: "approve_loan",
-    resource_id: "LN-2291",
+    action: "approve_discount",
+    resource_id: "DL-2291",
     amount: 95_000,
     justification: "Eleven years in business.",
     approver_id: RILEY,
@@ -217,8 +217,8 @@ describe("the stand-in a person runs", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        tool_name: "Loan.GetLoan",
-        input: { loan_id: "LN-2291" },
+        tool_name: "Deals.GetDeal",
+        input: { deal_id: "DL-2291" },
         user_id: RILEY,
       }),
     });

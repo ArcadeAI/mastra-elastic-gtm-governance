@@ -30,7 +30,7 @@
  * The criterion this file exists for is *"the retry passes the pre-hook because
  * a valid grant exists — verified in the audit log, not inferred"*. So the
  * retry's own audit row is read back over `GET /audit` and checked to be an
- * `allow` on `Loan.ApproveLoan` **carrying the rule id that would have denied
+ * `allow` on `Deals.ApproveDiscount` **carrying the rule id that would have denied
  * it** and naming the grant it consumed. An absent error would prove nothing:
  * a policy that had simply stopped matching would look identical.
  */
@@ -60,7 +60,7 @@ const LIVE_KEY = liveModelKey();
 const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;
 
 const REQUEST_APPROVAL = `${APPROVALS_TOOLKIT}_RequestApproval`;
-const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveLoan`;
+const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveDiscount`;
 
 /** #14's prompt, on the loan act 2 is written around. */
 const DEMO_PROMPT =
@@ -243,7 +243,7 @@ const store = (method: string, path: string, body?: unknown) =>
  * Every `/pre` audit row for one tool, oldest first.
  *
  * The hook is part of the filter and not an afterthought: `/access` writes one
- * row per tool on every `tools/list`, so `Loan.ApproveLoan` has an `allow` row
+ * row per tool on every `tools/list`, so `Deals.ApproveDiscount` has an `allow` row
  * from act 1's layer before any call is ever made. Reading those as decisions
  * about a call is how "the retry was allowed" would come out true for the wrong
  * reason.
@@ -273,13 +273,13 @@ describe("act 2, end to end", () => {
       cookie,
       { prompt: DEMO_PROMPT },
       [
-        { call: `${LOAN_TOOLKIT}_SearchLoans`, input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
-        { call: `${LOAN_TOOLKIT}_GetLoan`, input: { loan_id: OVER_LIMIT_LOAN } },
-        { call: APPROVE_LOAN, input: { loan_id: OVER_LIMIT_LOAN, amount: 95000 } },
+        { call: `${LOAN_TOOLKIT}_SearchDeals`, input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
+        { call: `${LOAN_TOOLKIT}_GetDeal`, input: { deal_id: OVER_LIMIT_LOAN } },
+        { call: APPROVE_LOAN, input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
         {
           call: REQUEST_APPROVAL,
           input: {
-            action: "approve_loan",
+            action: "approve_discount",
             resource_id: OVER_LIMIT_LOAN,
             amount: 95000,
             justification: "Eleven years in business, 742 credit score, $1.4M annual revenue.",
@@ -287,8 +287,8 @@ describe("act 2, end to end", () => {
         },
         {
           say:
-            "I could not approve LN-2291 myself — the control plane refused it as over my " +
-            "authority — so I have requested approval from Charlie, VP Credit. Waiting for " +
+            "I could not approve DL-2291 myself — the control plane refused it as over my " +
+            "authority — so I have requested approval from Charlie, VP Sales. Waiting for " +
             "their decision.",
         },
       ],
@@ -334,8 +334,8 @@ describe("act 2, end to end", () => {
         },
       },
       [
-        { call: APPROVE_LOAN, input: { loan_id: OVER_LIMIT_LOAN, amount: 95000 } },
-        { say: "Approved: LN-2291 for $95,000, on Charlie's approval." },
+        { call: APPROVE_LOAN, input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
+        { say: "Approved: DL-2291 for $95,000, on Charlie's approval." },
       ],
     );
   }, TURN_TIMEOUT_MS * 3);
@@ -412,7 +412,7 @@ describe("act 2, end to end", () => {
     // model what to do about it — `DESIGN.md` → Determinism, and the whole
     // reason the hook's remediation text exists.
     expect(event.message).toContain(request.id);
-    expect(event.message).toContain("approve_loan on LN-2291 for 95000");
+    expect(event.message).toContain("approve_discount on DL-2291 for 95000");
     expect(event.message).toContain("was approved by Charlie");
     for (const imperative of ["retry", "proceed", "you may now", "go ahead", "try again"]) {
       expect(event.message.toLowerCase()).not.toContain(imperative);
@@ -420,7 +420,7 @@ describe("act 2, end to end", () => {
   });
 
   test("the retry passes /pre because a grant exists — read off the audit log", async () => {
-    const rows = await preRowsFor("Loan.ApproveLoan");
+    const rows = await preRowsFor("Deals.ApproveDiscount");
     // Two calls on this loan: the one that was refused, and the retry.
     expect(rows.length).toBeGreaterThanOrEqual(2);
 
@@ -441,7 +441,7 @@ describe("act 2, end to end", () => {
     expect(retry?.user_id).toBe(DANA);
   });
 
-  test("the loan book records the approval, attributed to Alice", async () => {
+  test("the deal book records the approval, attributed to Alice", async () => {
     const loan = await harness.loan(OVER_LIMIT_LOAN, DANA);
     expect(loan.status).toBe("approved");
     const decisions = loan.decisions as Array<Record<string, unknown>>;
@@ -455,9 +455,9 @@ describe("act 2, end to end", () => {
   test("the grant is consumed: a second retry is denied", async () => {
     const second = await post(
       cookie,
-      { prompt: "Approve LN-2291 for $95,000 again." },
+      { prompt: "Approve DL-2291 for $95,000 again." },
       [
-        { call: APPROVE_LOAN, input: { loan_id: OVER_LIMIT_LOAN, amount: 95000 } },
+        { call: APPROVE_LOAN, input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
         { say: "It was refused: my authority has not changed." },
       ],
     );
@@ -466,7 +466,7 @@ describe("act 2, end to end", () => {
     expect(denial).toBeDefined();
     expect(denial?.reason).toContain("exceeds your approval authority of 50000");
 
-    const rows = await preRowsFor("Loan.ApproveLoan");
+    const rows = await preRowsFor("Deals.ApproveDiscount");
     const last = rows.at(-1);
     expect(last?.decision).toBe("deny");
     expect(last?.rule_id).toBe("pre.approve-within-clearance");
@@ -488,9 +488,9 @@ describe("act 2, end to end", () => {
  * that called a governed tool straight after the escalation still got that call
  * executed. The reviewer reproduced it on a hand-built stream; this reproduces
  * it where it would actually matter — through the real MCP transport, against
- * the real control plane, with a real loan book behind it.
+ * the real control plane, with a real deal book behind it.
  *
- * **The loan is `LN-2292`, deliberately inside Alice's authority.** An over-limit
+ * **The loan is `DL-2292`, deliberately inside Alice's authority.** An over-limit
  * loan would be refused by `pre.approve-within-clearance` whatever this code
  * did, and a green test would prove the hook rather than the turn ending. At
  * $15,500 no rule stands in the way: if the agent loop keeps going, the call is
@@ -504,17 +504,17 @@ describe("a model that tries a governed call straight after the escalation", () 
   let gatewayCallsBefore: number;
 
   beforeAll(async () => {
-    preRowsBefore = (await preRowsFor("Loan.ApproveLoan")).length;
+    preRowsBefore = (await preRowsFor("Deals.ApproveDiscount")).length;
     gatewayCallsBefore = harness.calls.filter((call) => call.tool === APPROVE_LOAN).length;
 
     result = await post(
       await browserFor(DANA),
-      { prompt: "Escalate LN-2292 and then record the approval yourself." },
+      { prompt: "Escalate DL-2292 and then record the approval yourself." },
       [
         {
           call: REQUEST_APPROVAL,
           input: {
-            action: "approve_loan",
+            action: "approve_discount",
             resource_id: WITHIN_LIMIT_LOAN,
             amount: 15_500,
             justification: "Recorded for the audit trail.",
@@ -522,7 +522,7 @@ describe("a model that tries a governed call straight after the escalation", () 
         },
         // The adversarial turn. Nothing above stops the model asking for it;
         // what stops it happening is that there is no second turn.
-        { call: APPROVE_LOAN, input: { loan_id: WITHIN_LIMIT_LOAN, amount: 15_500 } },
+        { call: APPROVE_LOAN, input: { deal_id: WITHIN_LIMIT_LOAN, amount: 15_500 } },
         { say: "Approved it myself while we wait." },
       ],
     );
@@ -541,7 +541,7 @@ describe("a model that tries a governed call straight after the escalation", () 
   test("the model did ask for it — this is not a test of a model that behaved", () => {
     if (LIVE_KEY) return;
     // Two of the three scripted turns were consumed: the escalation, and then
-    // the `Loan_ApproveLoan` the script asks for straight after it. So the
+    // the `Deals_ApproveDiscount` the script asks for straight after it. So the
     // adversarial call really was requested, and every assertion below is
     // about a call that was asked for and did not happen — not about a model
     // that politely stopped. The third turn is never reached: the loop ends
@@ -553,7 +553,7 @@ describe("a model that tries a governed call straight after the escalation", () 
     // The criterion, read off the control plane's own log rather than off the
     // events we chose to emit. Emitting nothing while the call still executed
     // would be the worst version of this bug: invisible, and a real write.
-    const rows = await preRowsFor("Loan.ApproveLoan");
+    const rows = await preRowsFor("Deals.ApproveDiscount");
     expect(rows).toHaveLength(preRowsBefore);
 
     // And it never reached the gateway either, which is one layer earlier than
@@ -563,7 +563,7 @@ describe("a model that tries a governed call straight after the escalation", () 
     );
   });
 
-  test("the loan book is untouched, on a loan no rule would have protected", async () => {
+  test("the deal book is untouched, on a loan no rule would have protected", async () => {
     const loan = await harness.loan(WITHIN_LIMIT_LOAN, DANA);
     expect(loan.status).toBe("pending");
   });
@@ -588,19 +588,19 @@ describe("a denied approval resumes the agent with the denial", () => {
     // not in the way.
     const blocked = await post(
       cookie,
-      { prompt: "Approve LN-2299 for $88,000." },
+      { prompt: "Approve DL-2299 for $88,000." },
       [
-        { call: APPROVE_LOAN, input: { loan_id: "LN-2299", amount: 88000 } },
+        { call: APPROVE_LOAN, input: { deal_id: "DL-2299", amount: 88000 } },
         {
           call: REQUEST_APPROVAL,
           input: {
-            action: "approve_loan",
-            resource_id: "LN-2299",
+            action: "approve_discount",
+            resource_id: "DL-2299",
             amount: 88000,
             justification: "Refinance at a lower rate; DSCR 1.6.",
           },
         },
-        { say: "Requested approval from Charlie, VP Credit." },
+        { say: "Requested approval from Charlie, VP Sales." },
       ],
     );
     const waiting = of(blocked.events, "waiting")[0];
@@ -630,7 +630,7 @@ describe("a denied approval resumes the agent with the denial", () => {
 
     resumed = await post(
       cookie,
-      { resume: { request_id: request.id, prompt: "Approve LN-2299 for $88,000.", reply: blocked.reply } },
+      { resume: { request_id: request.id, prompt: "Approve DL-2299 for $88,000.", reply: blocked.reply } },
       [{ say: "Charlie denied it: concentration risk in this sector this quarter." }],
     );
   }, TURN_TIMEOUT_MS * 3);
@@ -651,19 +651,19 @@ describe("a denied approval resumes the agent with the denial", () => {
 
   test("and the agent does not retry", () => {
     // No tool call at all on the resumed turn, and nothing reached the
-    // gateway: the count of `ApproveLoan` calls is exactly the one this
+    // gateway: the count of `ApproveDiscount` calls is exactly the one this
     // describe made before the escalation.
     expect(of(resumed.events, "tool-call")).toHaveLength(0);
     expect(harness.calls.filter((call) => call.tool === APPROVE_LOAN).length).toBe(
       approveCallsBefore + 1,
     );
 
-    // And the loan book is untouched.
+    // And the deal book is untouched.
     expect(of(resumed.events, "denied")).toHaveLength(0);
   });
 
   test("the loan stays pending", async () => {
-    const loan = await harness.loan("LN-2299", DANA);
+    const loan = await harness.loan("DL-2299", DANA);
     expect(loan.status).toBe("pending");
   });
 });
@@ -682,8 +682,8 @@ describe("the catch-up read, for a browser whose stream was down", () => {
   test("it answers the requester with the status, and nothing else", async () => {
     const created = await store("POST", "/api/approvals", {
       requester_id: DANA,
-      action: "approve_loan",
-      resource_id: "LN-2292",
+      action: "approve_discount",
+      resource_id: "DL-2292",
       amount: 15_500,
       justification: "Within authority; recorded for the audit trail.",
       approver_id: RILEY,
@@ -712,8 +712,8 @@ describe("the catch-up read, for a browser whose stream was down", () => {
   test("somebody else's request is a 404, the same answer an unknown id gets", async () => {
     const created = await store("POST", "/api/approvals", {
       requester_id: DANA,
-      action: "approve_loan",
-      resource_id: "LN-2292",
+      action: "approve_discount",
+      resource_id: "DL-2292",
       amount: 15_500,
       justification: "Within authority; recorded for the audit trail.",
       approver_id: RILEY,
@@ -751,8 +751,8 @@ describe("a resume asserts nothing the store does not say", () => {
     const cookie = await browserFor(DANA);
     const created = await store("POST", "/api/approvals", {
       requester_id: DANA,
-      action: "approve_loan",
-      resource_id: "LN-2292",
+      action: "approve_discount",
+      resource_id: "DL-2292",
       amount: 15_500,
       justification: "Within authority; recorded for the audit trail.",
       approver_id: RILEY,
@@ -776,8 +776,8 @@ describe("a resume asserts nothing the store does not say", () => {
   test("one persona cannot resume another's turn", async () => {
     const created = await store("POST", "/api/approvals", {
       requester_id: DANA,
-      action: "approve_loan",
-      resource_id: "LN-2292",
+      action: "approve_discount",
+      resource_id: "DL-2292",
       amount: 15_500,
       justification: "Within authority; recorded for the audit trail.",
       approver_id: RILEY,

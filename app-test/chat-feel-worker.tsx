@@ -233,7 +233,7 @@ describe("AC2: the reply streams, one render per delta", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      const deltas = ["Reading ", "LN-2291", " now; ", "it is ", "for ", "$95,000."];
+      const deltas = ["Reading ", "DL-2291", " now; ", "it is ", "for ", "$95,000."];
       const seen: string[] = [];
       let sofar = "";
       for (const delta of deltas) {
@@ -268,10 +268,10 @@ describe("AC3: the status line names the current wait", () => {
       await settle("Thinking…", () => statusText(container) === "Thinking…");
       expect(statusKind(container)).toBe("running");
 
-      await stepped.send({ kind: "tool-call", tool: "Loan_SearchLoans", inputs: { min_amount: 90000 } });
-      await settle("Calling Loan_SearchLoans…", () => statusText(container) === "Calling Loan_SearchLoans…");
+      await stepped.send({ kind: "tool-call", tool: "Deals_SearchDeals", inputs: { min_amount: 90000 } });
+      await settle("Calling Deals_SearchDeals…", () => statusText(container) === "Calling Deals_SearchDeals…");
 
-      await stepped.send({ kind: "tool-result", tool: "Loan_SearchLoans", result: [{ loan_id: "LN-2291" }] });
+      await stepped.send({ kind: "tool-result", tool: "Deals_SearchDeals", result: [{ deal_id: "DL-2291" }] });
       await settle("Thinking… again", () => statusText(container) === "Thinking…");
 
       await stepped.send({ kind: "text", text: "One loan matches." });
@@ -290,7 +290,7 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "LN-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } });
       await stepped.send({
         kind: "tool-result",
         tool: "Approvals_RequestApproval",
@@ -330,7 +330,7 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "LN-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } });
       await stepped.send({
         kind: "authorization",
         tool: "Approvals_RequestApproval",
@@ -364,8 +364,8 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Loan_GetLoan", inputs: { loan_id: "LN-2291" } });
-      await settle("Calling Loan_GetLoan…", () => statusText(container) === "Calling Loan_GetLoan…");
+      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } });
+      await settle("Calling Deals_GetDeal…", () => statusText(container) === "Calling Deals_GetDeal…");
       await stepped.send({ kind: "error", message: "the provider returned 500" });
       await settle("the line to clear on error", () => statusText(container) === null);
       await stepped.send({ kind: "done", calls: 1 });
@@ -380,8 +380,8 @@ describe("AC3: the status line names the current wait", () => {
 
 describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire", () => {
   const RESULT = {
-    loan_id: "LN-2291",
-    borrower_name: "Northwind Bakery LLC",
+    deal_id: "DL-2291",
+    account_name: "Northwind Robotics",
     amount: 95000,
     approved: false,
     bank_account_number: "[REDACTED]",
@@ -396,11 +396,11 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
     try {
       await submit(container);
       await stepped.send({ kind: "text", text: "Reading it now." });
-      await stepped.send({ kind: "tool-call", tool: "Loan_GetLoan", inputs: { loan_id: "LN-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } });
       await settle("the tool row", () => container.querySelector('[data-kind="tool"]') !== null);
       const row = container.querySelector<HTMLDetailsElement>('details[data-kind="tool"]');
       expect(row?.getAttribute("data-state")).toBe("running…");
-      await stepped.send({ kind: "tool-result", tool: "Loan_GetLoan", result: RESULT });
+      await stepped.send({ kind: "tool-result", tool: "Deals_GetDeal", result: RESULT });
       await stepped.send({ kind: "text", text: "It is for $95,000." });
       await stepped.send({ kind: "done", calls: 1 });
       stepped.close();
@@ -411,7 +411,7 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
       const tool = rows[0] as HTMLDetailsElement;
       // Collapsed, and named by the tool.
       expect(tool.open).toBe(false);
-      expect(tool.querySelector("summary .chat-tool-name")?.textContent).toBe("Loan_GetLoan");
+      expect(tool.querySelector("summary .chat-tool-name")?.textContent).toBe("Deals_GetDeal");
       expect(tool.getAttribute("data-state")).toBe("returned");
 
       // Opens onto both views.
@@ -420,11 +420,11 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
       const result = tool.querySelector('[data-json="Result"]');
       expect(args).not.toBeNull();
       expect(result).not.toBeNull();
-      expect(renderedJson(args as Element)).toEqual({ loan_id: "LN-2291" });
+      expect(renderedJson(args as Element)).toEqual({ deal_id: "DL-2291" });
       expect(renderedJson(result as Element)).toEqual(RESULT);
       // Collapsible nodes, and typed leaves for the colouring.
       expect(result?.querySelectorAll("details.json-node").length).toBeGreaterThanOrEqual(3);
-      expect(result?.querySelector(".json-string")?.textContent).toBe('"LN-2291"');
+      expect(result?.querySelector(".json-string")?.textContent).toBe('"DL-2291"');
       expect(result?.querySelector(".json-number")?.textContent).toBe("95000");
       expect(result?.querySelector(".json-boolean")?.textContent).toBe("false");
       expect(result?.querySelector(".json-null")?.textContent).toBe("null");
@@ -446,8 +446,8 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
 
       // The prose either side of the call stays either side of it.
       const markup = container.innerHTML;
-      expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Loan_GetLoan"));
-      expect(markup.indexOf("Loan_GetLoan")).toBeLessThan(markup.indexOf("It is for $95,000."));
+      expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Deals_GetDeal"));
+      expect(markup.indexOf("Deals_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
     } finally {
       await cleanup(container, root);
     }
@@ -458,11 +458,11 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Loan_ApproveLoan", inputs: { loan_id: "LN-2291", amount: 95000 } });
+      await stepped.send({ kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } });
       await stepped.send({
         kind: "denied",
-        tool: "Loan_ApproveLoan",
-        reason: "DENIED: approving LN-2291 for 95000 exceeds your approval authority of 50000. [ref evt_4k7xq2m9hz]",
+        tool: "Deals_ApproveDiscount",
+        reason: "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. [ref evt_4k7xq2m9hz]",
         ref: "evt_4k7xq2m9hz",
       });
       await stepped.send({ kind: "done", calls: 1 });
@@ -501,7 +501,7 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
 describe("AC6: chat, don't click", () => {
   const challenge: ChatEvent = {
     kind: "authorization",
-    tool: "Loan_GetLoan",
+    tool: "Deals_GetDeal",
     url: "https://provider.example/authorize/request-1",
   };
 
@@ -549,8 +549,8 @@ describe("AC6: chat, don't click", () => {
       expect(stepped.posts[1]).toEqual({ prompt: DEFAULT_PROMPT });
       expect(JSON.stringify(stepped.posts[1])).not.toContain('"done"');
 
-      await stepped.send({ kind: "tool-call", tool: "Loan_GetLoan", inputs: { loan_id: "LN-2291" } }, 2);
-      await stepped.send({ kind: "tool-result", tool: "Loan_GetLoan", result: { loan_id: "LN-2291" } }, 2);
+      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } }, 2);
+      await stepped.send({ kind: "tool-result", tool: "Deals_GetDeal", result: { deal_id: "DL-2291" } }, 2);
       await stepped.send({ kind: "text", text: "Read it." }, 2);
       await stepped.send({ kind: "done", calls: 1 }, 2);
       stepped.close(2);
@@ -612,7 +612,7 @@ describe("AC6: chat, don't click", () => {
 // The real handler.
 
 describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
-  test("Alice reads LN-2291: the rendered result is the tool result in the model's prompt", async () => {
+  test("Alice reads DL-2291: the rendered result is the tool result in the model's prompt", async () => {
     const { DANA, OVER_LIMIT_LOAN, startAgentHarness } = await import("./agent-harness.ts");
     const { chat, CHAT_PATH } = await import("../lib/agent/handlers.ts");
     const { scriptedModel } = await import("./model.ts");
@@ -620,12 +620,12 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
     const loans = (await import("../lib/loans/fixtures/loans.json", { with: { type: "json" } })).default as unknown as {
       loans: Array<Record<string, string>>;
     };
-    const account = loans.loans.find((loan) => loan.loan_id === OVER_LIMIT_LOAN)?.bank_account_number as string;
+    const account = loans.loans.find((loan) => loan.deal_id === OVER_LIMIT_LOAN)?.bank_account_number as string;
 
     const harness = await startAgentHarness();
     const scripted = scriptedModel([
-      { call: "Loan_GetLoan", input: { loan_id: OVER_LIMIT_LOAN } },
-      { say: ["Northwind ", "Bakery, ", "$95,000."] },
+      { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+      { say: ["Northwind ", "Robotics, ", "$95,000."] },
     ]);
     const web = Bun.serve({
       port: 0,
@@ -658,7 +658,7 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
       await submit(container);
       await settle("the real turn to end", () => idle(container) && container.textContent?.includes("this turn.") === true);
 
-      const tool = container.querySelector('details[data-kind="tool"][data-tool="Loan_GetLoan"]');
+      const tool = container.querySelector('details[data-kind="tool"][data-tool="Deals_GetDeal"]');
       expect(tool?.getAttribute("data-state")).toBe("returned");
       const shown = renderedJson(tool?.querySelector('[data-json="Result"]') as Element);
 
@@ -666,17 +666,17 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
       const part = last
         .filter((message) => message.role === "tool")
         .flatMap((message) => message.content as Array<Record<string, unknown>>)
-        .find((candidate) => candidate.type === "tool-result" && candidate.toolName === "Loan_GetLoan");
+        .find((candidate) => candidate.type === "tool-result" && candidate.toolName === "Deals_GetDeal");
       const saw = (part?.output as { value: unknown }).value;
 
       expect(shown).toEqual(saw);
       expect((shown as Record<string, unknown>).bank_account_number).toBe("[REDACTED]");
       expect(renderedJson(tool?.querySelector('[data-json="Arguments"]') as Element)).toEqual({
-        loan_id: OVER_LIMIT_LOAN,
+        deal_id: OVER_LIMIT_LOAN,
       });
       expect(container.innerHTML).not.toContain(account);
       expect(container.innerHTML).not.toContain(bearer);
-      expect(prose(container)).toBe("Northwind Bakery, $95,000.");
+      expect(prose(container)).toBe("Northwind Robotics, $95,000.");
     } finally {
       await cleanup(container, root);
       cookie = null;
