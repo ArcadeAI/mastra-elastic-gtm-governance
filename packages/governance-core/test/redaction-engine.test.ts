@@ -464,7 +464,7 @@ describe("scanners do not fire on legitimate prose", () => {
   // and nobody notices until it is on a projector.
   const legitimate = [
     "Coverage 1.4x on trailing twelve months, seasonality typical for the segment.",
-    "Collateral SCIM case CS-1042 still open. Score 712.",
+    "Collateral appraised 2026-04 at $61,000. Score 712.",
     "Reference 2026-04-17 and case 88-1234 were both reviewed.",
     "Balance was 9,999,888,877,776,666 units at close.",
     "Do not ignore the covenant review scheduled for next quarter.",

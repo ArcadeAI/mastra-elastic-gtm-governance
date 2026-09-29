@@ -271,9 +271,12 @@ describe("a fresh database", () => {
       try {
         expect(counts(db)).toMatchObject({
           subjects: 0,
-          catalogue: 6,
-          policy_rules: 6,
-          output_rules: 2,
+          // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (docs/ELASTIC.md).
+          catalogue: 32,
+          // The template's 6, the 9 Elastic access rules, the 3 Elastic pre rules.
+          policy_rules: 18,
+          // Act 3 and act 4, once over the deal book and once over the index.
+          output_rules: 4,
           grants: 0,
           approval_requests: 0,
           audit_log: 0,

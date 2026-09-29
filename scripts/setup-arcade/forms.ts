@@ -85,11 +85,13 @@ export interface GatewayForm {
   slug: string;
   loanToolkit: string;
   approvalsToolkit: string;
+  /** Blank: the Elastic module is off and the form lists six tools. */
+  elasticToolkit?: string;
   /** The User Source already registered (#52), when the run got that far and the gateway failed. */
   userSourceId?: string;
 }
 
-export function gatewayForm({ slug, loanToolkit, approvalsToolkit, userSourceId }: GatewayForm): string {
+export function gatewayForm({ slug, loanToolkit, approvalsToolkit, elasticToolkit, userSourceId }: GatewayForm): string {
   const through = userSourceId === undefined ? "(the User Source above)" : `(${userSourceId}, already registered)`;
   return [
     "┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway",
@@ -100,6 +102,7 @@ export function gatewayForm({ slug, loanToolkit, approvalsToolkit, userSourceId 
     `│  Allowed Tools     these six, and no others:`,
     `│                    ${loanToolkit}: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount`,
     `│                    ${approvalsToolkit}: RequestApproval, Decide`,
+    ...(elasticToolkit ? [`│                    ${elasticToolkit}: all 26 tools (docs/ELASTIC.md)`] : []),
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
     `│                    → Deals Approval Limits ${through}. Never Arcade Headers.`,
     "│",

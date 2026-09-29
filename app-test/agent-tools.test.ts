@@ -21,6 +21,7 @@ import { correlationRef, failureText, runTurn, type Streamable } from "../lib/ag
 import { createNativeElicitationBridge, readNativeUrlElicitations } from "../lib/agent/native-elicitation.ts";
 import { GATEWAY_BUILTINS, selectGoverned, wirePrefixes } from "../lib/agent/tools.ts";
 import { readIdentitySurface } from "../lib/config.ts";
+import { INSTRUCTIONS, elasticFacts, instructionsFor } from "../lib/agent/agent.ts";
 import { resolveStandInPort } from "../scripts/gateway-stand-in.ts";
 
 /**
@@ -480,5 +481,41 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
       "DENIED: the control plane cannot evaluate Deals.ApproveDiscount because its policy is " +
       "unavailable. Do not retry; report the reference to an administrator. [ref evt_tkgv4b30gj]";
     expect(isHookDecision(failClosed)).toBe(true);
+  });
+});
+
+describe("the Elastic module's allow-list entry and prompt facts", () => {
+  test("the Elastic toolkit joins the allow-list only when it is set, and then by the same prefix rule", () => {
+    // What `elastic-demo` advertised on 2026-09-25: every entry `Elasticsearch_<Tool>`,
+    // the same PascalCase the deals toolkit gets, because the server is `MCPApp(name="Elasticsearch")`.
+    const withElastic = [...LIVE_TOOLS_LIST, "Elasticsearch_HybridSearch", "Elasticsearch_RunEsqlQuery"];
+
+    const off = readIdentitySurface({}).agent;
+    expect(off.elasticToolkit).toBe("");
+    expect(off.toolkits).toEqual(["Deals", "Approvals"]);
+    expect(selectGoverned(asRecord(withElastic), off).dropped).toContain("Elasticsearch_HybridSearch");
+
+    const on = readIdentitySurface({ ARCADE_ELASTIC_TOOLKIT: "Elasticsearch", ELASTIC_INDEX: "deal-files" }).agent;
+    expect(on.elasticToolkit).toBe("Elasticsearch");
+    expect(on.elasticIndex).toBe("deal-files");
+    expect(on.toolkits).toEqual(["Deals", "Approvals", "Elasticsearch"]);
+    const { governed, dropped } = selectGoverned(asRecord(withElastic), on);
+    expect(Object.keys(governed)).toHaveLength(8);
+    expect(Object.keys(governed)).toContain("Elasticsearch_HybridSearch");
+    expect(dropped).toEqual([...GATEWAY_BUILTINS]);
+
+    expect(readIdentitySurface({ ARCADE_ELASTIC_TOOLKIT: "  " }).agent.toolkits).toEqual(["Deals", "Approvals"]);
+  });
+
+  test("the prompt says nothing about the index unless the module is on, and then facts, never behaviour", () => {
+    expect(instructionsFor(null)).toBe(INSTRUCTIONS);
+    const on = instructionsFor({ index: "deal-files" });
+    expect(on.startsWith(INSTRUCTIONS)).toBe(true);
+    expect(on).toContain('"deal-files"');
+    expect(on).toContain("crm_notes_semantic");
+    const added = elasticFacts({ index: "deal-files" });
+    for (const word of ["prefer", "always", "never", "must", "confirm", "refuse", "retry", "instead of", "before you", "first"]) {
+      expect(added.toLowerCase()).not.toContain(word);
+    }
   });
 });

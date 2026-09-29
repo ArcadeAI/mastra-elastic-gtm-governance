@@ -26,7 +26,8 @@
     "start": "bun scripts/next.ts start",
     "typecheck": "next typegen && tsc --noEmit && bun run --filter '*' typecheck",
     "verify:standalone": "bun scripts/verify-standalone.ts",
-    "reset": "bun scripts/reset.ts"
+    "reset": "bun scripts/reset.ts",
+    "seed:elastic": "bun scripts/seed-elastic.ts"
   },
   "//": [
     "The root manifest is the app's since #3: the Next.js app that was apps/web lives at the repo root, and the workspaces are packages/*, lib/loans and lib/identity/provider, the services having all been folded in (#4, #5, #6). `--filter '*'` in `build` and `typecheck` matches the workspaces and never the root, so neither recurses. There is no `test` script: at the root `bun test` runs every group in the repo, and a script scoped to one of them would read as the whole suite. The app's group is `bun test ./app-test/`.",

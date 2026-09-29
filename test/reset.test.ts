@@ -263,7 +263,7 @@ describe("one command, three databases", () => {
     // a reset that truncated everything would satisfy the two lines above.
     expect(counts.subjects).toBeGreaterThan(0);
     expect(counts.policy_rules).toBeGreaterThan(0);
-    expect(counts.output_rules).toBe(2);
+    expect(counts.output_rules).toBe(4);
   });
 
   test("the OAuth client Arcade is registered against never moves", async () => {

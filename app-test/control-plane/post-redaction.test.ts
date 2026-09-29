@@ -124,8 +124,9 @@ async function auditRows(): Promise<Array<Record<string, unknown>>> {
 // ---------------------------------------------------------------------------
 
 describe("the seeded rules, read back out of governance.db", () => {
-  test("there are two, and they are conditioned on different things", () => {
-    const rules = readOutputRules(db);
+  test("there are two over the deal book, and they are conditioned on different things", () => {
+    // Four since the Elastic module; the index's pair is measured in elastic-post.test.ts.
+    const rules = readOutputRules(db).filter((rule) => rule.match.toolkit === "Deals");
     expect(rules.map((rule) => rule.id)).toEqual([
       "post.redact-customer-identifiers",
       "post.strip-injected-instructions",

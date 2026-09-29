@@ -322,6 +322,9 @@ if (scope !== null) {
 }
 const loanToolkit = effective("ARCADE_LOAN_TOOLKIT") || "Deals";
 const approvalsToolkit = effective("ARCADE_APPROVALS_TOOLKIT") || "Approvals";
+// The Elastic module (docs/ELASTIC.md). Blank is off: the gateway carries the six
+// loan and approvals tools and nothing else, exactly as before the module.
+const elasticToolkit = effective("ARCADE_ELASTIC_TOOLKIT") || "";
 
 const configuredClients = fromFile("IDP_OAUTH_CLIENTS");
 if (configuredClients !== "") {
@@ -406,7 +409,7 @@ function finish(
       out(userSourceForm({ origin, ...userSource }));
       out();
     }
-    out(gatewayForm({ slug, loanToolkit, approvalsToolkit, ...(registered === null ? {} : { userSourceId: registered.id }) }));
+    out(gatewayForm({ slug, loanToolkit, approvalsToolkit, elasticToolkit, ...(registered === null ? {} : { userSourceId: registered.id }) }));
   }
   if (gateway === "form") {
     out();
@@ -551,7 +554,7 @@ if (dryRun) {
       await admin.request(
         "POST",
         projectPath(scope, "/gateways"),
-        gatewayBody({ slug, userSourceId: "<the User Source's id>", loanToolkit, approvalsToolkit }),
+        gatewayBody({ slug, userSourceId: "<the User Source's id>", loanToolkit, approvalsToolkit, elasticToolkit }),
       );
       await admin.request("GET", projectPath(scope, "/gateways/<gateway_id>"));
       out("    (then the hooks are turned on, last, and read back, unless they already are:)");
@@ -956,7 +959,7 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
         : "  hooks: left disabled, so the dashboard's gateway form lists the tools",
     );
   } else {
-    const check = gatewayCheck(gateway, loanToolkit, approvalsToolkit);
+    const check = gatewayCheck(gateway, loanToolkit, approvalsToolkit, elasticToolkit);
     if (check.authType !== null) {
       fail(
         `the gateway ${slug} does not authenticate through the User Source:\n  - ${check.authType}\n` +
@@ -1206,14 +1209,14 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
 
   // The gateway, through it (#30's create, restored).
   out(`\nThe gateway (${apiUrl}):`);
-  const spec: GatewaySpec = { slug, userSourceId: source.id, loanToolkit, approvalsToolkit };
+  const spec: GatewaySpec = { slug, userSourceId: source.id, loanToolkit, approvalsToolkit, elasticToolkit };
   const listPath = projectPath(scope, "/gateways?limit=100");
   const listing = await admin.request("GET", listPath);
   if (listing.status !== 200) gatewayNotCreated(source, createdNow, hooks, new ArcadeError("GET", listPath, listing.status, JSON.stringify(listing.json)).message);
   const existing = pageItems(listing.json).find((each) => objectField(each, "slug") === slug);
   if (existing !== undefined) {
     // Made before, by a run like this one or in the dashboard: held to the User Source, never edited.
-    const check = gatewayCheck(existing, loanToolkit, approvalsToolkit);
+    const check = gatewayCheck(existing, loanToolkit, approvalsToolkit, elasticToolkit);
     const through = objectField(existing, "user_source_id");
     const other = typeof through === "string" && through !== source.id ? `user_source_id: Arcade has ${JSON.stringify(through)}, this app needs "${source.id}"` : null;
     if (check.authType !== null || other !== null) {
@@ -1254,7 +1257,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
           `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Correct it in the dashboard, or delete it and run this again.`,
       );
     }
-    out(`  gateway: created ${slug}, through the User Source ${source.id}, with the six tools of ${loanToolkit} and ${approvalsToolkit} (read back)`);
+    out(`  gateway: created ${slug}, through the User Source ${source.id}, with the ${elasticToolkit ? "32" : "six"} tools of ${loanToolkit}${elasticToolkit ? `, ${approvalsToolkit} and ${elasticToolkit}` : ` and ${approvalsToolkit}`} (read back)`);
   }
 
   // The hooks, last: the gateway exists, and is the User Source's.

@@ -188,7 +188,10 @@ describe("armed, which is what the demo runs", () => {
     expect(body.status).toBe("healthy");
     expect(body.warnings).toEqual([]);
     expect(body.injection_detection.state).toBe("armed");
-    expect(body.injection_detection.rules).toEqual(["post.strip-injected-instructions"]);
+    expect(body.injection_detection.rules).toEqual([
+      "post.strip-injected-instructions",
+      "post.strip-injected-instructions-from-search-results",
+    ]);
     // Counted off the compiled policy, so this number is what the hook can
     // actually fire — not what the fixture happens to list.
     expect(body.injection_detection.patterns).toBeGreaterThan(1);
@@ -214,7 +217,7 @@ describe("disarmed by the switch, which is the control run", () => {
     // allowed to switch a control off; it is not allowed to buy silence about a
     // policy that is broken, because that silence outlasts the control run.
     const instance = start("disarmed");
-    instance.db.run("UPDATE output_rules SET patterns = ? WHERE id = 'post.strip-injected-instructions'", [
+    instance.db.run("UPDATE output_rules SET patterns = ? WHERE id LIKE 'post.strip-injected-instructions%'", [
       JSON.stringify([
         { id: "pattern.broken", regex: "(unclosed", flags: "i", strategy: "remove", replacement: "" },
       ]),
@@ -259,7 +262,10 @@ describe("disarmed by the switch, which is the control run", () => {
     expect(body.injection_detection.patterns).toBe(0);
     // Names the rule that is not running, so a reader can tell which control is
     // off rather than only that something is.
-    expect(body.injection_detection.rules).toEqual(["post.strip-injected-instructions"]);
+    expect(body.injection_detection.rules).toEqual([
+      "post.strip-injected-instructions",
+      "post.strip-injected-instructions-from-search-results",
+    ]);
     expect(body.warnings).toHaveLength(1);
     expect(body.warnings[0]).toContain("INJECTION_DETECTION is off");
     expect(body.warnings[0]).toContain("will reach the model");
@@ -276,7 +282,7 @@ describe("disarmed the way a presenter does it on stage", () => {
     const instance = start("armed");
     expect((await health(instance.base)).injection_detection.state).toBe("armed");
 
-    instance.db.run("UPDATE output_rules SET enabled = 0 WHERE id = 'post.strip-injected-instructions'");
+    instance.db.run("UPDATE output_rules SET enabled = 0 WHERE id LIKE 'post.strip-injected-instructions%'");
     await Bun.sleep(POLL_MS * 8);
 
     const output = await getLoan(instance.base);
@@ -296,11 +302,11 @@ describe("disarmed the way a presenter does it on stage", () => {
 
   test("and re-enabling it re-arms within a poll, so the demo can go back", async () => {
     const instance = start("armed");
-    instance.db.run("UPDATE output_rules SET enabled = 0 WHERE id = 'post.strip-injected-instructions'");
+    instance.db.run("UPDATE output_rules SET enabled = 0 WHERE id LIKE 'post.strip-injected-instructions%'");
     await Bun.sleep(POLL_MS * 8);
     expect((await health(instance.base)).injection_detection.state).toBe("disarmed");
 
-    instance.db.run("UPDATE output_rules SET enabled = 1 WHERE id = 'post.strip-injected-instructions'");
+    instance.db.run("UPDATE output_rules SET enabled = 1 WHERE id LIKE 'post.strip-injected-instructions%'");
     await Bun.sleep(POLL_MS * 8);
 
     expect((await health(instance.base)).injection_detection.state).toBe("armed");

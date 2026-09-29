@@ -83,7 +83,7 @@ describe("reading the control plane", () => {
     expect(report.fixture_drift).toBeNull();
     expect(report.policy.status).toBe("ready");
     expect(report.reset).toBe("enabled");
-    expect(report.injection_detection).toEqual({ state: "armed", patterns: 6 });
+    expect(report.injection_detection).toEqual({ state: "armed", patterns: 12 });
   });
 
   test("a row edited on the disk comes back as named drift, and the policy still serves", async () => {

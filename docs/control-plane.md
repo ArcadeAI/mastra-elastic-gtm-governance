@@ -177,7 +177,7 @@ byte, and eleven benign CRM notes written to trip the scanners and required not 
     INJECTION_DETECTION=off          # compiles the policy without the scanners; needs a restart
 
     sqlite3 governance.db "UPDATE output_rules SET enabled = 0 \
-      WHERE id = 'post.strip-injected-instructions'"    # live within one poll — the on-stage flip
+      WHERE id LIKE 'post.strip-injected-instructions%'"    # live within one poll — the on-stage flip
 
 Unset is armed, so losing the protection is always something somebody typed; a spelling that
 is neither on nor off is refused at boot rather than guessed at. `/health` reports

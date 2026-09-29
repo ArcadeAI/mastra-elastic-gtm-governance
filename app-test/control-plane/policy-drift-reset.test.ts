@@ -536,7 +536,8 @@ describe("POST /admin/reset (#106)", () => {
     const patterns = (await (await fetch(`${instance.base}/health`)).json()) as {
       injection_detection: { patterns: number };
     };
-    expect(patterns.injection_detection.patterns).toBe(6);
+    // Six over the deal book and the same six over the index (Elastic module).
+    expect(patterns.injection_detection.patterns).toBe(12);
   });
 });
 

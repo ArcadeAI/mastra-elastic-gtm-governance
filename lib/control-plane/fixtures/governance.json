@@ -14,7 +14,10 @@
     "pattern.addressed-to-the-model — free text that names its reader: a note or an imperative addressed to an AI, an LLM, or an automated reviewer. A header opens a block, so this removes to the end of the field, paste marker included. 'System note: core banking flagged an address mismatch' is not this and is left alone.",
     "pattern.tool-call-directive — an imperative naming a tool by its identifier, in either spelling this demo has: approve_discount as the business system writes it, Deals_ApproveDiscount as the model sees it over MCP. 'Rep will execute discount paperwork' is not this.",
     "pattern.concealment-directive — the reader is told to hide the note from the human. Scoped to the note itself, because a confidentiality instruction about the customer is legitimate prose.",
-    "pattern.conversation-delimiter — a chat-transcript or prompt delimiter pasted into a business field. No prose tell at all: the token is the evidence, and no underwriter types one."
+    "pattern.conversation-delimiter — a chat-transcript or prompt delimiter pasted into a business field. No prose tell at all: the token is the evidence, and no underwriter types one.",
+    "$ELASTIC is the third placeholder, replaced with ARCADE_ELASTIC_TOOLKIT (default Elasticsearch). The tool names are what the Arcade Elasticsearch toolkit advertises over MCP — Elasticsearch_SearchByText, Elasticsearch_HybridSearch and so on — measured off the elastic-demo gateway's tools/list on 2026-09-25 (23 tools) plus the three the toolkit source adds (WhoAmI, ListInferenceEndpoints, ReindexDocuments). Argument lists are the tool signatures in that source; a required argument the catalogue omits makes every call to the tool malformed at /pre.",
+    "The Elastic rules are the same three controls the loan rules are, keyed on retrieval instead of on a write. Access: the nine tools that write or destroy an index are hidden from everyone but the chief revenue officer, who is the identity `bun run seed:elastic` runs as. Post: search results carry the same customer identifiers GetDeal does, at hits[].source.*, so the same clearance bar masks them by path. ES|QL and aggregations return rows and buckets rather than documents, so there is no path to mask; for anyone under the bar, /pre refuses an ES|QL query that names an identifier column or has neither a KEEP nor a STATS clause (a bare `FROM deal-files | LIMIT 10` returns every column), and an aggregation over an identifier field. The injection sweep runs on every Elastic tool's output for everyone, exactly as it does on GetDeal: an underwriter note is the same note whether it arrived from the deal book or from the index.",
+    "post.strip-injected-instructions-from-search-results carries the SAME six patterns, byte for byte, so the corpus that proves each one proves it here too. It is a second rule rather than a wildcard on the first because a rule matches one toolkit. The on-stage disarm is therefore `UPDATE output_rules SET enabled = 0 WHERE id LIKE 'post.strip-injected-instructions%'`: both rules, or /health keeps reporting armed — correctly, since the index copy would still be scanned."
   ],
   "catalogue": {
     "$LOAN": {
@@ -26,6 +29,34 @@
     "$APPROVALS": {
       "RequestApproval": ["action", "resource_id", "amount", "justification"],
       "Decide": ["request_id", "decision", "note?", "approval?"]
+    },
+    "$ELASTIC": {
+      "WhoAmI": [],
+      "ListIndices": ["index_pattern?", "include_system_indices?"],
+      "GetIndexMapping": ["index", "include_system_indices?"],
+      "ListAliases": ["alias_pattern?", "include_system_indices?"],
+      "ListInferenceEndpoints": ["task_type?", "dimensions?", "usable_now?"],
+      "GetClusterHealth": [],
+      "GetIndexStats": ["index", "include_system_indices?"],
+      "GetShards": ["index?", "include_system_indices?"],
+      "SearchByText": ["index", "query_text?", "fields?", "size?", "offset?", "filter_query?", "source_fields?", "highlight?", "cursor?", "include_system_indices?"],
+      "SemanticSearch": ["index", "field", "query_text", "size?", "offset?", "filter_query?", "source_fields?", "cursor?", "include_system_indices?"],
+      "VectorSearch": ["index", "field", "query_text?", "inference_id?", "query_vector?", "k?", "offset?", "num_candidates?", "filter_query?", "source_fields?", "include_system_indices?"],
+      "HybridSearch": ["index", "query_text", "semantic_field", "text_fields?", "size?", "offset?", "rank_window_size?", "filter_query?", "source_fields?", "include_system_indices?"],
+      "SearchDocuments": ["index", "query?", "size?", "offset?", "sort?", "source_fields?", "aggregations?", "track_total_hits?", "cursor?", "include_system_indices?"],
+      "AggregateDocuments": ["index", "aggregations", "query?", "include_system_indices?"],
+      "CountDocuments": ["index", "query?", "include_system_indices?"],
+      "GetDocument": ["index", "document_id", "source_fields?", "include_system_indices?"],
+      "RunEsqlQuery": ["query", "include_system_indices?"],
+      "IndexDocument": ["index", "document", "document_id?", "if_seq_no?", "if_primary_term?", "refresh?"],
+      "BulkIndexDocuments": ["index", "documents", "refresh?"],
+      "UpdateDocument": ["index", "document_id", "fields", "if_seq_no?", "if_primary_term?", "upsert?", "refresh?"],
+      "DeleteDocument": ["index", "document_id", "if_seq_no?", "if_primary_term?", "refresh?"],
+      "DeleteDocumentsByQuery": ["index", "query", "refresh?"],
+      "CreateIndex": ["index", "mappings?", "settings?"],
+      "ReindexDocuments": ["source_index", "destination_index", "query?", "max_documents?", "refresh?"],
+      "DeleteIndex": ["index"],
+      "RefreshIndex": ["index"]
     }
   },
   "subjects": [
@@ -118,6 +149,243 @@
       "effect": "deny",
       "reason": "DENIED: this approval request has already been decided, and a decision is final. Do not retry; raise a new request if the outcome should change.",
       "priority": 230
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.IndexDocument",
+      "description": "Elastic, act 1. IndexDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "IndexDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 20
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.BulkIndexDocuments",
+      "description": "Elastic, act 1. BulkIndexDocuments writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "BulkIndexDocuments"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 21
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.UpdateDocument",
+      "description": "Elastic, act 1. UpdateDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "UpdateDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 22
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.DeleteDocument",
+      "description": "Elastic, act 1. DeleteDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "DeleteDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 23
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.DeleteDocumentsByQuery",
+      "description": "Elastic, act 1. DeleteDocumentsByQuery writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "DeleteDocumentsByQuery"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 24
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.CreateIndex",
+      "description": "Elastic, act 1. CreateIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "CreateIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 25
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ReindexDocuments",
+      "description": "Elastic, act 1. ReindexDocuments writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "ReindexDocuments"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 26
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.DeleteIndex",
+      "description": "Elastic, act 1. DeleteIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "DeleteIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 27
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.RefreshIndex",
+      "description": "Elastic, act 1. RefreshIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "RefreshIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 28
+    },
+    {
+      "id": "pre.esql-names-no-identifier-column",
+      "description": "Elastic, act 3 for ES|QL. A query that names a customer identifier column is refused for anyone under the clearance bar, because a row has no field path for /post to mask.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "RunEsqlQuery"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "query",
+          "operator": "matches",
+          "value": "\\bbank_account_number\\b|\\btax_id\\b"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this ES|QL query reads bank_account_number or tax_id, which your clearance of {{subject.clearance}} does not cover. Retry $ELASTIC_RunEsqlQuery with query=<the same query, with a KEEP clause that names only the columns you need and neither identifier>.",
+      "priority": 300
+    },
+    {
+      "id": "pre.esql-must-keep-named-columns",
+      "description": "Elastic, act 3 for ES|QL. A query with neither a KEEP nor a STATS clause returns every column, identifiers included; for anyone under the bar it is refused with the fix. STATS returns aggregates rather than rows, so it passes here and is judged by the rule above.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "RunEsqlQuery"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "query",
+          "operator": "matches",
+          "value": "^(?![\\s\\S]*\\|\\s*(?:KEEP|STATS)\\b)"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this ES|QL query has no KEEP clause, so it would return every column of the index including customer identifiers your clearance of {{subject.clearance}} does not cover. Retry $ELASTIC_RunEsqlQuery with query=<the same query, plus a KEEP clause naming only the columns you need>.",
+      "priority": 310
+    },
+    {
+      "id": "pre.aggregate-not-over-identifiers",
+      "description": "Elastic, act 3 for aggregations. A terms aggregation over an identifier field would list the identifiers as bucket keys; refused for anyone under the bar.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "AggregateDocuments"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "aggregations",
+          "operator": "matches",
+          "value": "\\bbank_account_number\\b|\\btax_id\\b"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this aggregation groups over bank_account_number or tax_id, which your clearance of {{subject.clearance}} does not cover. Retry $ELASTIC_AggregateDocuments with index={{inputs.index}} and aggregations=<the same aggregations over a field that is not a customer identifier>.",
+      "priority": 320
     }
   ],
   "output_rules": [
@@ -183,6 +451,96 @@
       ],
       "reason": "An instruction addressed to the model was found in free text and stripped before the output reached it.",
       "priority": 110
+    },
+    {
+      "id": "post.redact-identifiers-in-search-results",
+      "description": "Elastic, act 3. The deal index carries the same customer identifiers GetDeal does, at hits[].source.* on every search tool and at source.* on GetDocument. Masked for anyone whose clearance is under 250000. ES|QL rows and aggregation buckets have no field to name, so those two tools are governed at /pre instead (pre.esql-*, pre.aggregate-*).",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "*"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "fields": [
+        {
+          "path": "hits[].source.bank_account_number",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "hits[].source.tax_id",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "source.bank_account_number",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "source.tax_id",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        }
+      ],
+      "reason": "Customer identifiers masked in the search result before it reached the model.",
+      "priority": 120
+    },
+    {
+      "id": "post.strip-injected-instructions-from-search-results",
+      "description": "Elastic, act 4. The same six shapes as post.strip-injected-instructions, on every Elastic tool's output, for everyone: DL-2291's underwriter note is the same note whether the model read it from the deal book or from the index.",
+      "match": {
+        "toolkit": "$ELASTIC",
+        "tool": "*"
+      },
+      "patterns": [
+        {
+          "id": "pattern.injected-instruction",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:system note for automated review|ignore (?:any|all|the) (?:earlier|previous|prior) instructions?)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.instruction-override",
+          "regex": "\\s*[^.!?\\n]*\\b(?:ignore|disregard|forget|override|bypass|set aside|do not follow)\\s+(?:all\\s+|any\\s+|every\\s+)?(?:of\\s+)?(?:your|the|my|its|these|those|any|all|previous|prior|earlier|preceding|above|system|original)\\s+(?:[a-z]+\\s+){0,2}?(?:instructions?|directives?|prompts?|guardrails?)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.addressed-to-the-model",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:(?:notes?|messages?|instructions?)\\s+(?:to|for)\\s+(?:the\\s+)?|attention[\\s,:]+)(?:\\bai\\b|\\bllm\\b|language model|automated\\s+(?:review|reviewer|assistant|system|agent))[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.tool-call-directive",
+          "regex": "\\s*[^.!?\\n]*\\b(?:call|invoke|run|execute|trigger)\\b\\s+(?:the\\s+)?(?:[A-Za-z]+[_.])?(?:approve|deny)[_ ]?discount\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.concealment-directive",
+          "regex": "\\s*[^.!?\\n]*\\bdo not\\s+(?:mention|reveal|disclose|repeat|report|include|surface)\\b[^.!?\\n]{0,60}?\\bthis\\s+(?:note|message|instruction|text|block|section|paste)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.conversation-delimiter",
+          "regex": "\\s*(?:<\\|im_(?:start|end)\\|>|</?system>|\\[/?(?:INST|SYSTEM)\\]|#{2,}\\s*system\\b|begin system prompt)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        }
+      ],
+      "reason": "An instruction addressed to the model was found in a search result and stripped before the output reached it.",
+      "priority": 130
     }
   ]
 }
+

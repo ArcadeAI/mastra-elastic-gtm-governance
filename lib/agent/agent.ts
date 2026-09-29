@@ -107,6 +107,36 @@ export const INSTRUCTIONS = [
   "Report what each tool gave you, quoting its own words rather than paraphrasing them.",
 ].join("\n");
 
+/**
+ * What the Elastic module adds to the prompt, when `ARCADE_ELASTIC_TOOLKIT` is
+ * set: facts about the index and nothing else.
+ *
+ * Read the header first. Every sentence is something the model could not
+ * otherwise know — that a second copy of the deal book exists, where, what a
+ * document in it looks like, and which field is searchable by meaning (the
+ * toolkit's own descriptions say to look that up with `GetIndexMapping`, and
+ * naming it here saves that turn). Nothing about which store to prefer, when
+ * to search, or what to do with what comes back; the tool descriptions and the
+ * hooks own that, exactly as they do for the deal tools.
+ */
+export function elasticFacts(elastic: { index: string }): string {
+  return [
+    "",
+    `The company also keeps a searchable copy of the deal book in Elasticsearch, in the index`,
+    `"${elastic.index}". Each document is one discount request, with the same fields the deal`,
+    `book holds — deal_id, account_name, amount, status, purpose, requested_at, credit_score,`,
+    `arr, years_as_customer, crm_notes and the customer's billing identifiers — and one more:`,
+    `crm_notes_semantic, a semantic_text field over the CRM notes, so what a rep or a deal desk`,
+    `reviewer wrote can be searched by meaning as well as by keyword.`,
+    `Aggregations and ES|QL run over the same index.`,
+  ].join("\n");
+}
+
+/** `INSTRUCTIONS`, plus the Elastic facts when the module is on. */
+export function instructionsFor(elastic: { index: string } | null): string {
+  return elastic === null ? INSTRUCTIONS : INSTRUCTIONS + elasticFacts(elastic);
+}
+
 export interface ModelOptions {
   /** `MODEL_ID` — `claude-sonnet-5`. Kept in the environment so it can be swapped without a change here. */
   modelId: string;

@@ -11,6 +11,7 @@
  */
 
 import { assertPublicHost } from "./public-host.ts";
+import { DEFAULT_ELASTIC_TOOLKIT } from "./policy-store.ts";
 
 /**
  * The bearer token Arcade presents on every hook call. Refused under
@@ -40,6 +41,13 @@ export interface HooksConfig {
   loanToolkit: string;
   /** `tool.toolkit` for `tools/approvals`. Derived, not observed — confirm on #18. */
   approvalsToolkit: string;
+  /**
+   * `tool.toolkit` for the Arcade Elasticsearch toolkit on the same gateway —
+   * `Elasticsearch`, measured off `elastic-demo` on 2026-09-25. Keys the
+   * `$ELASTIC` rules in the fixture. Optional so a config literal written
+   * before the Elastic module still seeds; `policy-store.ts` holds the default.
+   */
+  elasticToolkit?: string;
   /**
    * Our own budget for answering a hook, well inside Arcade's 5s. A request
    * that runs past it is failed closed and audited as such; the point is to
@@ -153,6 +161,7 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     approvalsStoreToken: storeToken || DEV_STORE_TOKEN,
     loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
     approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
+    elasticToolkit: env.ARCADE_ELASTIC_TOOLKIT?.trim() || DEFAULT_ELASTIC_TOOLKIT,
     deadlineMs: Number(env.HOOK_DEADLINE_MS ?? 2500),
     policyPollMs: Number(env.POLICY_POLL_MS ?? 250),
     grantTtlSeconds: Number(env.GRANT_TTL_SECONDS ?? 900),

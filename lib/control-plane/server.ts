@@ -58,7 +58,7 @@ import {
 } from "./handlers.ts";
 import { driftWarning } from "./fixture-drift.ts";
 import type { PolicyCache } from "./policy-cache.ts";
-import { counts, type MigrationReport, type Seed } from "./policy-store.ts";
+import { DEFAULT_ELASTIC_TOOLKIT, counts, type MigrationReport, type Seed } from "./policy-store.ts";
 import { handleReset, RESET_PATH } from "./reset-api.ts";
 
 export const SERVICE = "hooks";
@@ -142,7 +142,11 @@ export function createControlPlane(deps: ServerDeps) {
     }),
     // Only reached while the policy is cold or will not compile — the loaded
     // catalogue wins whenever there is one. See `access-audit.ts`.
-    configuredToolkits: new Set([config.loanToolkit, config.approvalsToolkit]),
+    configuredToolkits: new Set([
+      config.loanToolkit,
+      config.approvalsToolkit,
+      config.elasticToolkit ?? DEFAULT_ELASTIC_TOOLKIT,
+    ]),
   };
 
   /**

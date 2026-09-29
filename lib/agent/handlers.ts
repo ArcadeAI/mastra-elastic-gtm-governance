@@ -88,7 +88,7 @@ import { fetchApproval } from "../approvals-store.ts";
 import { readConversationHistory, withPrompt, type ConversationMessage } from "./conversation.ts";
 import { closeTurnOnEscalation } from "./escalation.ts";
 import { planResume, readResumeRequest, type ResumeRequest } from "./resume.ts";
-import { anthropicModel, buildAgent } from "./agent.ts";
+import { anthropicModel, buildAgent, instructionsFor } from "./agent.ts";
 import { CHAT_PATH, encodeEvent, NDJSON, type ChatEvent } from "./events.ts";
 import { serverFault } from "./fault.ts";
 import { CHAT_PAGE, GATEWAY_START_PATH, sessionSecrets, SIGNIN_PATH } from "../identity/handlers.ts";
@@ -461,6 +461,12 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
       model: (options.model?.(config) ??
         anthropicModel({ modelId: config.agent.modelId, apiKey: config.agent.anthropicApiKey })) as never,
       tools: closure.tools,
+      // The prompt gains the index's facts only when the toolkit is on the
+      // allow-list: a prompt describing an index the agent cannot reach would
+      // be the model's problem to discover, one turn at a time.
+      instructions: instructionsFor(
+        config.agent.elasticToolkit === "" ? null : { index: config.agent.elasticIndex },
+      ),
     }) as unknown as Streamable;
 
     // A refreshed gateway token has to be resealed, and the only place to do it

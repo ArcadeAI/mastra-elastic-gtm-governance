@@ -109,16 +109,27 @@ describe("the seed", () => {
   });
 
   test("keys every rule and the catalogue on the configured toolkit names, not on literals", () => {
-    const data = loadSeed({ ...OPTIONS, loanToolkit: "LoanBook", approvalsToolkit: "Escalations" });
-    expect(Object.keys(data.catalogue).sort()).toEqual(["Escalations", "LoanBook"]);
+    const data = loadSeed({
+      ...OPTIONS,
+      loanToolkit: "LoanBook",
+      approvalsToolkit: "Escalations",
+      elasticToolkit: "Search",
+    });
+    expect(Object.keys(data.catalogue).sort()).toEqual(["Escalations", "LoanBook", "Search"]);
     // Every rule is keyed on one of the two configured names and on no
     // literal: a rule left pointing at "$LOAN", or at the default "Deals" when
     // the deployment calls it something else, would match nothing.
     expect([...new Set(data.policy_rules.map((r) => r.match.toolkit))].sort()).toEqual([
       "Escalations",
       "LoanBook",
+      "Search",
     ]);
-    expect(data.output_rules.every((r) => r.match.toolkit === "LoanBook")).toBe(true);
+    expect([...new Set(data.output_rules.map((r) => r.match.toolkit))].sort()).toEqual([
+      "LoanBook",
+      "Search",
+    ]);
+    const esql = data.policy_rules.find((r) => r.id === "pre.esql-must-keep-named-columns");
+    expect(esql?.reason).toContain("Search_RunEsqlQuery");
     const escalation = data.policy_rules.find((r) => r.hook === "pre");
     // The remediation sentence is addressed to the model, so it carries the
     // wire spelling — and it carries the *configured* toolkit name in it, which
@@ -131,6 +142,7 @@ describe("the seed", () => {
     expect(escalation?.reason).not.toContain("LoanBook.ApproveDiscount");
     expect(JSON.stringify(data)).not.toContain("$LOAN");
     expect(JSON.stringify(data)).not.toContain("$APPROVALS");
+    expect(JSON.stringify(data)).not.toContain("$ELASTIC");
     expect(() => compilePolicy({ catalogue: data.catalogue, rules: data.policy_rules })).not.toThrow();
   });
 
@@ -145,9 +157,12 @@ describe("seeding", () => {
     const db = bare();
     expect(counts(db)).toMatchObject({
       subjects: 0,
-      catalogue: 6,
-      policy_rules: 6,
-      output_rules: 2,
+      // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (docs/ELASTIC.md).
+      catalogue: 32,
+      // The template's 6, the 9 Elastic access rules, the 3 Elastic pre rules.
+      policy_rules: 18,
+      // Act 3 and act 4, once over the deal book and once over the index.
+      output_rules: 4,
       grants: 0,
       approval_requests: 0,
       audit_log: 0,
@@ -157,6 +172,8 @@ describe("seeding", () => {
     expect(readOutputRules(db).map((rule) => rule.id)).toEqual([
       "post.redact-customer-identifiers",
       "post.strip-injected-instructions",
+      "post.redact-identifiers-in-search-results",
+      "post.strip-injected-instructions-from-search-results",
     ]);
   });
 

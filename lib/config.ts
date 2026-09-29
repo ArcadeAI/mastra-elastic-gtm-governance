@@ -119,6 +119,23 @@ export interface AgentConfig {
    * "which one is the escalation?", and they are different questions.
    */
   approvalsToolkit: string;
+  /**
+   * `ARCADE_ELASTIC_TOOLKIT` — `Elasticsearch`, as Arcade files the
+   * Elasticsearch toolkit (measured off `elastic-demo` on 2026-09-25: every
+   * wire name is `Elasticsearch_<Tool>`). The third entry of the allow-list
+   * when set; **blank means the Elastic module is off** and the agent's
+   * surface is exactly what it was before it. Held separately as well as
+   * listed in `toolkits` for the same reason `approvalsToolkit` is: the
+   * instructions have to say whether the index exists, and inferring that
+   * from the third entry of a list would be a guess. See docs/ELASTIC.md.
+   */
+  elasticToolkit: string;
+  /**
+   * `ELASTIC_INDEX` — the index `scripts/seed-elastic.ts` writes the deal book
+   * into, named in the instructions so the model does not spend a turn on
+   * `ListIndices`. Read only when `elasticToolkit` is set.
+   */
+  elasticIndex: string;
 }
 
 export interface WebConfig {
@@ -216,11 +233,17 @@ export function readIdentitySurface(
       // The same two variables `apps/hooks` keys its rules on, read here as an
       // allow-list. Blank entries are dropped rather than turned into a bare
       // `_` prefix, which would match every tool the gateway advertises.
+      //
+      // The Elastic toolkit is the one entry with no default: unset is the
+      // template as it was, and the blank is dropped by the same filter.
       toolkits: [
         env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
         env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
+        env.ARCADE_ELASTIC_TOOLKIT?.trim() ?? "",
       ].filter((name) => name !== ""),
       approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
+      elasticToolkit: env.ARCADE_ELASTIC_TOOLKIT?.trim() ?? "",
+      elasticIndex: env.ELASTIC_INDEX?.trim() || "deal-files",
     },
     identity: {
       idpIssuer: appOrigin(env),

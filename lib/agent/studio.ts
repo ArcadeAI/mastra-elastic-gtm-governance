@@ -68,7 +68,7 @@ import { sessionSecrets } from "../identity/handlers.ts";
 import { escapeHtml, page, redirect, verbatim } from "../identity/pages.ts";
 import type { GatewayToken, Session } from "../identity/session.ts";
 import { secretFingerprints } from "../secret-fingerprints.ts";
-import { anthropicModel, buildAgent } from "./agent.ts";
+import { anthropicModel, buildAgent, instructionsFor } from "./agent.ts";
 import { authorizationRequired } from "./authorization.ts";
 import { closeTurnOnEscalation } from "./escalation.ts";
 import { gatewayToken, type GatewayHolder } from "./gateway-token.ts";
@@ -589,6 +589,10 @@ export function studioAgent(
     },
     tools: () => studioTools(config(), origin),
     memory: () => studioMemory(config),
+    instructions: (() => {
+      const surface = config();
+      return instructionsFor(surface.agent.elasticToolkit === "" ? null : { index: surface.agent.elasticIndex });
+    })(),
   });
 }
 

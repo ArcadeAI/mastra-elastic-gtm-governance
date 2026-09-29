@@ -242,7 +242,8 @@ describe("the control plane, on the app's own port", () => {
     const body = (await response.json()) as Record<string, unknown>;
     expect(HealthResponse.safeParse(body).success).toBe(true);
     expect(HealthResponse.shape.status.unwrap().options).toEqual(["healthy", "degraded", "unhealthy"]);
-    expect(body).toMatchObject({ status: "healthy", service: "hooks", policy: { status: "ready", revision: 19 } });
+    // 59 rows seeded since the Elastic module: 4 subjects, 32 catalogue, 18 policy, 4 output, plus the version row.
+    expect(body).toMatchObject({ status: "healthy", service: "hooks", policy: { status: "ready", revision: 59 } });
   }, 60_000);
 
   test("the app's own /health keeps DESIGN.md's ok|degraded, which Arcade's enum does not have", async () => {
@@ -277,9 +278,10 @@ describe("the control plane, on the app's own port", () => {
     expect(body).toMatchObject({
       service: "web",
       panel_stream: "live",
-      policy: { status: "ready", revision: 19 },
+      policy: { status: "ready", revision: 59 },
       fixture_drift: null,
-      injection_detection: { state: "armed", patterns: 6 },
+      // Six over the deal book and the same six over the index (docs/ELASTIC.md).
+      injection_detection: { state: "armed", patterns: 12 },
       reset: "disabled",
       control_plane: { status: "healthy", service: "hooks", failure_mode: "fail-closed" },
     });
@@ -292,7 +294,7 @@ describe("the control plane, on the app's own port", () => {
     expect(await response.json()).toMatchObject({
       reachable: true,
       status: "healthy",
-      policy: { status: "ready", revision: 19, error: null },
+      policy: { status: "ready", revision: 59, error: null },
       fixture_drift: null,
     });
   }, 60_000);

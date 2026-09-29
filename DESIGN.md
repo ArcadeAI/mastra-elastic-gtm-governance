@@ -263,6 +263,16 @@ sees (#89). A gateway `tools/list` carries **eight** entries: the six above plus
 built-ins `System_ManageAuthorization` and `Arcade_ListApps`; the agent filters to the two
 project toolkits (`ARCADE_LOAN_TOOLKIT`, `ARCADE_APPROVALS_TOOLKIT`).
 
+**Elasticsearch** (the Arcade Elasticsearch toolkit, on the same gateway — `docs/ELASTIC.md`)
+- 26 tools, `Elasticsearch_<Tool>` on the wire, `Elasticsearch.<Tool>` in hook payloads: keyword,
+  semantic, vector and hybrid search, aggregations, ES|QL, one-document reads, and nine index
+  writes. Measured off the `elastic-demo` gateway on 2026-09-25 (23 of the 26; `WhoAmI`,
+  `ListInferenceEndpoints` and `ReindexDocuments` are in the toolkit source and derived here).
+- Third entry of the agent's allow-list, `ARCADE_ELASTIC_TOOLKIT`; blank means off. The control
+  plane keys the `$ELASTIC` rules on the same variable and defaults it to `Elasticsearch`.
+- Not `@mastra/elasticsearch`, on purpose: a vector store the agent queries in-process is a
+  tool no hook sees. Retrieval goes through the gateway so that `/post` runs on the result.
+
 ## Cast
 
 Presentation names are Alice, Bob, Charlie and Michael. The keys `dana`, `sam`, `riley` and

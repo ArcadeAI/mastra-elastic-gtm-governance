@@ -54,12 +54,27 @@ import fixture from "./fixtures/governance.json" with { type: "json" };
 // The fixture
 // ---------------------------------------------------------------------------
 
-/** Placeholders the fixture uses for the two configured toolkit names. */
-const TOOLKIT_PLACEHOLDERS = { $LOAN: "loanToolkit", $APPROVALS: "approvalsToolkit" } as const;
+/** Placeholders the fixture uses for the three configured toolkit names. */
+const TOOLKIT_PLACEHOLDERS = {
+  $LOAN: "loanToolkit",
+  $APPROVALS: "approvalsToolkit",
+  $ELASTIC: "elasticToolkit",
+} as const;
+
+/**
+ * `tool.toolkit` as Arcade files the Elasticsearch toolkit: `MCPApp(name="Elasticsearch")`
+ * PascalCased is itself. Measured off the `elastic-demo` gateway's tools/list on
+ * 2026-09-25, where every entry is `Elasticsearch_<Tool>`. The default is here
+ * rather than in `config.ts` so a `SeedOptions` written without it — every test
+ * that predates the Elastic module — seeds the same rules a deployment does.
+ */
+export const DEFAULT_ELASTIC_TOOLKIT = "Elasticsearch";
 
 export interface SeedOptions {
   loanToolkit: string;
   approvalsToolkit: string;
+  /** `ARCADE_ELASTIC_TOOLKIT`. Optional: unset means `DEFAULT_ELASTIC_TOOLKIT`. */
+  elasticToolkit?: string;
 }
 
 const seedSubjectSchema = z
@@ -110,7 +125,8 @@ export function loadSeed(options: SeedOptions, raw: unknown = fixture): Seed {
 
   const substitute = (text: string): string =>
     Object.entries(TOOLKIT_PLACEHOLDERS).reduce(
-      (acc, [placeholder, key]) => acc.split(placeholder).join(options[key]),
+      (acc, [placeholder, key]) =>
+        acc.split(placeholder).join(options[key] ?? DEFAULT_ELASTIC_TOOLKIT),
       text,
     );
   const substituteDeep = (value: unknown): unknown => {
