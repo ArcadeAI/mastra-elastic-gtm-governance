@@ -91,6 +91,8 @@ The internals live in `docs/`, one page per question:
 - [`docs/deploying.md`](./docs/deploying.md): hosting the image instead of running it on your machine behind ngrok.
 - [`docs/app-users-and-arcade-accounts.md`](./docs/app-users-and-arcade-accounts.md): who needs an Arcade account, for each of the two Slack routes.
 - [`docs/ELASTIC.md`](./docs/ELASTIC.md): the Elastic module, Elasticsearch through the same gateway and the same hooks.
+- [`docs/modules/01-build.md`](./docs/modules/01-build.md): the workshop, paced by tags. `start` for modules 1 and 2, `module-3-ground` for Elastic, `capstone` for the finish; each module page says what you build, what to look at, and where to pick up if you are behind. Pacing a workshop with tags is Mateo Torres's method, from his [tool-building workshop](https://github.com/ArcadeAI/tool-building-workshop).
+- [`docs/walkthrough/index.html`](./docs/walkthrough/index.html): the four acts as a six-scene page, with a switch between the deal book and the index. Open it in a browser.
 - [`docs/DOMAIN-SWAP.md`](./docs/DOMAIN-SWAP.md) walks through pointing the template at your own business system.
 - [`docs/control-plane.md`](./docs/control-plane.md) is the control plane's own reference: the hooks, `governance.db`, drift and reset, the live stream and the audit log.
 - [`docs/studio-memory.md`](./docs/studio-memory.md) covers Studio's thread memory: why `memory.db` is libsql, what it never keeps, and how the reset empties it.

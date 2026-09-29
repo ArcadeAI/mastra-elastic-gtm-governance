@@ -39,6 +39,8 @@ const VERIFIED_URLS = new Set([
   // The human's, relayed by the driver on #10 (2026-09-24).
   "https://api.arcade.dev/dashboard/api-keys",
   "https://github.com/ArcadeAI/mastra-template-loan-approval-limits",
+  // Mateo's tool-building workshop, credited in Further reading for the tag-paced method. Cloned and read 2026-09-29.
+  "https://github.com/ArcadeAI/tool-building-workshop",
   // Fetched on #10: "API keys | Claude Platform", where console.anthropic.com/settings/keys redirects.
   "https://platform.claude.com/settings/keys",
   // Fetched on #10: Arcade's "Deploying to the cloud with Arcade Deploy", which installs the CLI.
