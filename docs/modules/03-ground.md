@@ -12,11 +12,12 @@ through the same three hooks a write does.
    `docs/ELASTIC.md` → Setup has the exact key request, and what Serverless leaves out.
    Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
    `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
-2. The Arcade Elasticsearch toolkit on your project, with `ELASTICSEARCH_URL` and
+2. The Elasticsearch toolkit on your project: `cd tools/elasticsearch && arcade deploy`, with `ELASTICSEARCH_URL` and
    `ELASTICSEARCH_API_KEY` as its secrets in the Arcade dashboard.
 3. In `.env`: `ARCADE_ELASTIC_TOOLKIT=Elasticsearch` and `ELASTIC_SEED_USER=<Michael's email>`.
-   Run `bun run setup-arcade <APP_PUBLIC_HOST>` again: the gateway's tool filter gains the
-   26 `Elasticsearch.*` tools and the run reads them back.
+   An existing gateway is not edited, so blank `ARCADE_GATEWAY_ID` and run
+   `bun run setup-arcade <APP_PUBLIC_HOST> --gateway <a-new-slug>`: the new gateway carries
+   the 26 `Elasticsearch.*` tools with the six deal tools. Restart `bun run dev` and authorize it once.
 4. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
    A refusal here is act 1 working — nobody else can see `CreateIndex`.
 5. As Alice:
