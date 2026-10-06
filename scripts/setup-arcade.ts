@@ -1213,6 +1213,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
       // The human's wording (#52): the app starts after .env is written, so there is nothing to restart.
       const answer = await ask(
         `\n  Now start the app and the tunnel, in two other terminals: bun run dev, and ngrok http --url=${host} ${port}.\n` +
+        `  (Or both in one: bun run up.)\n` +
           "  Press Enter when both are running (n, or Ctrl-C, ends on the dashboard forms instead): ",
       );
       if (answer === null) return { fallback: "user source: not created, at your answer, so none of it is sent" };

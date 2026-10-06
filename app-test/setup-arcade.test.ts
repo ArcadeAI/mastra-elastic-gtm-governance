@@ -2232,6 +2232,7 @@ test("one run, one click: the User Source is created through the Coordinator, th
   // What it said: the pause, each step read back, and nothing left for the dashboard.
   expect(run.stdout).toContain(
     "  Now start the app and the tunnel, in two other terminals: bun run dev, and ngrok http --url=template-test.ngrok.app 3000.\n" +
+      "  (Or both in one: bun run up.)\n" +
       "  Press Enter when both are running (n, or Ctrl-C, ends on the dashboard forms instead): ",
   );
   expect(run.stdout).toContain(`the app answers for ${ORIGIN} through the tunnel, and Arcade can use it`);
