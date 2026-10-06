@@ -133,6 +133,8 @@ class StandIn {
   nextGatewayCreate: { status: number; body: Json } | null = null;
   /** When set, a gateway read-back answers this instead (#52). */
   gatewayReadBack: { status: number; body: Json } | null = null;
+  /** When set, the next gateway update answers this instead of updating anything. */
+  nextGatewayPatch: { status: number; body: Json } | null = null;
   /**
    * The dashboard's behaviour (#48), assumed of the API too, which is the worst
    * case: while the project's hooks are active, a gateway create that names a
@@ -485,6 +487,21 @@ class StandIn {
       return Response.json(stored, { status: 201 });
     }
     const gatewayId = /^\/gateways\/([^/]+)$/.exec(rest)?.[1];
+    // Adding the Elastic module's tools to a gateway that exists. Arcade's update route was not
+    // measured (2026-10-06); this answers the shape setup-arcade sends, a partial update of
+    // `tool_filter`, and leaves every other field as it was.
+    if (gatewayId !== undefined && method === "PATCH") {
+      if (this.nextGatewayPatch !== null) {
+        const { status, body: answer } = this.nextGatewayPatch;
+        this.nextGatewayPatch = null;
+        return Response.json(answer, { status });
+      }
+      const stored = this.gateways.get(gatewayId);
+      if (!stored) return Response.json({ name: "not_found", message: "gateway not found" }, { status: 404 });
+      const updated = { ...stored, ...(body?.tool_filter ? { tool_filter: body.tool_filter } : {}) };
+      this.gateways.set(gatewayId, updated);
+      return Response.json(updated);
+    }
     if (gatewayId !== undefined && method === "GET") {
       if (this.gatewayReadBack !== null) return Response.json(this.gatewayReadBack.body, { status: this.gatewayReadBack.status });
       const stored = this.gateways.get(gatewayId);
@@ -642,6 +659,10 @@ function project(
     mkdirSync(join(dir, "tools", toolkit), { recursive: true });
     writeFileSync(join(dir, "tools", toolkit, "pyproject.toml"), `[project]\nname = "${toolkit}"\nversion = "1.0.0"\n`);
   }
+  // The Elastic module's, named by its `MCPApp` the way tools/elasticsearch is: deployed only when ARCADE_ELASTIC_TOOLKIT is set.
+  mkdirSync(join(dir, "tools", "elasticsearch", "elasticsearch_toolkit"), { recursive: true });
+  writeFileSync(join(dir, "tools", "elasticsearch", "pyproject.toml"), `[project]\nname = "elasticsearch_toolkit"\nversion = "1.0.0"\n`);
+  writeFileSync(join(dir, "tools", "elasticsearch", "elasticsearch_toolkit", "__init__.py"), `app = MCPApp(\n    name="Elasticsearch",\n)\n`);
   git(dir, "init", "-q");
   writeFileSync(join(dir, ".gitignore"), ".env\n*.db\n*.db-*\n");
   copyFileSync(join(ROOT, ".env.example"), join(dir, ".env.example"));
@@ -2274,6 +2295,96 @@ test("a rerun after one click is a no-op that says so: nothing paused, created, 
   expect(clientRows(dir)).toBe(rows);
   expect(formOrder(again.stdout)).toEqual([]);
 }, 90_000);
+
+// --- The Elastic module: its toolkit deployed, its tools on the gateway -----
+
+const ELASTIC_ON = (env: string) => `${env}\nARCADE_ELASTIC_TOOLKIT=Elasticsearch\n`;
+const ELASTIC_TOOL_NAMES = [
+  "WhoAmI", "ListIndices", "GetIndexMapping", "ListAliases", "ListInferenceEndpoints", "GetClusterHealth", "GetIndexStats", "GetShards",
+  "SearchByText", "SemanticSearch", "VectorSearch", "HybridSearch", "SearchDocuments", "AggregateDocuments", "CountDocuments", "GetDocument",
+  "RunEsqlQuery", "IndexDocument", "BulkIndexDocuments", "UpdateDocument", "DeleteDocument", "DeleteDocumentsByQuery", "CreateIndex",
+  "ReindexDocuments", "DeleteIndex", "RefreshIndex",
+].map((tool) => `Elasticsearch.${tool}`);
+const SIX = ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"];
+
+function turnElasticOn(dir: string): void {
+  writeFileSync(join(dir, ".env"), ELASTIC_ON(readFileSync(join(dir, ".env"), "utf8")));
+}
+function onlyGateway(): Json {
+  expect(arcade.gateways.size).toBe(1);
+  return [...arcade.gateways.values()][0]!;
+}
+const gatewayPatches = () => arcade.requests.filter((each) => each.method === "PATCH" && /\/gateways\//.test(each.path));
+
+test("with the Elastic module on, one click deploys tools/elasticsearch third and creates the gateway with all 32 tools", async () => {
+  const dir = project("elastic-one-click", ELASTIC_ON);
+  arcade.coordinatorMode = "available";
+  const run = await setupArcade(dir, ENTER);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(projects.get(dir)!.deploys()).toEqual([...DEPLOYS, "tools/elasticsearch|deploy"]);
+  expect(run.stdout).toContain("with the 32 tools of Deals, Approvals and Elasticsearch (read back)");
+  expect([...(onlyGateway().tool_filter.allowed_tools as string[])].sort()).toEqual([...SIX, ...ELASTIC_TOOL_NAMES].sort());
+  expect(gatewayPatches()).toEqual([]);
+}, 90_000);
+
+test("turning the Elastic module on after modules 1 and 2 adds its 26 tools to the gateway that exists, and changes nothing else", async () => {
+  const dir = project("elastic-later");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  const before = structuredClone(onlyGateway());
+  expect(projects.get(dir)!.deploys()).not.toContain("tools/elasticsearch|deploy");
+
+  turnElasticOn(dir);
+  arcade.requests = [];
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(projects.get(dir)!.deploys()).toContain("tools/elasticsearch|deploy");
+  expect(run.stdout).toContain(`gateway: added the 26 Elasticsearch tools to ${before.slug}, keeping its other tools and its User Source (read back)`);
+  expect(run.stdout).not.toContain("warning       tool_filter");
+  // One update, of the tool list only: the six kept, the 26 added, nothing removed.
+  const [patch] = gatewayPatches();
+  expect(gatewayPatches()).toHaveLength(1);
+  expect(Object.keys(patch!.body as Json)).toEqual(["tool_filter"]);
+  const after = onlyGateway();
+  expect([...(after.tool_filter.allowed_tools as string[])].sort()).toEqual([...SIX, ...ELASTIC_TOOL_NAMES].sort());
+  expect({ ...after, tool_filter: null }).toEqual({ ...before, tool_filter: null });
+  // No new gateway, and nothing left to add on the run after.
+  expect(arcade.requests.filter((each) => each.method === "POST" && /\/gateways$/.test(each.path))).toEqual([]);
+  arcade.requests = [];
+  const third = await setupArcade(dir, { tty: true, input: "" });
+  expect(third.code, `${third.stdout}\n${third.stderr}`).toBe(0);
+  expect(gatewayPatches()).toEqual([]);
+  expect(third.stdout).not.toContain("added the 26");
+}, 120_000);
+
+test("Arcade refusing the update is a warning naming both ways to finish, and the run still turns the hooks on", async () => {
+  const dir = project("elastic-patch-refused");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  turnElasticOn(dir);
+  arcade.nextGatewayPatch = { status: 405, body: { name: "method_not_allowed", message: "method not allowed" } };
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(run.stdout).toMatch(/warning {7}adding the 26 Elasticsearch tools to \S+ failed: .*405.*\(Arcade says: method not allowed\)/);
+  expect(run.stdout).toContain("--gateway <a-new-slug>");
+  expect(run.stdout).toContain("warning       tool_filter.allowed_tools is missing Elasticsearch.");
+  expect(onlyGateway().tool_filter.allowed_tools).toHaveLength(6);
+  hooksAreRegistered(dir, "active");
+}, 120_000);
+
+test("a gateway missing one of the six is not edited, even with the Elastic module on: that stays a warning", async () => {
+  const dir = project("elastic-six-incomplete");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  const gateway = onlyGateway();
+  gateway.tool_filter = { allowed_tools: SIX.filter((tool) => tool !== "Deals.DenyDiscount") };
+  turnElasticOn(dir);
+  arcade.requests = [];
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(gatewayPatches()).toEqual([]);
+  expect(run.stdout).toContain("warning       tool_filter.allowed_tools is missing Deals.DenyDiscount");
+}, 120_000);
 
 /** The part of a fallback run from the #48 gateway check on, with what differs per project written the same way. */
 function afterFallback(stdout: string): string {

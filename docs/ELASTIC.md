@@ -62,7 +62,7 @@ The same three controls the deal-book rules are, keyed on retrieval instead of a
 
 | Act | Rule | What it does |
 |---|---|---|
-| 1 | `access.only-the-cco-writes-the-index.*` (×9) | `IndexDocument`, `BulkIndexDocuments`, `UpdateDocument`, `DeleteDocument`, `DeleteDocumentsByQuery`, `CreateIndex`, `ReindexDocuments`, `DeleteIndex`, `RefreshIndex` are absent from `tools/list` for the account executive, the analyst and the VP. The CCO sees them; the seed runs as the CCO. |
+| 1 | `access.only-the-cco-writes-the-index.*` (×9) | `IndexDocument`, `BulkIndexDocuments`, `UpdateDocument`, `DeleteDocument`, `DeleteDocumentsByQuery`, `CreateIndex`, `ReindexDocuments`, `DeleteIndex`, `RefreshIndex` are absent from `tools/list` for the account executive (Alice), the SDR (Bob) and the VP Sales (Charlie). The CRO (Michael) sees them; the seed runs as the CRO. (The rule ids keep the template's earlier `cco` spelling, because `governance.db` is keyed on them.) |
 | 3 | `post.redact-identifiers-in-search-results` | `hits[].source.bank_account_number` and `tax_id` masked on every search tool, `source.*` on `GetDocument`, for clearance under 250,000. |
 | 3 | `pre.esql-must-keep-named-columns`, `pre.esql-names-no-identifier-column`, `pre.aggregate-not-over-identifiers` | ES|QL rows and aggregation buckets have no field path to mask, so under the bar a query with neither `KEEP` nor `STATS`, a query naming an identifier column, or an aggregation over one is refused at `/pre` — with the fix in the denial, in the wire spelling (`Elasticsearch_RunEsqlQuery with query=…`). |
 | 4 | `post.strip-injected-instructions-from-search-results` | The same six patterns as the deal book's rule, byte for byte, on every Elastic tool's output, for everyone. `DL-2291`'s note is the same note whether it came from the deal book or the index. |
@@ -131,14 +131,12 @@ privileges are the real boundary. The hooks sit on top of them, not in place of 
 
 The toolkit is in this repo, at `tools/elasticsearch`: an `arcade-mcp` server like
 `tools/loan` and `tools/approvals`, calling the Elasticsearch REST API. It is not in
-Arcade's catalog, and `setup-arcade` does not deploy it, so deploy it yourself, once:
+Arcade's catalog. `bun run setup-arcade` deploys it, third, when `ARCADE_ELASTIC_TOOLKIT`
+is set (step 3), and skips it once Arcade runs it. That is a third deployment in the
+project, after `deals` and `approvals`; a plan that allows two refuses it with
+"Deployment limit reached".
 
-    cd tools/elasticsearch && arcade deploy
-
-That is a third deployment in the project, after `deals` and `approvals`; a plan that
-allows two refuses it with "Deployment limit reached".
-
-Then, in the Arcade dashboard, with **the same project selected** as the one `arcade
+In the Arcade dashboard, with **the same project selected** as the one `arcade
 whoami` shows (a new account also has a "Default project", and secrets saved there are
 invisible to this one), add its two secrets:
 
@@ -147,14 +145,14 @@ invisible to this one), add its two secrets:
 | `ELASTICSEARCH_URL` | the Serverless project's Elasticsearch endpoint, with `:443` |
 | `ELASTICSEARCH_API_KEY` | the `encoded` value the key request returned |
 
-Then put it on the gateway. `bun run setup-arcade` does this when
-`ARCADE_ELASTIC_TOOLKIT` is set in `.env` (step 3) **and it creates the gateway**: the tool
-filter carries the 26 `Elasticsearch.*` tools alongside the six loan and approvals tools.
-A gateway that already exists is never edited, only checked, and the read-back names
-the missing tools as a warning. If you ran modules 1 and 2 first, either add the 26
-tools to that gateway in the dashboard, or blank `ARCADE_GATEWAY_ID` in `.env` and run
-`bun run setup-arcade <APP_PUBLIC_HOST> --gateway <a-new-slug>`, which creates a second
-gateway with all 32; restart `bun run dev` and authorize the new gateway once.
+The same run puts it on the gateway. A gateway it creates carries the 26
+`Elasticsearch.*` tools alongside the six loan and approvals tools. A gateway that already
+exists, the one modules 1 and 2 made, gets the 26 added by `PATCH` and read back: the only
+edit `setup-arcade` makes to a gateway it did not just create, and only when the six are
+all there and the Elastic tools are all it lacks. Its User Source and its other tools are
+left as they are. If Arcade refuses the update, the run says so and names the two ways to
+finish by hand: add the tools in the dashboard with the hooks disabled, or blank
+`ARCADE_GATEWAY_ID` and run with `--gateway <a-new-slug>` for a second gateway with all 32.
 
 The toolkit files itself as `Elasticsearch` — the `MCPApp` name PascalCased is itself —
 and every wire name is `Elasticsearch_<Tool>`. A name that differs is a name to put in
@@ -198,9 +196,11 @@ put the raw number on a slide.
 
 ## The module, on stage
 
-The prompts below were written against the fixture, not measured live; measure them at
-the dry run and replace this sentence with what you saw, the way `RUNBOOK.md` §2 does for
-the four acts.
+Measured on 2026-10-06 against an Elasticsearch Serverless project, through the
+gateway, as Alice and Bob: all four prompts below answered as described. Which search
+tool the agent reaches for varies from run to run (`SearchByText`, `SemanticSearch`,
+`HybridSearch`, `SearchDocuments`), and it does not matter to the controls: the `/post`
+rules match every Elastic tool.
 
 **Keyword misses, meaning finds.** As Alice:
 
@@ -212,20 +212,29 @@ Then:
 > Which accounts did the deal desk think were carried by a single team or product?
 
 No CRM note says "carried by a single team". `Elasticsearch_SemanticSearch` on
-`crm_notes_semantic` (or `HybridSearch`) returns `DL-2296` — *"Product-led growth carries
-the account"* — and `DL-2295`, *"one business unit is 41% of usage"*. Keyword search finds
-words; the semantic field finds what the reviewer meant.
+`crm_notes_semantic` (or `HybridSearch`) ranks `DL-2296` first — *"Product-led growth
+carries the account"*. With the Serverless default, Jina v5, the top three measured were
+`DL-2296`, `DL-2293`, `DL-2292` for semantic and `DL-2293`, `DL-2296`, `DL-2288` for hybrid;
+`DL-2295`, *"one business unit is 41% of usage"*, which this page once promised, was not in
+either, so do not promise it on stage. Keyword search finds words; the semantic field finds
+what the reviewer meant.
 
 **Act 3, over retrieval.** The panel shows `post.redact-identifiers-in-search-results`
-firing on the hit: `bank_account_number` and `tax_id` are `[REDACTED]` in what Dana's
-model read. Sign in as Riley and ask the same thing: intact.
+firing on the hit: `bank_account_number` and `tax_id` are `[REDACTED]` in what Alice's
+model read. Sign in as Charlie and ask the same thing: intact.
+
+Ask Bob's agent for the identifiers outright and it goes looking for a second source:
+measured, it read the redacted search hit, said so, and called `Deals_GetDeal` for the
+same record from the deal book. That came back `[REDACTED]` too, under the deal book's own
+`post.redact-customer-identifiers`. Two systems, one rule shape, and the model's
+workaround is on the panel as a second Post entry.
 
 **Act 4, over retrieval.** Any search that returns `DL-2291` — the two above do — shows
 `post.strip-injected-instructions-from-search-results` and `pattern.injected-instruction`
 on the panel, and the model's reply carries the renewal date and the open SCIM case and
 nothing after the paste marker. Same note, same rule shape, different tool.
 
-**Analytics from chat.** As Dana:
+**Analytics from chat.** As Alice:
 
 > Total discount requested by status, and the average credit score of what's pending.
 
@@ -240,27 +249,25 @@ tells the model to add a `KEEP`; the retry carries `KEEP deal_id, account_name, 
 status, requested_at` and succeeds. That is act 2's mechanism — deny, instruct, retry —
 on a read, with no approval in the loop because nothing needs one.
 
-**The write tools, for the back of the room.** As Sam, ask the agent to delete the index.
-It cannot: `Elasticsearch_DeleteIndex` is not in Sam's tool list, and the panel's access
-listing shows the nine hidden entries. As Morgan it is visible, and the toolkit's own
+**The write tools, for the back of the room.** As Bob, ask the agent to delete the index.
+It cannot: `Elasticsearch_DeleteIndex` is not in Bob's tool list, and the panel's access
+listing shows the nine hidden entries. As Michael it is visible, and the toolkit's own
 guard refuses a wildcard pattern — two layers, and the demo says which is which.
 
 ---
 
 ## Getting back to a clean state
 
-Nothing to do between takes: every persona but the CCO holds read tools only, so a take
+Nothing to do between takes: every persona but the CRO holds read tools only, so a take
 cannot change the index. `bun run reset` is unchanged and does not touch Elasticsearch.
 `bun run seed:elastic --reset` is for a mapping change, which Elasticsearch cannot apply
 in place.
 
 ## What is not measured yet
 
-- The live `tools/list` for a gateway carrying all three toolkits. The count in
-  `DESIGN.md` → Tool surface is eight plus 26 by derivation; measure it at the dry run.
-- The prompts above, against the real model. The hooks are measured
-  (`app-test/control-plane/elastic-post.test.ts`); which tool Claude reaches for on each prompt
-  is not.
-- How the default `.jina-embeddings-v5-text-small` endpoint ranks the semantic prompts
-  above compared with ELSER, against which they were first written. Rehearse both and
-  replace the expected hits below with what you saw.
+- Arcade's gateway update route. `setup-arcade` adds the Elastic tools to an existing
+  gateway with `PATCH …/gateways/{id}` and a `tool_filter`-only body, which the suite's
+  stand-in answers; the live route was not exercised. If Arcade refuses it, the run warns
+  and names the manual fixes, so the cost of being wrong is one extra step.
+- Charlie's and Michael's runs of the prompts above. Alice's and Bob's were measured.
+- The live `tools/list` for a gateway carrying all three toolkits: 32 by derivation.

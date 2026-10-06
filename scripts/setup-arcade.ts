@@ -33,7 +33,7 @@
  *    form shows.
  * 7. **Deploys both toolkits**: `arcade deploy` in `tools/loan`, then in
  *    `tools/approvals`, streaming their output and stopping on a failure
- *    (#30). A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
+ *    (#30). With `ARCADE_ELASTIC_TOOLKIT` set, `tools/elasticsearch` third. A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
  *    the CLI's own check, answers 404 when it is missing. `--redeploy`
  *    deploys it anyway, and `--skip-deploy` leaves both to the developer.
  * 8. **Registers the User Source and the gateway by API, then turns the hooks
@@ -109,6 +109,8 @@ import {
   arcadeMessage,
   gatewayBody,
   gatewayCheck,
+  gatewayToolsPatch,
+  elasticToolsToAdd,
   gatewayDifferences,
   type GatewaySpec,
   healthCheckUrl,
@@ -167,6 +169,8 @@ function defaultGateway(host: string): string {
 }
 /** The toolkits `arcade deploy` ships, in order: the gateway lists their tools. */
 const TOOLKIT_DIRS = ["tools/loan", "tools/approvals"] as const;
+/** The Elastic module's toolkit, deployed third when `ARCADE_ELASTIC_TOOLKIT` is set (docs/ELASTIC.md). */
+const ELASTIC_TOOLKIT_DIR = "tools/elasticsearch";
 
 const out = (line = "") => console.log(line);
 function fail(message: string, code = 1): never {
@@ -338,6 +342,10 @@ const approvalsToolkit = effective("ARCADE_APPROVALS_TOOLKIT") || "Approvals";
 // The Elastic module (docs/ELASTIC.md). Blank is off: the gateway carries the six
 // loan and approvals tools and nothing else, exactly as before the module.
 const elasticToolkit = effective("ARCADE_ELASTIC_TOOLKIT") || "";
+/** What this run deploys: the two toolkits, and the Elastic module's when it is on. */
+const deployDirs: readonly string[] = elasticToolkit ? [...TOOLKIT_DIRS, ELASTIC_TOOLKIT_DIR] : TOOLKIT_DIRS;
+/** How the deploy messages count them. */
+const deployCount = deployDirs.length === 2 ? "both" : "all three";
 
 const configuredClients = fromFile("IDP_OAUTH_CLIENTS");
 if (configuredClients !== "") {
@@ -533,12 +541,12 @@ if (dryRun) {
     await admin.request("GET", projectPath(scope, "/hooks?plugin_id=<plugin_id>"));
   }
   if (scope !== null && !skipDeploy && !redeploy) {
-    for (const dir of TOOLKIT_DIRS) {
+    for (const dir of deployDirs) {
       const name = serverName(join(cwd, dir));
       if (name === null) continue;
       await admin.request("GET", projectPath(scope, `/workers/${encodeURIComponent(name)}`));
     }
-    out("    (the deploys' check, one per toolkit: 404 deploys it, found skips it; --redeploy deploys both anyway)");
+    out(`    (the deploys' check, one per toolkit: 404 deploys it, found skips it; --redeploy deploys ${deployCount} anyway)`);
   }
   if (scope !== null && coordinator !== null) {
     out(`    (the User Source, through the Coordinator API at ${coordinator.baseUrl}:)`);
@@ -586,10 +594,10 @@ if (dryRun) {
   out(
     skipDeploy
       ? "\nDeploys: skipped (--skip-deploy)."
-      : `\nDeploys, after the hooks and before the gateway check, each stopping the run if it fails${redeploy ? " (--redeploy: both, whatever Arcade already runs)" : ", unless Arcade already runs it"}:`,
+      : `\nDeploys, after the hooks and before the gateway check, each stopping the run if it fails${redeploy ? ` (--redeploy: ${deployCount}, whatever Arcade already runs)` : ", unless Arcade already runs it"}:`,
   );
   if (!skipDeploy) {
-    for (const dir of TOOLKIT_DIRS) out(deployLine(dir));
+    for (const dir of deployDirs) out(deployLine(dir));
     out(DEPLOY_SECRETS_NOTE);
   }
   if (scope !== null && coordinator !== null) {
@@ -887,10 +895,14 @@ if (scope === null) {
 // --- 7. The deploys (#30) ---------------------------------------------------
 
 if (skipDeploy) {
-  out("\nDeploys: skipped (--skip-deploy). Deploy both toolkits before the gateway: arcade deploy, in tools/loan and in tools/approvals.");
+  out(
+    elasticToolkit
+      ? `\nDeploys: skipped (--skip-deploy). Deploy all three toolkits before the gateway: arcade deploy, in tools/loan, tools/approvals and ${ELASTIC_TOOLKIT_DIR}.`
+      : "\nDeploys: skipped (--skip-deploy). Deploy both toolkits before the gateway: arcade deploy, in tools/loan and in tools/approvals.",
+  );
 } else {
   out(`\n${DEPLOY_SECRETS_NOTE.trimStart()}`);
-  for (const dir of TOOLKIT_DIRS) {
+  for (const dir of deployDirs) {
     const where = join(cwd, dir);
     if (!existsSync(where)) fail(`there is no ${dir} under ${cwd} to deploy. Run this from the project's root, or pass --skip-deploy.`);
     // Already on Arcade: skipped, because a rerun (the second run, which
@@ -954,8 +966,48 @@ async function turnHooksOn(scope: ProjectScope, hooks: { id: string; status: Hoo
 }
 
 /**
- * The #48 flow, unchanged: the gateway is looked for under the slug and never
- * written. Not there, the hooks stay as they are and the forms are left; there,
+ * A gateway that exists, brought up to the Elastic module: when the Elastic
+ * tools are all it lacks (`elasticToolsToAdd`), they are added by `PATCH` and
+ * read back. That is module 3 on the gateway modules 1 and 2 made, which
+ * otherwise needed a second gateway or the dashboard with the hooks off. Its
+ * authentication is never touched, and nothing is removed. Answers the tool
+ * list's differences left to warn about: none once the tools are added, the
+ * same ones as before when there was nothing to add or Arcade refused.
+ */
+async function addElasticTools(scope: ProjectScope, gateway: unknown): Promise<string[]> {
+  const before = gatewayCheck(gateway, loanToolkit, approvalsToolkit, elasticToolkit).tools;
+  const add = elasticToolsToAdd(gateway, loanToolkit, approvalsToolkit, elasticToolkit);
+  const id = objectField(gateway, "id");
+  if (add.length === 0 || typeof id !== "string" || id === "") return before;
+  const path = projectPath(scope, `/gateways/${encodeURIComponent(id)}`);
+  const manually =
+    `add them in the dashboard (disable ${HOOKS_NAME} first, or the gateway form does not list the ${loanToolkit} and ${approvalsToolkit} tools), ` +
+    `or blank ARCADE_GATEWAY_ID in .env and run this with --gateway <a-new-slug> for a second gateway with all of them`;
+  const patched = await admin.request("PATCH", path, gatewayToolsPatch(gateway, add));
+  if (patched.status < 200 || patched.status >= 300) {
+    const error = new ArcadeError("PATCH", path, patched.status, JSON.stringify(patched.json));
+    const said = arcadeMessage(error);
+    out(`  warning       adding the ${add.length} ${elasticToolkit} tools to ${slug} failed: ${error.message}${said ? ` (Arcade says: ${said})` : ""}`);
+    out(`  warning       ${manually}`);
+    return before;
+  }
+  const read = await admin.request("GET", path);
+  if (read.status !== 200) {
+    out(`  warning       the ${elasticToolkit} tools were sent to ${slug}, and reading it back failed: ${new ArcadeError("GET", path, read.status, JSON.stringify(read.json)).message}. Run this again to check.`);
+    return before;
+  }
+  const after = gatewayCheck(read.json, loanToolkit, approvalsToolkit, elasticToolkit);
+  if (elasticToolsToAdd(read.json, loanToolkit, approvalsToolkit, elasticToolkit).length > 0) {
+    out(`  warning       ${slug} was updated, and Arcade reads back without all the ${elasticToolkit} tools; ${manually}`);
+    return after.tools;
+  }
+  out(`  gateway: added the ${add.length} ${elasticToolkit} tools to ${slug}, keeping its other tools and its User Source (read back)`);
+  return after.tools;
+}
+
+/**
+ * The #48 flow, unchanged but for the Elastic tools (`addElasticTools`): the
+ * gateway is looked for under the slug and never otherwise written. Not there, the hooks stay as they are and the forms are left; there,
  * the hooks are turned on behind it. The fallback whenever the Coordinator
  * path is not available.
  */
@@ -982,8 +1034,9 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
       );
     }
     out(`  gateway: found ${slug}, through a User Source`);
-    for (const line of check.tools) out(`  warning       ${line}`);
-    if (check.tools.length > 0) {
+    const toolWarnings = await addElasticTools(scope, gateway);
+    for (const line of toolWarnings) out(`  warning       ${line}`);
+    if (toolWarnings.length > 0) {
       out(
         `  warning       the hooks are turned on anyway. To fix the tool list, disable ${HOOKS_NAME} in the dashboard first: ` +
           `while it is on, the gateway form does not list the ${loanToolkit} and ${approvalsToolkit} tools. Then run this again.`,
@@ -1228,7 +1281,8 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
   if (listing.status !== 200) gatewayNotCreated(source, createdNow, hooks, new ArcadeError("GET", listPath, listing.status, JSON.stringify(listing.json)).message);
   const existing = pageItems(listing.json).find((each) => objectField(each, "slug") === slug);
   if (existing !== undefined) {
-    // Made before, by a run like this one or in the dashboard: held to the User Source, never edited.
+    // Made before, by a run like this one or in the dashboard: held to the User Source, and edited
+    // only to add the Elastic module's tools (`addElasticTools`).
     const check = gatewayCheck(existing, loanToolkit, approvalsToolkit, elasticToolkit);
     const through = objectField(existing, "user_source_id");
     const other = typeof through === "string" && through !== source.id ? `user_source_id: Arcade has ${JSON.stringify(through)}, this app needs "${source.id}"` : null;
@@ -1241,7 +1295,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
       );
     }
     out(`  gateway: found ${slug}, through the User Source ${source.id}`);
-    for (const line of check.tools) out(`  warning       ${line}`);
+    for (const line of await addElasticTools(scope, existing)) out(`  warning       ${line}`);
   } else {
     const path = projectPath(scope, "/gateways");
     const created = await admin.request("POST", path, gatewayBody(spec));
