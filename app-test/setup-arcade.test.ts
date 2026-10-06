@@ -487,9 +487,9 @@ class StandIn {
       return Response.json(stored, { status: 201 });
     }
     const gatewayId = /^\/gateways\/([^/]+)$/.exec(rest)?.[1];
-    // Adding the Elastic module's tools to a gateway that exists. Arcade's update route was not
-    // measured (2026-10-06); this answers the shape setup-arcade sends, a partial update of
-    // `tool_filter`, and leaves every other field as it was.
+    // Adding the Elastic module's tools to a gateway that exists: a partial update of `tool_filter`
+    // that leaves every other field as it was, which is what real Arcade did on 2026-10-06 (200, the
+    // six tools read back as 32, nothing else changed).
     if (gatewayId !== undefined && method === "PATCH") {
       if (this.nextGatewayPatch !== null) {
         const { status, body: answer } = this.nextGatewayPatch;

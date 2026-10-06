@@ -465,9 +465,10 @@ export function elasticToolsToAdd(gateway: unknown, loanToolkit: string, approva
 
 /**
  * `PATCH …/gateways/{id}` adding `add` to the gateway's tool list and keeping
- * every tool it already has. Only `tool_filter` is sent. The shape mirrors
- * `CreateGatewayRequest`'s field; Arcade's update route was not measured
- * (2026-10-06), so the caller treats a refusal as a warning, not a failure.
+ * every tool it already has. Only `tool_filter` is sent: measured against
+ * Arcade on 2026-10-06, a six-tool gateway answered 200 and read back with 32
+ * tools and every other field as it was. The caller still treats a refusal as
+ * a warning, not a failure.
  */
 export function gatewayToolsPatch(gateway: unknown, add: string[]) {
   const tools = at(gateway, "tool_filter.allowed_tools");

@@ -265,9 +265,5 @@ in place.
 
 ## What is not measured yet
 
-- Arcade's gateway update route. `setup-arcade` adds the Elastic tools to an existing
-  gateway with `PATCH …/gateways/{id}` and a `tool_filter`-only body, which the suite's
-  stand-in answers; the live route was not exercised. If Arcade refuses it, the run warns
-  and names the manual fixes, so the cost of being wrong is one extra step.
 - Charlie's and Michael's runs of the prompts above. Alice's and Bob's were measured.
 - The live `tools/list` for a gateway carrying all three toolkits: 32 by derivation.
