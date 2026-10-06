@@ -83,7 +83,8 @@ scanned.
 
 ### 1. An Elasticsearch Serverless project
 
-The workshop runs on **Elasticsearch Serverless** only. Create a Serverless project (the
+The workshop runs on **Elasticsearch Serverless** only. [Sign up for Elastic Cloud](https://ela.st/arcade) and
+create a Serverless project (the
 Elasticsearch / search use case) and note the **Elasticsearch endpoint** (not the Kibana
 URL).
 

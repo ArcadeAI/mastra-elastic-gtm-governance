@@ -36,6 +36,8 @@ const DEMO_PLACEHOLDER = [
  * not listed.
  */
 const VERIFIED_URLS = new Set([
+  // Elastic's workshop sign-up link: redirects to cloud.elastic.co/serverless-registration with the MCP4GTM UTM tags. Checked 2026-10-05.
+  "https://ela.st/arcade",
   // The human's, relayed by the driver on #10 (2026-09-24).
   "https://api.arcade.dev/dashboard/api-keys",
   "https://github.com/ArcadeAI/mastra-template-loan-approval-limits",

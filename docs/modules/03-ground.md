@@ -8,7 +8,7 @@ through the same three hooks a write does.
 
 ## What you build
 
-1. An Elasticsearch Serverless project, and an API key scoped to `deal-files*`.
+1. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), and an API key scoped to `deal-files*`.
    `docs/ELASTIC.md` → Setup has the exact key request, and what Serverless leaves out.
    Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
    `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
