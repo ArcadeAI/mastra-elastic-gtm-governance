@@ -165,10 +165,23 @@ export function resumeMessage(record: ApprovalRecord): string {
   const when = record.decided_at ?? "an unrecorded time";
   const note = record.note?.trim();
 
+  // On an approval, one more fact, because the model cannot see it anywhere
+  // else: the grant lives in the control plane, not in the deal book, and a
+  // model that reads the deal book for corroboration finds nothing there until
+  // the action has run. Measured on 2026-10-06: without this sentence the live
+  // model re-read the record, saw `decisions: []`, and declined to act. Still
+  // a statement of what is, not of what to do.
+  const grant =
+    record.status === "approved"
+      ? ` The control plane holds a single-use grant for that action, on that resource and for that amount; ` +
+        `the deal book records a decision only when the action runs, so until then it shows this request as pending.`
+      : "";
+
   return (
     `Approval request ${record.id} — ${record.action} on ${record.resource_id} for ` +
     `${record.amount} — was ${record.status} by ${name} at ${when}.` +
-    (note ? ` Their note: "${note}"` : "")
+    (note ? ` Their note: "${note}"` : "") +
+    grant
   );
 }
 

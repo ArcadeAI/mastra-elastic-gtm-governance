@@ -393,7 +393,7 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
         502,
         `The gateway advertised ${selected.advertised.length} tools and none of them belong to ` +
           `${config.agent.toolkits.map((name) => `"${name}"`).join(" or ")}, so this agent has ` +
-          `nothing to call. Check ARCADE_TOOLKIT and ARCADE_TOOLKIT against a real ` +
+          `nothing to call. Check ARCADE_TOOLKIT against a real ` +
           `tools/list.`,
         selected.dropped,
         resealed,
