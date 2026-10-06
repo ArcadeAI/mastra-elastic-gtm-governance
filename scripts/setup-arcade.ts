@@ -151,7 +151,20 @@ import { gatewayForm, hooksForm, hooksOnCommand, type NextSteps, nextSteps, user
 import { serverName } from "./setup-arcade/toolkit.ts";
 
 const CLIENT_KEYS = ["arcade", "arcade-user-source", "web"] as const;
-const DEFAULT_GATEWAY = "loan-approval-limits";
+/**
+ * The gateway slug when neither `--gateway` nor `ARCADE_GATEWAY_ID` names one.
+ *
+ * Gateway slugs are unique across Arcade, not per project: a second person
+ * running this with the template's old fixed default got a 409 and a stop
+ * (measured 2026-10-06, the first time two people set up the same template).
+ * So the default is derived from the one value that is already unique per
+ * person — their ngrok host — as `deal-desk-<first label>`. `--gateway` still
+ * overrides it, and a slug once written to .env is kept on every later run.
+ */
+function defaultGateway(host: string): string {
+  const label = host.split(":")[0]!.split(".")[0]!.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
+  return label === "" ? "deal-desk" : `deal-desk-${label}`.slice(0, 63).replace(/-+$/, "");
+}
 /** The toolkits `arcade deploy` ships, in order: the gateway lists their tools. */
 const TOOLKIT_DIRS = ["tools/loan", "tools/approvals"] as const;
 
@@ -275,7 +288,7 @@ if (onLocal !== "" && onLocal.toLowerCase() !== host) {
 const apiKey = fromFile("ARCADE_API_KEY");
 if (apiKey === "" && !dryRun) fail("ARCADE_API_KEY is blank. Fill it in .env (Arcade dashboard → API keys), then run this again.");
 const apiUrl = (effective("ARCADE_API_URL") || "https://api.arcade.dev").replace(/\/+$/, "");
-const slug = gatewaySlug ?? (fromFile("ARCADE_GATEWAY_ID") || DEFAULT_GATEWAY);
+const slug = gatewaySlug ?? (fromFile("ARCADE_GATEWAY_ID") || defaultGateway(host));
 const onFileGateway = fileEnv.ARCADE_GATEWAY_ID?.trim() ?? "";
 if (gatewaySlug !== null && onFileGateway !== "" && onFileGateway !== gatewaySlug) {
   fail(`.env has ARCADE_GATEWAY_ID=${onFileGateway}, and this run was given --gateway ${gatewaySlug}. Blank it in .env to use ${gatewaySlug}.`);

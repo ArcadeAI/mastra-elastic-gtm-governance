@@ -541,7 +541,7 @@ function dashboardGateway(overrides: Json = {}): Json {
   const gateway = {
     id: `gw_dashboard_${arcade.gateways.size + 1}`,
     name: "Deals Approval Limits",
-    slug: "loan-approval-limits",
+    slug: "deal-desk-template-test",
     status: "active",
     auth_type: "user_source",
     user_source_id: USER_SOURCE,
@@ -919,7 +919,7 @@ test("a first run registers every API-able piece with the hooks disabled, deploy
   expect(env.IDP_CLIENT_SECRET).toMatch(/^\S{16,}$/);
   expect(clients.web!.redirectUris).toEqual([`${ORIGIN}/api/auth/callback`]);
   expect(clients["arcade-user-source"]!.redirectUris).toEqual(["https://cloud.arcade.dev/oauth2/intermediate_callback"]);
-  expect(env.ARCADE_GATEWAY_ID).toBe("loan-approval-limits");
+  expect(env.ARCADE_GATEWAY_ID).toBe("deal-desk-template-test");
   expect(env.GOVERNANCE_STREAM).toBe("hooks");
   // Every key .env.example says setup-arcade fills is filled.
   const example = readFileSync(join(ROOT, ".env.example"), "utf8");
@@ -940,7 +940,7 @@ test("a first run registers every API-able piece with the hooks disabled, deploy
   // No gateway: it was looked for, never written, and both forms are left, the User Source's first.
   expect(arcade.gateways.size).toBe(0);
   noGatewayWritten();
-  expect(run.stdout).toContain("gateway: there is no loan-approval-limits in this project yet; it is the dashboard form below");
+  expect(run.stdout).toContain("gateway: there is no deal-desk-template-test in this project yet; it is the dashboard form below");
   expect(run.stdout).toContain("hooks: left disabled, so the dashboard's gateway form lists the tools");
   expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
   expect(run.stdout).toContain("User Sources → Create User Source");
@@ -950,7 +950,7 @@ test("a first run registers every API-able piece with the hooks disabled, deploy
   gatewayFormIsComplete(run.stdout);
   // Then the command for the second run, and the warning, last.
   expect(run.stdout.trimEnd().split("\n").slice(-5)).toEqual([
-    "Once the gateway loan-approval-limits exists, turn the hooks on with the same command:",
+    "Once the gateway deal-desk-template-test exists, turn the hooks on with the same command:",
     `  bun run setup-arcade ${HOST}`,
     "",
     "warning: until then the gateway runs ungoverned. The hooks are disabled, so Arcade calls none of",
@@ -968,7 +968,7 @@ function gatewayFormIsComplete(stdout: string): void {
   const start = stdout.indexOf("┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway");
   expect(start, "no gateway form").toBeGreaterThan(-1);
   const form = stdout.slice(start, stdout.indexOf("└─", start));
-  expect(form).toMatch(/│ {2}Slug +loan-approval-limits +← \.env's ARCADE_GATEWAY_ID$/m);
+  expect(form).toMatch(/│ {2}Slug +deal-desk-template-test +← \.env's ARCADE_GATEWAY_ID$/m);
   expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    Deals: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount\n│                    Approvals: RequestApproval, Decide\n");
   expect(form).toContain("Non-Arcade Users → User Source\n│                    → Deals Approval Limits (the User Source above). Never Arcade Headers.");
   expect(form).toContain("lists the Deals and Approvals tools only while the hooks are disabled");
@@ -1120,7 +1120,7 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   expect(gateway.user_source_id).toBe("<the User Source's id>");
   expect(gateway.tool_filter.allowed_tools).toEqual(["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"]);
   expect(bodyAfter(run.stdout, `  PATCH ${arcade.url}${SCOPED}/plugins/<plugin_id>\n`).status).toBe("active");
-  expect(run.stdout).toContain("falls back to the dashboard forms (#48): the\n    gateway loan-approval-limits is only looked for, the hooks stay disabled");
+  expect(run.stdout).toContain("falls back to the dashboard forms (#48): the\n    gateway deal-desk-template-test is only looked for, the hooks stay disabled");
   expect(run.stdout).toContain(
     "Deploys, after the hooks and before the gateway check, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in tools/loan)\n  arcade deploy   (in tools/approvals)",
   );
@@ -1155,9 +1155,9 @@ test("the second run finds the gateway, turns the hooks on and reads them back, 
   expect(patch.status).toBe("active");
   expect(Object.values(patch.webhook_config.endpoints).map((each) => (each as Json).status)).toEqual(["active", "active", "active"]);
   hooksAreRegistered(dir, "active");
-  expect(run.stdout).toContain("gateway: found loan-approval-limits, through a User Source");
+  expect(run.stdout).toContain("gateway: found deal-desk-template-test, through a User Source");
   expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
-  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through loan-approval-limits");
+  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through deal-desk-template-test");
   expect(run.stdout).not.toContain("warning       ");
   noGatewayWritten();
   // Nothing is left for the dashboard, and the run ends on opening the app.
@@ -1187,7 +1187,7 @@ test("with no gateway yet, the second run names the slug, says the form is still
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   expect(sequence(arcade.requests)).toEqual(RERUN);
-  expect(run.stdout).toContain("gateway: there is no loan-approval-limits in this project yet; it is the dashboard form below");
+  expect(run.stdout).toContain("gateway: there is no deal-desk-template-test in this project yet; it is the dashboard form below");
   expect(run.stdout).toContain("hooks: left disabled, so the dashboard's gateway form lists the tools");
   expect(formOrder(run.stdout)).toEqual(["User Source", "gateway"]);
   expect(run.stdout).toContain("warning: until then the gateway runs ungoverned.");
@@ -1266,7 +1266,7 @@ test("a gateway that does not authenticate through the User Source is refused, a
     arcade.requests = [];
     const run = await setupArcade(dir);
     expect(run.code, `${authType}: ${run.stdout}\n${run.stderr}`).toBe(1);
-    expect(run.stderr).toContain("the gateway loan-approval-limits does not authenticate through the User Source:");
+    expect(run.stderr).toContain("the gateway deal-desk-template-test does not authenticate through the User Source:");
     expect(run.stderr).toContain(`  - auth_type: Arcade has ${JSON.stringify(authType) ?? "nothing"}, this app needs "user_source"`);
     expect(run.stderr).toContain("The hooks are left disabled.");
     expect(run.stderr).toContain("this template never runs a gateway on Arcade Headers or on Arcade accounts");
@@ -1807,7 +1807,7 @@ test("from the live project's state after run 3, the dry run tells the truth, th
     at("hooks: created loan-approval-limits-hooks"),
     at("arcade deploy   (in tools/loan):"),
     at("arcade deploy   (in tools/approvals):"),
-    at("gateway: there is no loan-approval-limits in this project yet"),
+    at("gateway: there is no deal-desk-template-test in this project yet"),
     at("┌─ Arcade dashboard → your project → User Sources"),
     at("┌─ Arcade dashboard → your project → MCP Gateways"),
     at("Then:"),
@@ -2198,7 +2198,7 @@ test("one run, one click: the User Source is created through the Coordinator, th
   expect(created).toEqual({
     name: "Deals Approval Limits",
     description: "The account executive's agent",
-    slug: "loan-approval-limits",
+    slug: "deal-desk-template-test",
     auth_type: "user_source",
     user_source_id: source.id,
     tool_filter: { allowed_tools: SIX_TOOLS },
@@ -2227,9 +2227,9 @@ test("one run, one click: the User Source is created through the Coordinator, th
   );
   expect(run.stdout).toContain(`the app answers for ${ORIGIN} through the tunnel, and Arcade can use it`);
   expect(run.stdout).toContain(`user source: created Deals Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}, status active (read back)`);
-  expect(run.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}, with the six tools of Deals and Approvals (read back)`);
+  expect(run.stdout).toContain(`gateway: created deal-desk-template-test, through the User Source ${source.id}, with the six tools of Deals and Approvals (read back)`);
   expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
-  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through loan-approval-limits");
+  expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through deal-desk-template-test");
   expect(formOrder(run.stdout)).toEqual([]);
   expect(run.stdout).not.toMatch(/ungoverned|dashboard flow/);
   // The app and the tunnel answered at the wait, after .env was written: opening the app is all that is left.
@@ -2255,7 +2255,7 @@ test("a rerun after one click is a no-op that says so: nothing paused, created, 
   expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
   const [source] = [...arcade.userSources.values()] as [Json];
   expect(again.stdout).toContain(`user source: found Deals Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}; it matches and is left as it is`);
-  expect(again.stdout).toContain(`gateway: found loan-approval-limits, through the User Source ${source.id}`);
+  expect(again.stdout).toContain(`gateway: found deal-desk-template-test, through the User Source ${source.id}`);
   expect(again.stdout).toContain(`user source: ${source.id} is active (read back)`);
   expect(again.stdout).toContain("hooks: already on (status active); nothing to do");
   expect(again.stdout).not.toMatch(/Press Enter|dashboard flow|created/);
@@ -2623,7 +2623,7 @@ test("the User Source created and the gateway not: it says so and what is left, 
   console.log(`--- setup-arcade ${HOST}, the gateway refused after the User Source ---\n${run.stdout}${run.stderr}`);
   expect(run.code).toBe(1);
   const [source] = [...arcade.userSources.values()] as [Json];
-  expect(run.stderr).toContain(`setup-arcade: the gateway loan-approval-limits was not created: POST ${SCOPED}/gateways answered 500`);
+  expect(run.stderr).toContain(`setup-arcade: the gateway deal-desk-template-test was not created: POST ${SCOPED}/gateways answered 500`);
   expect(run.stderr).toContain("Arcade says: the gateway service is having a moment");
   expect(run.stdout).toContain(`The User Source ${source.id} is registered (created by this run), and the gateway is not, so the hooks\nare left disabled.`);
   expect(run.stdout).toContain("What is left: run this same command again, which finds the User Source and creates the\ngateway through it");
@@ -2640,7 +2640,7 @@ test("the User Source created and the gateway not: it says so and what is left, 
   expect(again.code, `${again.stdout}\n${again.stderr}`).toBe(0);
   expect(coordinatorSequence()).toEqual([LIST, READ_BY_ID]);
   expect(arcade.userSources.size).toBe(1);
-  expect(again.stdout).toContain(`gateway: created loan-approval-limits, through the User Source ${source.id}`);
+  expect(again.stdout).toContain(`gateway: created deal-desk-template-test, through the User Source ${source.id}`);
   hooksAreRegistered(dir, "active");
 }, 90_000);
 
@@ -2649,9 +2649,9 @@ test("the other ways the gateway is not made after the User Source are each repo
     {
       name: "slug taken",
       arrange: () => (arcade.nextGatewayCreate = { status: 409, body: { name: "conflict", message: "slug taken" } }),
-      says: "was not created: Arcade says the slug loan-approval-limits is taken. Blank ARCADE_GATEWAY_ID in .env and run this with --gateway <another-slug>",
+      says: "was not created: Arcade says the slug deal-desk-template-test is taken. Blank ARCADE_GATEWAY_ID in .env and run this with --gateway <another-slug>",
     },
-    { name: "no id", arrange: () => (arcade.nextGatewayCreate = { status: 201, body: { slug: "loan-approval-limits" } }), says: 'was not created: Arcade answered with no id: {"slug":"loan-approval-limits"}' },
+    { name: "no id", arrange: () => (arcade.nextGatewayCreate = { status: 201, body: { slug: "deal-desk-template-test" } }), says: 'was not created: Arcade answered with no id: {"slug":"deal-desk-template-test"}' },
     {
       name: "not read back",
       arrange: () => (arcade.nextCoordinator.get = { status: 404, body: { code: 404, msg: "Not Found", data: null } }),
@@ -2695,7 +2695,7 @@ test("the order does not depend on active hooks hiding tools: a fresh run passes
   arcade.activeHooksHideTools = false;
   const passed = await setupArcade(dir, { tty: true, input: "" });
   expect(passed.code, `${passed.stdout}\n${passed.stderr}`).toBe(0);
-  expect(passed.stdout).toContain("gateway: created loan-approval-limits");
+  expect(passed.stdout).toContain("gateway: created deal-desk-template-test");
   expect(passed.stdout).toContain("hooks: already on (status active); nothing to do");
   // And the fresh run, under the worst case, is the first one-click test's: it creates the gateway before the hooks go on.
 }, 120_000);
@@ -2706,7 +2706,7 @@ test("a gateway under the slug that authenticates through another User Source is
   dashboardGateway({ user_source_id: "us_somebody_else" });
   const run = await setupArcade(dir, ENTER);
   expect(run.code).toBe(1);
-  expect(run.stderr).toMatch(/the gateway loan-approval-limits does not authenticate through this app's User Source:\n {2}- user_source_id: Arcade has "us_somebody_else", this app needs "us_StandIn\d{20}"/);
+  expect(run.stderr).toMatch(/the gateway deal-desk-template-test does not authenticate through this app's User Source:\n {2}- user_source_id: Arcade has "us_somebody_else", this app needs "us_StandIn\d{20}"/);
   expect(run.stderr).toContain("The hooks are left disabled.");
   hooksAreRegistered(dir, "inactive");
   expect(arcade.requests.filter((each) => each.method === "PATCH")).toEqual([]);
