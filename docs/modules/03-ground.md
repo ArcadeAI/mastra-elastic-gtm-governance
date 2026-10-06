@@ -8,8 +8,10 @@ through the same three hooks a write does.
 
 ## What you build
 
-1. An Elasticsearch deployment: Elastic Cloud or Serverless, an API key scoped to
-   `deal-files*`. `docs/ELASTIC.md` → Setup has the exact key request.
+1. An Elasticsearch Serverless project, and an API key scoped to `deal-files*`.
+   `docs/ELASTIC.md` → Setup has the exact key request, and what Serverless leaves out.
+   Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
+   `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
 2. The Arcade Elasticsearch toolkit on your project, with `ELASTICSEARCH_URL` and
    `ELASTICSEARCH_API_KEY` as its secrets in the Arcade dashboard.
 3. In `.env`: `ARCADE_ELASTIC_TOOLKIT=Elasticsearch` and `ELASTIC_SEED_USER=<Michael's email>`.
@@ -26,7 +28,7 @@ through the same three hooks a write does.
 
    > Show me the ten most recent requests.
 
-   Keyword search finds the word; semantic search on `crm_notes_semantic` finds the meaning;
+   Keyword search finds the word; semantic search on `crm_notes_semantic` (Jina embeddings) finds the meaning;
    ES|QL answers the aggregate; and the bare "ten most recent" is refused at `/hooks/pre`
    until the model adds a `KEEP`, which it does on the retry.
 

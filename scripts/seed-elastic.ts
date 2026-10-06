@@ -30,8 +30,12 @@
  * instruction is in there too, for the same reason.
  *
  * `crm_notes` is `copy_to`'d into `crm_notes_semantic`, a
- * `semantic_text` field on `ELASTIC_INFERENCE_ID` (ELSER by default), so the
- * notes are searchable by meaning with no embedding step here. Everything an
+ * `semantic_text` field, so the notes are searchable by meaning with no
+ * embedding step here. With `ELASTIC_INFERENCE_ID` blank the mapping names no
+ * endpoint and Elasticsearch uses its own default: on Serverless that is
+ * `.jina-embeddings-v5-text-small` on the Elastic Inference Service, a dense,
+ * multilingual model. Set it only to pin another endpoint (`.elser-2-elastic`
+ * for ELSER on Serverless). Everything an
  * aggregation or ES|QL would group on is `keyword` or numeric.
  *
  * ## Idempotent
@@ -47,7 +51,8 @@ const ARCADE_API_URL = (process.env.ARCADE_API_URL?.trim() || "https://api.arcad
 const ARCADE_API_KEY = process.env.ARCADE_API_KEY?.trim() ?? "";
 const TOOLKIT = process.env.ARCADE_ELASTIC_TOOLKIT?.trim() || "Elasticsearch";
 const INDEX = process.env.ELASTIC_INDEX?.trim() || "deal-files";
-const INFERENCE_ID = process.env.ELASTIC_INFERENCE_ID?.trim() || ".elser-2-elasticsearch";
+/** Blank: the project's default `semantic_text` endpoint (Jina v5 on Serverless). */
+const INFERENCE_ID = process.env.ELASTIC_INFERENCE_ID?.trim() ?? "";
 /**
  * Who the seed runs as: `ELASTIC_SEED_USER`, the email of the person you added
  * with `bun run users` under the role `cro`. The CCO, because
@@ -73,7 +78,7 @@ export const MAPPINGS = {
     bank_account_number: { type: "keyword" },
     tax_id: { type: "keyword" },
     crm_notes: { type: "text", copy_to: "crm_notes_semantic" },
-    crm_notes_semantic: { type: "semantic_text", inference_id: INFERENCE_ID },
+    crm_notes_semantic: INFERENCE_ID === "" ? { type: "semantic_text" } : { type: "semantic_text", inference_id: INFERENCE_ID },
   },
 } as const;
 
@@ -129,7 +134,7 @@ async function main(): Promise<void> {
   }
 
   const created = await execute("CreateIndex", { index: INDEX, mappings: JSON.stringify(MAPPINGS) });
-  if (created.ok) console.log(`  created "${INDEX}" with crm_notes_semantic on ${INFERENCE_ID}`);
+  if (created.ok) console.log(`  created "${INDEX}" with crm_notes_semantic on ${INFERENCE_ID || "the project's default inference endpoint"}`);
   else if (/already exists|resource_already_exists/i.test(created.message)) console.log(`  "${INDEX}" exists; keeping its mapping (use --reset to rebuild)`);
   else fail(`CreateIndex refused: ${created.message}`);
 
