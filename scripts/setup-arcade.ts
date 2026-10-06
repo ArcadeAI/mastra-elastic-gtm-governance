@@ -374,6 +374,8 @@ const hookToken = secretFor("ARCADE_HOOK_SIGNING_SECRET");
 const storeToken = secretFor("APPROVALS_STORE_TOKEN");
 // Optional: the room's copy of every approval request (.env.example).
 const approvalsChannel = effective("SLACK_APPROVALS_CHANNEL") || "";
+// Optional too: the Elastic module's two secrets, uploaded when set (elastic/README.md).
+const elasticSecrets = { url: effective("ELASTICSEARCH_URL"), apiKey: effective("ELASTICSEARCH_API_KEY") };
 
 /** Everything this run writes to `.env`, before the clients are minted. */
 const planned: Record<string, string> = {
@@ -527,7 +529,7 @@ if (dryRun) {
     out("    (404: the provider is created below. 200: it is compared, and a difference stops the run.)");
     await admin.request("POST", "/v1/admin/auth_providers", providerBody(registration));
   }
-  for (const secret of toolSecrets(host, registration.approvalsStoreToken, approvalsChannel)) {
+  for (const secret of toolSecrets(host, registration.approvalsStoreToken, approvalsChannel, elasticSecrets)) {
     const { method, path, body } = secretRequest(secret);
     await admin.request(method, path, body);
   }
@@ -811,7 +813,7 @@ if (callback && (onFileCallback !== callback || !client("arcade").redirect_uris.
       : `  allowlisted the provider's callback on the arcade client: ${callback}`,
   );
 }
-for (const secret of toolSecrets(host, storeToken.value, approvalsChannel)) {
+for (const secret of toolSecrets(host, storeToken.value, approvalsChannel, elasticSecrets)) {
   const { method, path, body } = secretRequest(secret);
   await step(`setting the tool secret ${secret.key}`, () => admin.expect(method, path, body));
 }

@@ -180,7 +180,12 @@ export function providerDifferences(existing: unknown, desired: unknown): string
 }
 
 /** The tool secrets the toolkits read, in the order they are set. */
-export function toolSecrets(host: string, approvalsStoreToken: string, approvalsChannel = "") {
+export interface ElasticSecrets {
+  url?: string;
+  apiKey?: string;
+}
+
+export function toolSecrets(host: string, approvalsStoreToken: string, approvalsChannel = "", elastic: ElasticSecrets = {}) {
   return [
     { key: "APP_PUBLIC_HOST", description: "The app's public host (setup-arcade)", value: host },
     { key: "APPROVALS_STORE_TOKEN", description: "Bearer for the app's approvals store (setup-arcade)", value: approvalsStoreToken },
@@ -188,6 +193,9 @@ export function toolSecrets(host: string, approvalsStoreToken: string, approvals
     ...(approvalsChannel.trim() === ""
       ? []
       : [{ key: "SLACK_APPROVALS_CHANNEL", description: "Slack channel approval requests are announced in (setup-arcade)", value: approvalsChannel.trim() }]),
+    // The Elastic module's two, from `.env` when set, so module 3 is a rerun and not a dashboard visit.
+    ...((elastic.url ?? "").trim() === "" ? [] : [{ key: "ELASTICSEARCH_URL", description: "Elasticsearch endpoint (setup-arcade)", value: elastic.url!.trim() }]),
+    ...((elastic.apiKey ?? "").trim() === "" ? [] : [{ key: "ELASTICSEARCH_API_KEY", description: "Elasticsearch API key (setup-arcade)", value: elastic.apiKey!.trim() }]),
   ];
 }
 
