@@ -114,7 +114,7 @@ describe("a Deals tool that needs authorizing, in Studio", () => {
     const { shown, type, modelRead } = await studioTurn();
     expect(shown).not.toContain("[object Object]");
     expect(type).toBe("tool-result");
-    expect(shown).toContain(`${TOOL} did not run: Arcade needs you to authorize the Deals toolkit first.`);
+    expect(shown).toContain(`${TOOL} did not run: Arcade needs you to authorize the DealDesk toolkit first.`);
     expect(shown).toContain(url);
     expect(modelRead).toContain(url);
   }, 60_000);
