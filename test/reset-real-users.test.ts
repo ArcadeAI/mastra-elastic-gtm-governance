@@ -138,7 +138,7 @@ async function approve95k(userId: string): Promise<unknown> {
     headers: { authorization: `Bearer ${HOOK_SECRET}`, "content-type": "application/json" },
     body: JSON.stringify({
       execution_id: `tc_${crypto.randomUUID()}`,
-      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: userId },
     }),

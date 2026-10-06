@@ -126,7 +126,7 @@ describe("against the fixture replay the panel ships with", () => {
     expect(rows.every((row) => row.path.startsWith("$"))).toBe(true);
     expect(rows.every((row) => row.before === "value withheld")).toBe(true);
     expect(rows.every((row) => row.annotation !== null)).toBe(true);
-    // Both mechanisms, the way a real `Deals.GetDeal` redaction shows them: a
+    // Both mechanisms, the way a real `DealDesk.GetDeal` redaction shows them: a
     // named field path attributed to its rule alone, and a pattern sweep that
     // also names the scanner that matched.
     expect(rows.map((row) => row.annotation)).toEqual([

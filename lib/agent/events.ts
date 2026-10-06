@@ -58,7 +58,7 @@ export type ChatEvent =
    * long-polling tool call would hit gateway timeouts in the least debuggable
    * way possible, live.
    *
-   * It follows the `tool-result` for `Approvals_RequestApproval` and says only
+   * It follows the `tool-result` for `DealDesk_RequestApproval` and says only
    * what that result said. `approver` is the display name the tool returned and
    * `approver_id` is the address; there is no role, because the deployed
    * toolkit's return value does not carry one and inventing it would be the

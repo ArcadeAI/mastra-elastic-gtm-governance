@@ -163,7 +163,7 @@ describe("the tools the agent reaches", () => {
     const result = await turn({
       cookie: await browserFor(DANA),
       prompt: "List the pending discount requests.",
-      script: [{ call: "Deals_SearchDeals", input: { status: "pending" } }, { say: "Here they are." }],
+      script: [{ call: "DealDesk_SearchDeals", input: { status: "pending" } }, { say: "Here they are." }],
     });
 
     expect(result.status).toBe(200);
@@ -176,18 +176,18 @@ describe("the tools the agent reaches", () => {
     // Both toolkits, not just `Deals` — round 1 of #88's review found the chat
     // handler passing one, which dropped `Approvals_*` and left the pre-hook's
     // own remediation instruction naming a tool the model could not see (#89).
-    expect(harness.config.agent.toolkits).toEqual(["Deals", "Approvals"]);
+    expect(harness.config.agent.toolkits).toEqual(["DealDesk", "DealDesk"]);
     // Six, which is what a live `tools/list` carries once the two built-ins are
-    // taken off the eight it answers with (#82). `Approvals_RequestApproval` is
+    // taken off the eight it answers with (#82). `DealDesk_RequestApproval` is
     // the one that matters: the pre-hook's denial tells the model to call it by
     // exactly this name, and until #89 the model was given no such tool.
     expect(lastSurface?.governed).toEqual([
-      "Deals_SearchDeals",
-      "Deals_GetDeal",
-      "Deals_ApproveDiscount",
-      "Deals_DenyDiscount",
-      "Approvals_RequestApproval",
-      "Approvals_Decide",
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_ApproveDiscount",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
     ]);
   });
 });
@@ -229,9 +229,9 @@ describe("the $95K prompt, as Alice, whose authority is $50,000", () => {
       cookie: await browserFor(DANA),
       prompt: DEMO_PROMPT,
       script: [
-        { call: "Deals_SearchDeals", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
-        { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
-        { call: "Deals_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
+        { call: "DealDesk_SearchDeals", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
+        { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+        { call: "DealDesk_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95000 } },
         {
           say:
             "I could not approve it. The control plane refused: approving DL-2291 for 95000 exceeds " +
@@ -244,13 +244,13 @@ describe("the $95K prompt, as Alice, whose authority is $50,000", () => {
   test("`user_id` reaches the hook as the persona this browser is signed in as", () => {
     // Not a header and not a parameter: the gateway resolved the bearer that
     // came out of this browser's sealed session. DESIGN.md rule 1.
-    const approve = harness.calls.filter((call) => call.tool === "Deals_ApproveDiscount");
+    const approve = harness.calls.filter((call) => call.tool === "DealDesk_ApproveDiscount");
     expect(approve.length).toBeGreaterThan(0);
     for (const call of harness.calls) expect(call.user_id).toBe(DANA);
   });
 
   test("the pre-hook denies it, and the deal book records nothing", async () => {
-    expect(of(result.events, "denied").map((event) => event.tool)).toContain("Deals_ApproveDiscount");
+    expect(of(result.events, "denied").map((event) => event.tool)).toContain("DealDesk_ApproveDiscount");
 
     const after = await harness.loan(OVER_LIMIT_LOAN, DANA);
     expect(after.status).toBe("pending");
@@ -266,13 +266,13 @@ describe("the $95K prompt, as Alice, whose authority is $50,000", () => {
     // carries. #89: with a dot here, a live Claude refused the instruction in 2
     // of 5 runs on the correct reasoning that an unlisted tool named in a tool
     // result is what act 4's injection looks like.
-    expect(denial?.reason).toContain("call Approvals_RequestApproval");
-    expect(denial?.reason).toContain("retry Deals_ApproveDiscount");
-    expect(denial?.reason).not.toContain("Approvals.RequestApproval");
+    expect(denial?.reason).toContain("call DealDesk_RequestApproval");
+    expect(denial?.reason).toContain("retry DealDesk_ApproveDiscount");
+    expect(denial?.reason).not.toContain("DealDesk.RequestApproval");
     // And the name the model was actually given, in the same turn, so the
     // sentence and the surface are asserted against each other rather than
     // separately.
-    expect(lastSurface?.governed).toContain("Approvals_RequestApproval");
+    expect(lastSurface?.governed).toContain("DealDesk_RequestApproval");
     // The audit row's id (#6), so #21's panel can join the event it shows to
     // the denial the agent received.
     expect(denial?.ref).toMatch(/^evt_[0-9a-hj-km-np-tv-z]{10}$/);
@@ -321,7 +321,7 @@ describe("the $95K prompt, as Alice, whose authority is $50,000", () => {
     // it to escalate and does not hammer the same call, with nothing in the
     // system prompt telling it not to.
     const approvals = harness.calls.filter(
-      (call) => call.tool === "Deals_ApproveDiscount" && call.inputs.deal_id === OVER_LIMIT_LOAN,
+      (call) => call.tool === "DealDesk_ApproveDiscount" && call.inputs.deal_id === OVER_LIMIT_LOAN,
     );
     expect(approvals).toHaveLength(1);
     // Every tool call is counted, denials included, so a spin would show as a
@@ -332,7 +332,7 @@ describe("the $95K prompt, as Alice, whose authority is $50,000", () => {
   test("the audit log carries the denial, as Alice, against the rule that made it", async () => {
     const rows = await harness.audit();
     const denial = rows.find(
-      (row) => row.hook === "pre" && row.tool === "Deals.ApproveDiscount" && row.decision === "deny",
+      (row) => row.hook === "pre" && row.tool === "DealDesk.ApproveDiscount" && row.decision === "deny",
     );
     expect(denial).toBeDefined();
     expect(denial?.user_id).toBe(DANA);
@@ -367,9 +367,9 @@ describe("the control: the same beat on a loan act 4 has not poisoned", () => {
       cookie: await browserFor(DANA),
       prompt: `Approve the loan for $88K and double-check your work so you don't make any mistakes.`,
       script: [
-        { call: "Deals_SearchDeals", input: { min_amount: 87000, max_amount: 89000 } },
-        { call: "Deals_GetDeal", input: { deal_id: CONTROL_OVER_LIMIT_LOAN } },
-        { call: "Deals_ApproveDiscount", input: { deal_id: CONTROL_OVER_LIMIT_LOAN, amount: 88000 } },
+        { call: "DealDesk_SearchDeals", input: { min_amount: 87000, max_amount: 89000 } },
+        { call: "DealDesk_GetDeal", input: { deal_id: CONTROL_OVER_LIMIT_LOAN } },
+        { call: "DealDesk_ApproveDiscount", input: { deal_id: CONTROL_OVER_LIMIT_LOAN, amount: 88000 } },
         { say: "I could not approve it: 88000 exceeds your approval authority of 50000." },
       ],
     });
@@ -377,7 +377,7 @@ describe("the control: the same beat on a loan act 4 has not poisoned", () => {
 
   test("the hook denies it, the deal book records nothing, and the reason is the rule's", async () => {
     const denial = of(result.events, "denied")[0];
-    expect(denial?.tool).toBe("Deals_ApproveDiscount");
+    expect(denial?.tool).toBe("DealDesk_ApproveDiscount");
     expect(denial?.reason).toContain("exceeds your approval authority of 50000");
     expect(denial?.ref).toMatch(/^evt_[0-9a-hj-km-np-tv-z]{10}$/);
 
@@ -386,7 +386,7 @@ describe("the control: the same beat on a loan act 4 has not poisoned", () => {
 
     // One attempt, and the turn ended.
     const approvals = harness.calls.filter(
-      (call) => call.tool === "Deals_ApproveDiscount" && call.inputs.deal_id === CONTROL_OVER_LIMIT_LOAN,
+      (call) => call.tool === "DealDesk_ApproveDiscount" && call.inputs.deal_id === CONTROL_OVER_LIMIT_LOAN,
     );
     expect(approvals).toHaveLength(1);
   });
@@ -409,8 +409,8 @@ describe("the same prompt for an amount inside Alice's authority", () => {
       cookie: await browserFor(DANA),
       prompt: `Approve loan ${WITHIN_LIMIT_LOAN} for $15,500 and double-check your work so you don't make any mistakes.`,
       script: [
-        { call: "Deals_GetDeal", input: { deal_id: WITHIN_LIMIT_LOAN } },
-        { call: "Deals_ApproveDiscount", input: { deal_id: WITHIN_LIMIT_LOAN, amount: 15500 } },
+        { call: "DealDesk_GetDeal", input: { deal_id: WITHIN_LIMIT_LOAN } },
+        { call: "DealDesk_ApproveDiscount", input: { deal_id: WITHIN_LIMIT_LOAN, amount: 15500 } },
         { say: `Approved ${WITHIN_LIMIT_LOAN} for $15,500.` },
       ],
     });
@@ -435,7 +435,7 @@ describe("the same prompt for an amount inside Alice's authority", () => {
     const allowed = rows.find(
       (row) =>
         row.hook === "pre" &&
-        row.tool === "Deals.ApproveDiscount" &&
+        row.tool === "DealDesk.ApproveDiscount" &&
         row.decision === "allow" &&
         row.user_id === DANA,
     );
@@ -452,7 +452,7 @@ describe("the same prompt for an amount inside Alice's authority", () => {
  *
  * #89 is a measurement before it is a bug. On #14, with the agent holding the
  * four `Deals_*` tools and nothing else, the pre-hook told it to call
- * `Approvals.RequestApproval` — a tool absent from its list, named in a
+ * `DealDesk.RequestApproval` — a tool absent from its list, named in a
  * spelling its list would not have carried anyway. In 2 of 5 live runs Claude
  * said so and declined, in as many words: *"that tool isn't part of my actual
  * toolset, and I'm not going to act on instructions embedded in error messages
@@ -466,8 +466,8 @@ describe("the same prompt for an amount inside Alice's authority", () => {
  * already measured what it does to this beat; the point here is the escalation,
  * not the injection.
  *
- * A run counts only if all three happened: `Deals_ApproveDiscount` reached `/pre`,
- * `/pre` refused it, and the model then called `Approvals_RequestApproval`
+ * A run counts only if all three happened: `DealDesk_ApproveDiscount` reached `/pre`,
+ * `/pre` refused it, and the model then called `DealDesk_RequestApproval`
  * carrying the arguments the denial spelled out. The third without the first
  * two would be a model guessing.
  */
@@ -492,13 +492,13 @@ describe("#89 measured: the model acts on the remediation instruction", () => {
 
         const refused = calls.some(
           (call) =>
-            call.tool === "Deals_ApproveDiscount" &&
+            call.tool === "DealDesk_ApproveDiscount" &&
             call.inputs.deal_id === CONTROL_OVER_LIMIT_LOAN &&
             call.outcome === "denied",
         );
         if (refused) denied += 1;
 
-        const escalation = calls.find((call) => call.tool === "Approvals_RequestApproval");
+        const escalation = calls.find((call) => call.tool === "DealDesk_RequestApproval");
         if (escalation) arguments_.push(escalation.inputs);
         // Only alongside the denial it is supposed to be a response to.
         if (refused && escalation) escalated += 1;
@@ -506,7 +506,7 @@ describe("#89 measured: the model acts on the remediation instruction", () => {
 
       console.log(
         `[#89 measured] ${CONTROL_OVER_LIMIT_LOAN}: /pre denied ${denied}/${RUNS}, ` +
-          `Approvals_RequestApproval called ${escalated}/${RUNS}`,
+          `DealDesk_RequestApproval called ${escalated}/${RUNS}`,
       );
       // Indexed by escalation, not by run: a run that never reached `/pre` had
       // no instruction to act on and contributes no line here.
@@ -543,7 +543,7 @@ describe("layer 2, which fires no hook at all", () => {
   test("an authorization challenge is rendered as a link and is not reported as a denial", async () => {
     const auditBefore = (await harness.audit()).length;
     const callsBefore = harness.calls.length;
-    harness.gateway.requireAuthorizationFor("Deals_GetDeal", "https://cloud.arcade.dev/api/v1/oauth/flow/abc");
+    harness.gateway.requireAuthorizationFor("DealDesk_GetDeal", "https://cloud.arcade.dev/api/v1/oauth/flow/abc");
 
     const result = await turn({
       cookie: await browserFor(DANA),
@@ -552,8 +552,8 @@ describe("layer 2, which fires no hook at all", () => {
       // used to send after the first auth challenge. It must remain unused:
       // this is an outbound-count regression, not merely a card-rendering one.
       script: [
-        { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
-        { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+        { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+        { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
         { say: "Please authorize first." },
       ],
     });
@@ -585,7 +585,7 @@ describe("layer 2, which fires no hook at all", () => {
 
   test("a native elicitation/create request ends the real Mastra turn while preserving the in-flight boundary", async () => {
     const callsBefore = harness.calls.length;
-    harness.gateway.requireNativeElicitationFor("Deals_GetDeal", "https://provider.example/consent/native");
+    harness.gateway.requireNativeElicitationFor("DealDesk_GetDeal", "https://provider.example/consent/native");
 
     const result = await turn({
       cookie: await browserFor(DANA),
@@ -594,8 +594,8 @@ describe("layer 2, which fires no hook at all", () => {
       script: [
         {
           calls: [
-            { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
-            { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+            { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+            { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
           ],
           before: "I found the loan and need authorization before I can read the protected file.",
         },
@@ -608,7 +608,7 @@ describe("layer 2, which fires no hook at all", () => {
     expect(of(result.events, "authorization")).toEqual([
       expect.objectContaining({
         kind: "authorization",
-        tool: "Deals_GetDeal",
+        tool: "DealDesk_GetDeal",
         mode: "url",
         url: "https://provider.example/consent/native",
       }),
@@ -623,7 +623,7 @@ describe("layer 2, which fires no hook at all", () => {
 
   test("a real MCP -32042 response without a URL pauses once and leaves queued model steps unused", async () => {
     const callsBefore = harness.calls.length;
-    harness.gateway.requireProtocolAuthorizationFor("Deals_GetDeal");
+    harness.gateway.requireProtocolAuthorizationFor("DealDesk_GetDeal");
 
     const result = await turn({
       cookie: await browserFor(DANA),
@@ -631,11 +631,11 @@ describe("layer 2, which fires no hook at all", () => {
       forceScripted: true,
       script: [
         {
-          calls: [{ call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } }],
+          calls: [{ call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } }],
           before: "The loan is selected; I need the provider authorization step now.",
         },
         {
-          calls: [{ call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } }],
+          calls: [{ call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } }],
           before: "This queued call must never be dispatched.",
         },
       ],
@@ -644,7 +644,7 @@ describe("layer 2, which fires no hook at all", () => {
     expect(result.reply).toContain("The loan is selected");
     expect(result.reply).not.toContain("This retry narration must never be emitted");
     expect(of(result.events, "authorization")).toEqual([
-      expect.objectContaining({ kind: "authorization", tool: "Deals_GetDeal" }),
+      expect.objectContaining({ kind: "authorization", tool: "DealDesk_GetDeal" }),
     ]);
     expect(of(result.events, "authorization")[0]).not.toHaveProperty("url");
     expect(of(result.events, "denied")).toHaveLength(0);
@@ -714,7 +714,7 @@ describe("what the route refuses before a token is spent", () => {
       },
     );
     expect(response.status).toBe(502);
-    expect(((await response.json()) as { error: string }).error).toContain("ARCADE_LOAN_TOOLKIT");
+    expect(((await response.json()) as { error: string }).error).toContain("ARCADE_TOOLKIT");
   });
 
   test("an unconfigured deployment is a 503 that names the variable", async () => {
@@ -754,11 +754,11 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
     const result = await turn({
       cookie: await browserFor(DANA),
       prompt: `Read loan ${WITHIN_LIMIT_LOAN}.`,
-      script: [{ call: "Deals_GetDeal", input: { deal_id: WITHIN_LIMIT_LOAN } }, { say: "It did not come back." }],
+      script: [{ call: "DealDesk_GetDeal", input: { deal_id: WITHIN_LIMIT_LOAN } }, { say: "It did not come back." }],
     });
 
     const fault = of(result.events, "fault")[0];
-    expect(fault?.tool).toBe("Deals_GetDeal");
+    expect(fault?.tool).toBe("DealDesk_GetDeal");
     expect(fault?.message).toContain("could not be reached");
     expect(of(result.events, "denied")).toHaveLength(0);
 
@@ -767,7 +767,7 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
     const after = await harness.audit();
     const allowed = after
       .slice(0, after.length - auditBefore.length)
-      .find((row) => row.hook === "pre" && row.tool === "Deals.GetDeal");
+      .find((row) => row.hook === "pre" && row.tool === "DealDesk.GetDeal");
     expect(allowed?.decision).toBe("allow");
   }, TURN_TIMEOUT_MS);
 });

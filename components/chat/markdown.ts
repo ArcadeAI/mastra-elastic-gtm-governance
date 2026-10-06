@@ -64,7 +64,7 @@ export interface Paragraph {
  *   the rate is 4.5% * 2` is a sentence models write constantly, and without
  *   this it renders with half of it emphasised.
  * - **`_` may not sit between word characters.** Every tool in this demo is
- *   spelled `Deals_GetDeal` on the wire and the model says so in its replies;
+ *   spelled `DealDesk_GetDeal` on the wire and the model says so in its replies;
  *   `search_loans_by_status` must not come out as prose with a word italicised
  *   in the middle of it. CommonMark makes the same exception for the same
  *   reason.

@@ -75,7 +75,7 @@
  *
  * ## The resume (#20)
  *
- * A turn that ends after `Approvals_RequestApproval` ends. There is no polling
+ * A turn that ends after `DealDesk_RequestApproval` ends. There is no polling
  * here, no timer and no socket held open by the turn — `DESIGN.md` → The wait,
  * and the issue is explicit that a visibly spinning agent contradicts the line
  * the demo is built on.

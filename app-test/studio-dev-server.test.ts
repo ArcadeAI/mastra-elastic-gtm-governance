@@ -125,8 +125,7 @@ beforeAll(async () => {
           PORT: String(freePort()),
           ARCADE_API_URL: arcade.url,
           ARCADE_GATEWAY_ID: GATEWAY_ID,
-          ARCADE_LOAN_TOOLKIT: "Deals",
-          ARCADE_APPROVALS_TOOLKIT: "Approvals",
+          ARCADE_TOOLKIT: "DealDesk",
           ANTHROPIC_API_KEY: "anthropic-key-for-studio-dev-tests",
           ANTHROPIC_BASE_URL: `http://localhost:${anthropic.port}`,
           MEMORY_DB_PATH: MEMORY_DB,
@@ -200,7 +199,7 @@ test("after hop 1 through Studio's own routes, Studio lists the gateway's tools"
   const agent = (await response.json()) as { tools?: Record<string, unknown> };
   // The stand-in advertises one tool. The full six, compared against the chat
   // route's, is `studio-entry.test.ts`.
-  expect(Object.keys(agent.tools ?? {})).toEqual(["Deals_GetDeal"]);
+  expect(Object.keys(agent.tools ?? {})).toEqual(["DealDesk_GetDeal"]);
   expect(arcade.bearers.at(-1)).toBe(arcade.issued.at(-1));
 }, BOOT_TIMEOUT_MS);
 

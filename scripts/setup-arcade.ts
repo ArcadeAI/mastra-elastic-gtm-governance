@@ -31,9 +31,9 @@
  *    access hooks (#30), each read back. The hooks are created **disabled**
  *    (#48), because active hooks filter the tool list the dashboard's gateway
  *    form shows.
- * 7. **Deploys both toolkits**: `arcade deploy` in `tools/loan`, then in
- *    `tools/approvals`, streaming their output and stopping on a failure
- *    (#30). A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
+ * 7. **Deploys the toolkits**: one `arcade deploy`, in `mcp`, which
+ *    carries Deals, Approvals and Elasticsearch, streaming its output and
+ *    stopping on a failure (#30). A toolkit Arcade already runs is skipped: `GET …/workers/<name>`,
  *    the CLI's own check, answers 404 when it is missing. `--redeploy`
  *    deploys it anyway, and `--skip-deploy` leaves both to the developer.
  * 8. **Registers the User Source and the gateway by API, then turns the hooks
@@ -130,6 +130,7 @@ import {
   toolSecrets,
   verifierBody,
 } from "./setup-arcade/arcade.ts";
+import { elasticOn } from "../lib/config.ts";
 import { type ArcadeContext, resolveContext } from "./setup-arcade/context.ts";
 import {
   candidates,
@@ -165,8 +166,13 @@ function defaultGateway(host: string): string {
   const label = host.split(":")[0]!.split(".")[0]!.toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/^-+|-+$/g, "");
   return label === "" ? "deal-desk" : `deal-desk-${label}`.slice(0, 63).replace(/-+$/, "");
 }
-/** The toolkits `arcade deploy` ships, in order: the gateway lists their tools. */
-const TOOLKIT_DIRS = ["tools/loan", "tools/approvals"] as const;
+/**
+ * Where `arcade deploy` runs. One directory: `mcp` is one server
+ * carrying the Deals, Approvals and Elasticsearch toolkits under their own
+ * names (`mcp/deal_desk/app.py`), so the gateway lists
+ * `Deals.*`, `Approvals.*` and `Elasticsearch.*` off a single deployment.
+ */
+const TOOLKIT_DIRS = ["mcp"] as const;
 
 const out = (line = "") => console.log(line);
 function fail(message: string, code = 1): never {
@@ -333,11 +339,11 @@ if (scope !== null) {
 if (scope !== null) {
   out(`  coordinator   ${coordinatorBase.url ?? `none: ${"why" in coordinatorBase ? coordinatorBase.why : "unknown"}`}`);
 }
-const loanToolkit = effective("ARCADE_LOAN_TOOLKIT") || "Deals";
-const approvalsToolkit = effective("ARCADE_APPROVALS_TOOLKIT") || "Approvals";
-// The Elastic module (docs/ELASTIC.md). Blank is off: the gateway carries the six
-// loan and approvals tools and nothing else, exactly as before the module.
-const elasticToolkit = effective("ARCADE_ELASTIC_TOOLKIT") || "";
+const toolkit = effective("ARCADE_TOOLKIT") || "DealDesk";
+// The Elastic module (docs/ELASTIC.md). Off: the gateway carries the six deal
+// and approvals tools and nothing else. On: the 26 Elasticsearch tools too.
+// They are deployed either way; this only decides what the gateway lists.
+const elastic = elasticOn(effective("ELASTIC_MODULE"));
 
 const configuredClients = fromFile("IDP_OAUTH_CLIENTS");
 if (configuredClients !== "") {
@@ -364,6 +370,8 @@ const sessionSecret = secretFor("SESSION_SECRET");
 const identitySecret = secretFor("BETTER_AUTH_SECRET");
 const hookToken = secretFor("ARCADE_HOOK_SIGNING_SECRET");
 const storeToken = secretFor("APPROVALS_STORE_TOKEN");
+// Optional: the room's copy of every approval request (.env.example).
+const approvalsChannel = effective("SLACK_APPROVALS_CHANNEL") || "";
 
 /** Everything this run writes to `.env`, before the clients are minted. */
 const planned: Record<string, string> = {
@@ -422,7 +430,7 @@ function finish(
       out(userSourceForm({ origin, ...userSource }));
       out();
     }
-    out(gatewayForm({ slug, loanToolkit, approvalsToolkit, elasticToolkit, ...(registered === null ? {} : { userSourceId: registered.id }) }));
+    out(gatewayForm({ slug, toolkit, elastic, ...(registered === null ? {} : { userSourceId: registered.id }) }));
   }
   if (gateway === "form") {
     out();
@@ -517,7 +525,7 @@ if (dryRun) {
     out("    (404: the provider is created below. 200: it is compared, and a difference stops the run.)");
     await admin.request("POST", "/v1/admin/auth_providers", providerBody(registration));
   }
-  for (const secret of toolSecrets(host, registration.approvalsStoreToken)) {
+  for (const secret of toolSecrets(host, registration.approvalsStoreToken, approvalsChannel)) {
     const { method, path, body } = secretRequest(secret);
     await admin.request(method, path, body);
   }
@@ -567,7 +575,7 @@ if (dryRun) {
       await admin.request(
         "POST",
         projectPath(scope, "/gateways"),
-        gatewayBody({ slug, userSourceId: "<the User Source's id>", loanToolkit, approvalsToolkit, elasticToolkit }),
+        gatewayBody({ slug, userSourceId: "<the User Source's id>", toolkit, elastic }),
       );
       await admin.request("GET", projectPath(scope, "/gateways/<gateway_id>"));
       out("    (then the hooks are turned on, last, and read back, unless they already are:)");
@@ -801,7 +809,7 @@ if (callback && (onFileCallback !== callback || !client("arcade").redirect_uris.
       : `  allowlisted the provider's callback on the arcade client: ${callback}`,
   );
 }
-for (const secret of toolSecrets(host, storeToken.value)) {
+for (const secret of toolSecrets(host, storeToken.value, approvalsChannel)) {
   const { method, path, body } = secretRequest(secret);
   await step(`setting the tool secret ${secret.key}`, () => admin.expect(method, path, body));
 }
@@ -887,7 +895,7 @@ if (scope === null) {
 // --- 7. The deploys (#30) ---------------------------------------------------
 
 if (skipDeploy) {
-  out("\nDeploys: skipped (--skip-deploy). Deploy both toolkits before the gateway: arcade deploy, in tools/loan and in tools/approvals.");
+  out("\nDeploys: skipped (--skip-deploy). Deploy the toolkits before the gateway: arcade deploy, in mcp.");
 } else {
   out(`\n${DEPLOY_SECRETS_NOTE.trimStart()}`);
   for (const dir of TOOLKIT_DIRS) {
@@ -967,12 +975,12 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
     out(`  gateway: there is no ${slug} in this project yet; it is the dashboard form below`);
     out(
       hooks.status === "active"
-        ? `  hooks: already on, so the dashboard's gateway form will not list the ${loanToolkit} and ${approvalsToolkit} tools. ` +
+        ? `  hooks: already on, so the dashboard's gateway form will not list the ${toolkit} tools. ` +
             `Disable ${HOOKS_NAME} in the dashboard before you fill it in, and this command turns them back on after.`
         : "  hooks: left disabled, so the dashboard's gateway form lists the tools",
     );
   } else {
-    const check = gatewayCheck(gateway, loanToolkit, approvalsToolkit, elasticToolkit);
+    const check = gatewayCheck(gateway, toolkit, elastic);
     if (check.authType !== null) {
       fail(
         `the gateway ${slug} does not authenticate through the User Source:\n  - ${check.authType}\n` +
@@ -986,7 +994,7 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
     if (check.tools.length > 0) {
       out(
         `  warning       the hooks are turned on anyway. To fix the tool list, disable ${HOOKS_NAME} in the dashboard first: ` +
-          `while it is on, the gateway form does not list the ${loanToolkit} and ${approvalsToolkit} tools. Then run this again.`,
+          `while it is on, the gateway form does not list the ${toolkit} tools. Then run this again.`,
       );
     }
     await turnHooksOn(scope, hooks);
@@ -1222,14 +1230,14 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
 
   // The gateway, through it (#30's create, restored).
   out(`\nThe gateway (${apiUrl}):`);
-  const spec: GatewaySpec = { slug, userSourceId: source.id, loanToolkit, approvalsToolkit, elasticToolkit };
+  const spec: GatewaySpec = { slug, userSourceId: source.id, toolkit, elastic };
   const listPath = projectPath(scope, "/gateways?limit=100");
   const listing = await admin.request("GET", listPath);
   if (listing.status !== 200) gatewayNotCreated(source, createdNow, hooks, new ArcadeError("GET", listPath, listing.status, JSON.stringify(listing.json)).message);
   const existing = pageItems(listing.json).find((each) => objectField(each, "slug") === slug);
   if (existing !== undefined) {
     // Made before, by a run like this one or in the dashboard: held to the User Source, never edited.
-    const check = gatewayCheck(existing, loanToolkit, approvalsToolkit, elasticToolkit);
+    const check = gatewayCheck(existing, toolkit, elastic);
     const through = objectField(existing, "user_source_id");
     const other = typeof through === "string" && through !== source.id ? `user_source_id: Arcade has ${JSON.stringify(through)}, this app needs "${source.id}"` : null;
     if (check.authType !== null || other !== null) {
@@ -1270,7 +1278,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
           `The hooks are left ${hooks.status === "active" ? "on" : "disabled"}. Correct it in the dashboard, or delete it and run this again.`,
       );
     }
-    out(`  gateway: created ${slug}, through the User Source ${source.id}, with the ${elasticToolkit ? "32" : "six"} tools of ${loanToolkit}${elasticToolkit ? `, ${approvalsToolkit} and ${elasticToolkit}` : ` and ${approvalsToolkit}`} (read back)`);
+    out(`  gateway: created ${slug}, through the User Source ${source.id}, with the ${elastic ? "32" : "six"} ${toolkit} tools (read back)`);
   }
 
   // The hooks, last: the gateway exists, and is the User Source's.

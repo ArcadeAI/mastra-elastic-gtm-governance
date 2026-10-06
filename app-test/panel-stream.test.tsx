@@ -5,7 +5,7 @@
  * is not a bug in `resolvePanelStream` — that function did exactly what it was
  * written to do. The bug was that the *page* rendered its answer without
  * saying what the answer was, so a production cg-web replayed #5's fixture over
- * a real governed `Deals_GetDeal` and looked, to everyone in the room, like a
+ * a real governed `DealDesk_GetDeal` and looked, to everyone in the room, like a
  * control plane watching it. A test of the helper would have stayed green
  * through all of that. These render the component tree the browser gets.
  *

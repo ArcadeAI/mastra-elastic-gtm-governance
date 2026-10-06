@@ -14,7 +14,7 @@
  * ## What it is careful about
  *
  * **It adds no authority.** It is a read. Whether anyone may *decide* is a
- * `/pre` decision on `Approvals.Decide`, settled when a button is pressed, and
+ * `/pre` decision on `DealDesk.Decide`, settled when a button is pressed, and
  * nothing here goes near it.
  *
  * **It answers about your own request and nothing else.** `GET /approvals/{id}`

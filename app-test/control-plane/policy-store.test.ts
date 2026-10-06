@@ -24,7 +24,7 @@ import {
 } from "../../lib/control-plane/policy-store.ts";
 import { DEMO_PEOPLE, seedDemoSubjects } from "../demo-cast.ts";
 
-const OPTIONS: SeedOptions = { loanToolkit: "Deals", approvalsToolkit: "Approvals" };
+const OPTIONS: SeedOptions = { toolkit: "DealDesk" };
 
 /** A first boot: the policy, and nobody in it (#33). */
 const bare = () => openGovernance(":memory:", OPTIONS);
@@ -42,7 +42,7 @@ const anEvent = (overrides: Partial<Parameters<typeof record>[1][number]> = {}) 
   execution_id: "tc_1",
   hook: "pre" as const,
   user_id: "alice@bank.example",
-  tool: "Deals.ApproveDiscount",
+  tool: "DealDesk.ApproveDiscount",
   decision: "deny" as const,
   reason: "because",
   rule_id: "pre.approve-within-clearance",
@@ -74,7 +74,7 @@ describe("the seed", () => {
       `UPDATE policy_rules SET reason = ? WHERE id = 'pre.approve-within-clearance'`,
     ).run(
       "DENIED: approving {{inputs.deal_id}} for {{inputs.amount}} exceeds your approval " +
-        "authority of {{subject.clearance}}. To proceed, call Approvals.RequestApproval with " +
+        "authority of {{subject.clearance}}. To proceed, call DealDesk.RequestApproval with " +
         "action=approve_discount, resource_id={{inputs.deal_id}}, amount={{inputs.amount}} and " +
         "justification=<why this discount should be approved>.",
     );
@@ -82,7 +82,7 @@ describe("the seed", () => {
     expect(readRevision(db)).toBeGreaterThan(before);
 
     expect(() => compilePolicy(readPolicy(db))).toThrow(
-      /names "Approvals\.RequestApproval".*"Approvals_RequestApproval" — write that instead/s,
+      /names "DealDesk\.RequestApproval".*"DealDesk_RequestApproval" — write that instead/s,
     );
   });
 
@@ -105,50 +105,40 @@ describe("the seed", () => {
       "charlie@bank.example",
       "michael@bank.example",
     ]);
-    expect(Object.keys(OPTIONS).sort()).toEqual(["approvalsToolkit", "loanToolkit"]);
+    expect(Object.keys(OPTIONS)).toEqual(["toolkit"]);
   });
 
-  test("keys every rule and the catalogue on the configured toolkit names, not on literals", () => {
-    const data = loadSeed({
-      ...OPTIONS,
-      loanToolkit: "LoanBook",
-      approvalsToolkit: "Escalations",
-      elasticToolkit: "Search",
-    });
-    expect(Object.keys(data.catalogue).sort()).toEqual(["Escalations", "LoanBook", "Search"]);
-    // Every rule is keyed on one of the two configured names and on no
-    // literal: a rule left pointing at "$LOAN", or at the default "Deals" when
-    // the deployment calls it something else, would match nothing.
-    expect([...new Set(data.policy_rules.map((r) => r.match.toolkit))].sort()).toEqual([
-      "Escalations",
-      "LoanBook",
-      "Search",
-    ]);
-    expect([...new Set(data.output_rules.map((r) => r.match.toolkit))].sort()).toEqual([
-      "LoanBook",
-      "Search",
-    ]);
+  test("keys every rule and the catalogue on the configured toolkit name, not on a literal", () => {
+    const data = loadSeed({ toolkit: "LoanBook" });
+    expect(Object.keys(data.catalogue)).toEqual(["LoanBook"]);
+    expect(Object.keys(data.catalogue.LoanBook!)).toHaveLength(32);
+    // Every rule is keyed on the configured name and on no literal: a rule
+    // left pointing at "$TOOLKIT", or at the default "DealDesk" when the
+    // deployment calls it something else, would match nothing.
+    expect([...new Set(data.policy_rules.map((r) => r.match.toolkit))]).toEqual(["LoanBook"]);
+    expect([...new Set(data.output_rules.map((r) => r.match.toolkit))]).toEqual(["LoanBook"]);
     const esql = data.policy_rules.find((r) => r.id === "pre.esql-must-keep-named-columns");
-    expect(esql?.reason).toContain("Search_RunEsqlQuery");
+    expect(esql?.reason).toContain("LoanBook_RunEsqlQuery");
     const escalation = data.policy_rules.find((r) => r.hook === "pre");
     // The remediation sentence is addressed to the model, so it carries the
     // wire spelling — and it carries the *configured* toolkit name in it, which
     // is the half of #89 a deployment that renamed its toolkits would break
     // silently. `match` above stays dot-free and split in two; the reason is
     // the only place the separator is a decision.
-    expect(escalation?.reason).toContain("Escalations_RequestApproval");
+    expect(escalation?.reason).toContain("LoanBook_RequestApproval");
     expect(escalation?.reason).toContain("LoanBook_ApproveDiscount");
-    expect(escalation?.reason).not.toContain("Escalations.RequestApproval");
+    expect(escalation?.reason).not.toContain("LoanBook.RequestApproval");
     expect(escalation?.reason).not.toContain("LoanBook.ApproveDiscount");
-    expect(JSON.stringify(data)).not.toContain("$LOAN");
-    expect(JSON.stringify(data)).not.toContain("$APPROVALS");
-    expect(JSON.stringify(data)).not.toContain("$ELASTIC");
+    expect(JSON.stringify(data)).not.toContain("$TOOLKIT");
+    expect(JSON.stringify(data)).not.toContain("$TOOLKIT");
+    expect(JSON.stringify(data)).not.toContain("$TOOLKIT");
     expect(() => compilePolicy({ catalogue: data.catalogue, rules: data.policy_rules })).not.toThrow();
   });
 
   test("keys tools on the PascalCase names arcade-mcp actually produces", () => {
-    const tools = Object.keys(loadSeed(OPTIONS).catalogue.Deals ?? {}).sort();
-    expect(tools).toEqual(["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals"]);
+    const tools = Object.keys(loadSeed(OPTIONS).catalogue.DealDesk ?? {}).sort();
+    expect(tools).toHaveLength(32);
+    for (const tool of ["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals", "RequestApproval", "Decide", "RunEsqlQuery"]) expect(tools).toContain(tool);
   });
 });
 
@@ -228,7 +218,7 @@ describe("the revision counter", () => {
     const r1 = readRevision(db);
     db.run("UPDATE policy_rules SET enabled = 0 WHERE id = 'access.analysts-cannot-see-approve'");
     const r2 = readRevision(db);
-    db.run("INSERT INTO catalogue (toolkit, tool, arguments) VALUES ('Deals', 'Ping', '[]')");
+    db.run("INSERT INTO catalogue (toolkit, tool, arguments) VALUES ('DealDesk', 'Ping', '[]')");
     const r3 = readRevision(db);
 
     expect(r1).toBeGreaterThan(r0);
@@ -311,7 +301,7 @@ describe("the audit log", () => {
         `INSERT INTO audit_log
            (id, ts, execution_id, hook, user_id, tool, decision, reason, rule_id, before, after)
          VALUES ('evt_legacy', '2026-01-01T00:00:00.000Z', 'tc_legacy', 'post', 'alice@example.test',
-                 'Deals.GetDeal', 'modify', 'Sensitive field masked.', 'rule.redact', ?, ?)`,
+                 'DealDesk.GetDeal', 'modify', 'Sensitive field masked.', 'rule.redact', ?, ?)`,
         [JSON.stringify({ acct: "4738299104857" }), JSON.stringify({ acct: "***" })],
       ),
     ).toThrow(/no column named before/);

@@ -1,7 +1,7 @@
 /**
  * The tool list the page shows — **from the gateway, for this session**.
  *
- * Act 1's entire claim is that `Deals_ApproveDiscount` is *absent* for Bob rather
+ * Act 1's entire claim is that `DealDesk_ApproveDiscount` is *absent* for Bob rather
  * than present-and-refused, and a list assembled in the browser could not make
  * that claim about anything. So this is one real `tools/list` over MCP with the
  * signed-in persona's gateway bearer, which is the same call
@@ -18,7 +18,7 @@
  *
  * `sessionTools` is the narrow reading of this module; {@link sessionSurface}
  * is the general one. A page load needs the persona's tool list *and* the two
- * governed `Deals_GetDeal` reads the bank's screen puts up, and until #109
+ * governed `DealDesk_GetDeal` reads the bank's screen puts up, and until #109
  * those were two `tools/list` calls in two MCP sessions — the second one
  * because a browser-side request could not share a connection with a server
  * render it was not part of. `sessionSurface` takes a
@@ -64,7 +64,7 @@ export { GATEWAY_BUILTINS };
 
 /** One entry as `tools/list` advertised it: the wire name and what the model reads. */
 export interface GatewayTool {
-  /** `Deals_ApproveDiscount` — the underscore spelling MCP carries. */
+  /** `DealDesk_ApproveDiscount` — the underscore spelling MCP carries. */
   name: string;
   description: string;
 }
@@ -166,14 +166,14 @@ export async function sessionTools(
  *
  * `inside` runs **before the connection is dropped and only when the listing
  * arrived**, which is the whole of #109: the deal records the bank's screen shows are
- * two `Deals_GetDeal` calls that used to cost a second `tools/list` in a second
+ * two `DealDesk_GetDeal` calls that used to cost a second `tools/list` in a second
  * MCP session, because they were made from the browser through a route of their
  * own. They are now made here, on the session the page already opens.
  *
  * A throw from `inside` is **not** caught and rewritten into "the gateway would
  * not list its tools". The listing succeeded; whatever went wrong afterwards
  * belongs to the caller and saying otherwise would put a sentence about
- * `ARCADE_LOAN_TOOLKIT` under a failure that had nothing to do with it.
+ * `ARCADE_TOOLKIT` under a failure that had nothing to do with it.
  */
 export async function sessionSurface<T>(
   session: Session | null,

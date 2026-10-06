@@ -83,15 +83,14 @@ export function hooksForm({ origin }: { origin: string }): string {
 
 export interface GatewayForm {
   slug: string;
-  loanToolkit: string;
-  approvalsToolkit: string;
-  /** Blank: the Elastic module is off and the form lists six tools. */
-  elasticToolkit?: string;
+  toolkit: string;
+  /** Off: the form lists six tools. On: the 26 Elasticsearch tools too. */
+  elastic?: boolean;
   /** The User Source already registered (#52), when the run got that far and the gateway failed. */
   userSourceId?: string;
 }
 
-export function gatewayForm({ slug, loanToolkit, approvalsToolkit, elasticToolkit, userSourceId }: GatewayForm): string {
+export function gatewayForm({ slug, toolkit, elastic = false, userSourceId }: GatewayForm): string {
   const through = userSourceId === undefined ? "(the User Source above)" : `(${userSourceId}, already registered)`;
   return [
     "┌─ Arcade dashboard → your project → MCP Gateways → Create Gateway",
@@ -99,14 +98,14 @@ export function gatewayForm({ slug, loanToolkit, approvalsToolkit, elasticToolki
     "│  Description       The account executive's agent",
     `│  Slug              ${slug}        ← .env's ARCADE_GATEWAY_ID`,
     "│  LLM Instructions  (leave empty)",
-    `│  Allowed Tools     these six, and no others:`,
-    `│                    ${loanToolkit}: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount`,
-    `│                    ${approvalsToolkit}: RequestApproval, Decide`,
-    ...(elasticToolkit ? [`│                    ${elasticToolkit}: all 26 tools (docs/ELASTIC.md)`] : []),
+    `│  Allowed Tools     these ${elastic ? "32" : "six"}, and no others:`,
+    `│                    ${toolkit}: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount`,
+    `│                    ${toolkit}: RequestApproval, Decide`,
+    ...(elastic ? [`│                    ${toolkit}: the 26 Elasticsearch tools (docs/ELASTIC.md)`] : []),
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
     `│                    → Deals Approval Limits ${through}. Never Arcade Headers.`,
     "│",
-    `│  The form lists the ${loanToolkit} and ${approvalsToolkit} tools only while the hooks are disabled,`,
+    `│  The form lists the ${toolkit} tools only while the hooks are disabled,`,
     "│  which is how this run left them.",
     "│  If the dashboard says the slug is taken, use another, and set ARCADE_GATEWAY_ID in .env to it.",
     "└─",
@@ -154,7 +153,7 @@ export function nextSteps({ host, origin, port, gateway, deployed, userSourceRea
       : ["Start `bun run dev` (or restart it, if it is already running), so the app reads the new .env.", `Start the tunnel: ngrok http --url=${host} ${port}`]),
     ...(deployed || gateway === "enabled"
       ? []
-      : ["Deploy both toolkits (their secrets are set above): arcade deploy, in tools/loan and in tools/approvals."]),
+      : ["Deploy the toolkits (their secrets are set above): arcade deploy, in mcp."]),
     ...(gateway === "enabled"
       ? []
       : [

@@ -215,7 +215,7 @@ describe("users add", () => {
     plant(
       governancePath(),
       `INSERT INTO policy_rules (id, description, hook, toolkit, tool, subjects, conditions, effect, reason, priority)
-       VALUES ('access.auditors-cannot-see-deny', '', 'access', 'Deals', 'DenyDiscount',
+       VALUES ('access.auditors-cannot-see-deny', '', 'access', 'DealDesk', 'DenyDiscount',
                '{"user_ids":null,"roles":["auditor"],"clearance_below":null,"clearance_at_least":null}',
                '[]', 'deny', 'Auditors do not deny loans.', 20)`,
     );
@@ -303,7 +303,7 @@ describe("the Arcade invite reminder", () => {
     plant(
       governancePath(),
       `INSERT INTO policy_rules (id, description, hook, toolkit, tool, subjects, conditions, effect, reason, priority)
-       VALUES ('access.analysts-cannot-request', '', 'access', 'Approvals', 'RequestApproval',
+       VALUES ('access.analysts-cannot-request', '', 'access', 'DealDesk', 'RequestApproval',
                '{"user_ids":null,"roles":["sdr"],"clearance_below":null,"clearance_at_least":null}',
                '[]', 'deny', 'Analysts do not request approvals.', 11)`,
     );

@@ -27,7 +27,7 @@ const DANA = "alice@bank.example";
 const SAM = "bob@bank.example";
 const RILEY = "charlie@bank.example";
 const MORGAN = "michael@bank.example";
-const ELASTIC = "Elasticsearch";
+const ELASTIC = "DealDesk";
 const INDEX = "deal-files";
 
 const config: HooksConfig = {
@@ -35,9 +35,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "test-store-token",
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
-  elasticToolkit: ELASTIC,
+  toolkit: ELASTIC,
   deadlineMs: 2500,
   policyPollMs: 10,
   grantTtlSeconds: 900,
@@ -49,7 +47,7 @@ const LOAN = loanFixture("DL-2291");
 const PASTE_MARKER = "\n\n--- pasted from deal review thread ---";
 const LEGITIMATE_NOTE = LOAN.crm_notes.split(PASTE_MARKER)[0] as string;
 
-/** What `Elasticsearch_HybridSearch` returns for a hit on DL-2291, as the seed indexes it. */
+/** What `DealDesk_HybridSearch` returns for a hit on DL-2291, as the seed indexes it. */
 const document = () => {
   const { decisions: _decisions, ...loan } = LOAN as typeof LOAN & { decisions?: unknown };
   return loan;
@@ -171,7 +169,7 @@ describe("act 3 over the index: the identifiers in a search hit", () => {
     const bare = await preHook(DANA, "RunEsqlQuery", { query: `FROM ${INDEX} | LIMIT 10` });
     expect(bare.code).toBe("CHECK_FAILED");
     expect(bare.error_message).toContain("KEEP");
-    expect(bare.error_message).toContain("Elasticsearch_RunEsqlQuery");
+    expect(bare.error_message).toContain("DealDesk_RunEsqlQuery");
 
     const naming = await preHook(DANA, "RunEsqlQuery", { query: `FROM ${INDEX} | KEEP deal_id, tax_id | LIMIT 10` });
     expect(naming.code).toBe("CHECK_FAILED");

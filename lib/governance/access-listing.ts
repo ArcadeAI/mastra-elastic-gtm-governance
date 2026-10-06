@@ -10,7 +10,7 @@
  *
  * The persona is Sam, the SDR (`bob@bank.example` in the fixture
  * subjects), because act 1 is the only thing a listing card is *for*:
- * `Deals.ApproveDiscount` is absent from what he can see, hidden by
+ * `DealDesk.ApproveDiscount` is absent from what he can see, hidden by
  * `access.analysts-cannot-see-approve`, and the five tools he keeps are there
  * to prove the rule matched one thing rather than everything. A fixture where
  * nothing was hidden would exercise the card and demonstrate nothing.
@@ -49,12 +49,12 @@ const APART_MS = 3;
 
 /** The six tools both project toolkits advertise, in catalogue order. */
 const GOVERNED: ReadonlyArray<{ tool: string; hidden: boolean }> = [
-  { tool: "Deals.SearchDeals", hidden: false },
-  { tool: "Deals.GetDeal", hidden: false },
-  { tool: "Deals.ApproveDiscount", hidden: true },
-  { tool: "Deals.DenyDiscount", hidden: false },
-  { tool: "Approvals.RequestApproval", hidden: false },
-  { tool: "Approvals.Decide", hidden: false },
+  { tool: "DealDesk.SearchDeals", hidden: false },
+  { tool: "DealDesk.GetDeal", hidden: false },
+  { tool: "DealDesk.ApproveDiscount", hidden: true },
+  { tool: "DealDesk.DenyDiscount", hidden: false },
+  { tool: "DealDesk.RequestApproval", hidden: false },
+  { tool: "DealDesk.Decide", hidden: false },
 ];
 
 /**
@@ -73,7 +73,7 @@ const GOVERNED: ReadonlyArray<{ tool: string; hidden: boolean }> = [
 const SUMMARY_REASON =
   "SUMMARY: 8272 tools outside this control plane's catalogue were decided in this call " +
   "and are recorded as this one row — 8272 hidden, 0 allowed. Tools in the governed " +
-  "toolkits (Approvals, Deals) are recorded one row each, above.";
+  "toolkits are recorded one row each, above.";
 
 /**
  * Seven access events, oldest first: six governed tools decided for Sam, one

@@ -10,7 +10,7 @@
  * ## What this file used to be, and what #157 took out of it
  *
  * It was #149's *continuation* regression: the loan cards were governed
- * `Deals_GetDeal` reads, a layer-2 challenge put a `Continue` button on a card,
+ * `DealDesk_GetDeal` reads, a layer-2 challenge put a `Continue` button on a card,
  * and the test clicked it to drive `HomeRefreshBoundary` and `router.refresh()`
  * through a re-challenge and a success. #157 moved the cards off the MCP path —
  * they read the bank's own API as the signed-in person and poll — so there is
@@ -82,7 +82,7 @@ const HYDRATION_DELAY_MS = Number(process.env.CG_HYDRATION_DELAY_MS ?? "0");
  * Everything this test clicks and types into is in the server-rendered HTML
  * before any JavaScript runs: the page is a server component, and the
  * authorization card the test waits for is rendered by the *server* when the
- * gateway challenges `Deals_GetDeal`. So `waitFor("initial authorization card")`
+ * gateway challenges `DealDesk_GetDeal`. So `waitFor("initial authorization card")`
  * proves the HTML arrived and proves nothing about React.
  *
  * Measured, on a passing run, at the moment the old test clicked Send — with a
@@ -194,8 +194,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
         ARCADE_API_URL: agents.gateway.url,
         ARCADE_API_KEY: "arcade-key-for-local-next-browser",
         ARCADE_GATEWAY_ID: "cg-demo-us",
-        ARCADE_LOAN_TOOLKIT: "Deals",
-        ARCADE_APPROVALS_TOOLKIT: "Approvals",
+        ARCADE_TOOLKIT: "DealDesk",
         ANTHROPIC_API_KEY: "not-used-by-local-chat-intercept",
         MODEL_ID: "claude-sonnet-5",
         SESSION_SECRET,

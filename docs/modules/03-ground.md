@@ -12,9 +12,10 @@ through the same three hooks a write does.
    `docs/ELASTIC.md` → Setup has the exact key request, and what Serverless leaves out.
    Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
    `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
-2. The Elasticsearch toolkit on your project: `cd tools/elasticsearch && arcade deploy`, with `ELASTICSEARCH_URL` and
-   `ELASTICSEARCH_API_KEY` as its secrets in the Arcade dashboard.
-3. In `.env`: `ARCADE_ELASTIC_TOOLKIT=Elasticsearch` and `ELASTIC_SEED_USER=<Michael's email>`.
+2. Its two secrets on your Arcade project, in the dashboard: `ELASTICSEARCH_URL` and
+   `ELASTICSEARCH_API_KEY`. Nothing to deploy: the Elasticsearch tools shipped in module 1's
+   one `arcade deploy`, and have sat idle without a cluster to call.
+3. In `.env`: `ELASTIC_MODULE=on` and `ELASTIC_SEED_USER=<Michael's email>`.
    An existing gateway is not edited, so blank `ARCADE_GATEWAY_ID` and run
    `bun run setup-arcade <APP_PUBLIC_HOST> --gateway <a-new-slug>`: the new gateway carries
    the 26 `Elasticsearch.*` tools with the six deal tools. Restart `bun run dev` and authorize it once.
@@ -37,7 +38,7 @@ through the same three hooks a write does.
 
 - The diff from `start` to `module-3-ground`. Nothing under `packages/` moved: retrieval
   needed no new primitive, only rules. `git diff start module-3-ground --stat`.
-- `governance.json` → the `$ELASTIC` rules: nine access rules on the write tools, three
+- `governance.json` → the `$TOOLKIT` rules: nine access rules on the write tools, three
   pre rules on ES|QL and aggregations, two post rules on `hits[].source`.
 - `app-test/control-plane/elastic-post.test.ts`: the four acts over a search result,
   measured against the seeded rules.

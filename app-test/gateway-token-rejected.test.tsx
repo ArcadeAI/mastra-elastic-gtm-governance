@@ -4,8 +4,8 @@
  *
  * The failure this file exists to keep out: Alice, signed in, asks for the $95K
  * loan on the live deployment and reads *"The gateway advertised 0 tools and
- * none of them belong to \"Deals\" or \"Approvals\" … Check ARCADE_LOAN_TOOLKIT
- * and ARCADE_APPROVALS_TOOLKIT"*. Both variables were correct. Her gateway
+ * none of them belong to \"Deals\" or \"Approvals\" … Check ARCADE_TOOLKIT
+ * and ARCADE_TOOLKIT"*. Both variables were correct. Her gateway
  * token was not, and one click on `/api/arcade/start` was the whole fix.
  *
  * The cause is measured in the first `describe` below and it is not ours:
@@ -100,7 +100,7 @@ function startGateway(shape: Shape): Stub {
         const builtins = ["System_ManageAuthorization", "Arcade_ListApps"];
         const names =
           shape === "serves-the-toolkits"
-            ? ["Deals_GetDeal", ...builtins]
+            ? ["DealDesk_GetDeal", ...builtins]
             : shape === "serves-nothing"
               ? []
               : builtins;
@@ -122,8 +122,7 @@ function surfaceFor(arcadeApiUrl: string): IdentitySurface {
     ARCADE_API_URL: arcadeApiUrl,
     ARCADE_API_KEY: "gateway-rejection-suite-arcade-key",
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: "Deals",
-    ARCADE_APPROVALS_TOOLKIT: "Approvals",
+    ARCADE_TOOLKIT: "DealDesk",
     ANTHROPIC_API_KEY: "gateway-rejection-suite-anthropic-key",
     SESSION_SECRET,
     APP_PUBLIC_HOST: "localhost:1",
@@ -224,7 +223,7 @@ describe("the cause, measured rather than assumed", () => {
       await expect(client.listToolsets()).resolves.toEqual({});
 
       // And `governedToolset` now says which of the two it was.
-      const selected = await governedToolset(client, { toolkits: ["Deals", "Approvals"] });
+      const selected = await governedToolset(client, { toolkits: ["DealDesk", "DealDesk"] });
       expect(selected.advertised).toEqual([]);
       expect(selected.error).toBeTruthy();
     } finally {
@@ -348,7 +347,7 @@ describe("POST /api/chat, when the gateway rejects this browser's token", () => 
       expect(turn.events.at(-1)).toEqual({ kind: "done", calls: 0 });
 
       // The message that sent a person to check two correct variables.
-      expect(turn.body).not.toContain("ARCADE_LOAN_TOOLKIT");
+      expect(turn.body).not.toContain("ARCADE_TOOLKIT");
       expect(turn.body).not.toContain("advertised 0 tools");
       // And no claim that anything was decided.
       expect(turn.events.some((event) => event.kind === "denied")).toBe(false);
@@ -412,7 +411,7 @@ describe("POST /api/chat, when the gateway rejects this browser's token", () => 
         expect(turn.events.at(-1)).toEqual({ kind: "done", calls: 0 });
         // The unlinkable sentence round 1 read on the second turn.
         expect(turn.body).not.toContain("holds no gateway token");
-        expect(turn.body).not.toContain("ARCADE_LOAN_TOOLKIT");
+        expect(turn.body).not.toContain("ARCADE_TOOLKIT");
         expect(turn.body).not.toContain(TOKEN);
       }
 
@@ -501,7 +500,7 @@ describe("POST /api/chat, when the token is fine and the toolkits are not", () =
       const body = JSON.parse(turn.body) as { error?: string };
 
       expect(turn.status).toBe(502);
-      expect(body.error).toContain("ARCADE_LOAN_TOOLKIT");
+      expect(body.error).toContain("ARCADE_TOOLKIT");
       expect(body.error).toContain("advertised 2 tools");
       // The gateway was asked about the bearer first, and answered.
       expect(gateway.seen.filter((line) => line.startsWith("POST")).length).toBeGreaterThan(1);
@@ -519,7 +518,7 @@ describe("POST /api/chat, when the token is fine and the toolkits are not", () =
 
       expect(turn.status).toBe(502);
       expect(body.error).toContain("could not be reached");
-      expect(body.error).not.toContain("ARCADE_LOAN_TOOLKIT");
+      expect(body.error).not.toContain("ARCADE_TOOLKIT");
     } finally {
       gateway.stop();
     }

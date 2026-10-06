@@ -9,7 +9,7 @@
  * before the tool call, and a grant is usable only when the confirmed persona
  * equals the OAuth identity Arcade obtained for that grant.
  *
- * The local path is correct when those identities agree: Deals_SearchDeals sees
+ * The local path is correct when those identities agree: DealDesk_SearchDeals sees
  * the existing grant and does not issue a fresh challenge. A deliberately
  * mismatched provider identity reproduces the live symptom (a challenge before
  * the tool and hooks), proving the failure mode without claiming that the live
@@ -56,7 +56,7 @@ async function loanSearch(token: string): Promise<{ response: Response; body: Re
       jsonrpc: "2.0",
       id: "loan-search",
       method: "tools/call",
-      params: { name: "Deals_SearchDeals", arguments: {} },
+      params: { name: "DealDesk_SearchDeals", arguments: {} },
     }),
   });
   return { response, body: (await response.json()) as Record<string, unknown> };
@@ -87,7 +87,7 @@ async function setupFlow(
 }
 
 describe("an already-authorized Dana-equivalent hop-2 grant", () => {
-  test("finalizes through real cg-idp and Deals_SearchDeals receives that grant", async () => {
+  test("finalizes through real cg-idp and DealDesk_SearchDeals receives that grant", async () => {
     const browser = new Browser();
     const before = (await harness.idpLog()).split("\n").filter((line) => line.includes("grant=authorization_code")).length;
     const { flowId, token } = await setupFlow(browser, "dana", "dana");

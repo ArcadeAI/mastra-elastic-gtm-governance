@@ -14,7 +14,7 @@
  *
  * The four claims:
  *
- * 1. A turn that ends after `Approvals_RequestApproval` ends, and **nothing is
+ * 1. A turn that ends after `DealDesk_RequestApproval` ends, and **nothing is
  *    sent** until a decision arrives. One POST, and it stays one.
  * 2. `approval.granted` for this browser's request starts exactly one more
  *    turn, carrying the id and the previous turn as context — and no outcome.
@@ -55,20 +55,20 @@ const REQUEST_ID = "apr_0m4xq7bd91kz";
 
 /** The turn that ends waiting: a denial, the escalation, and the reply. */
 const BLOCKED: ChatEvent[] = [
-  { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
+  { kind: "tool-call", tool: "DealDesk_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
   {
     kind: "denied",
-    tool: "Deals_ApproveDiscount",
+    tool: "DealDesk_ApproveDiscount",
     reason:
       "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. " +
       "[ref evt_4k7xq2m9hz]",
     ref: "evt_4k7xq2m9hz",
   },
-  { kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } },
-  { kind: "tool-result", tool: "Approvals_RequestApproval", result: { request_id: REQUEST_ID, approver: "Charlie" } },
+  { kind: "tool-call", tool: "DealDesk_RequestApproval", inputs: { resource_id: "DL-2291" } },
+  { kind: "tool-result", tool: "DealDesk_RequestApproval", result: { request_id: REQUEST_ID, approver: "Charlie" } },
   {
     kind: "waiting",
-    tool: "Approvals_RequestApproval",
+    tool: "DealDesk_RequestApproval",
     request_id: REQUEST_ID,
     approver: "Charlie",
     approver_id: "charlie@bank.example",
@@ -90,8 +90,8 @@ const RESUMED: ChatEvent[] = [
     decided_by: "charlie@bank.example",
     message: RESUME_MESSAGE,
   },
-  { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
-  { kind: "tool-result", tool: "Deals_ApproveDiscount", result: { deal_id: "DL-2291", status: "approved" } },
+  { kind: "tool-call", tool: "DealDesk_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
+  { kind: "tool-result", tool: "DealDesk_ApproveDiscount", result: { deal_id: "DL-2291", status: "approved" } },
   { kind: "text", text: "Approved: DL-2291 for $95,000." },
   { kind: "done", calls: 1 },
 ];

@@ -22,7 +22,7 @@
  * Having nobody eligible is an ordinary outcome, not an error and not a quiet
  * fallback to the highest authority: the caller gets a value it can branch on.
  *
- * Parity note for `tools/approvals` (#18), which reimplements this in Python:
+ * Parity note for `mcp/deal_desk/approvals.py` (#18), which reimplements this in Python:
  * `sorted(eligible, key=lambda s: (s.clearance, s.user_id))[0]` is equivalent
  * provided user ids are ASCII. JavaScript orders strings by UTF-16 code unit
  * and Python by code point; the two agree for everything in the Basic

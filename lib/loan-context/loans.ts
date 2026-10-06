@@ -8,7 +8,7 @@
  * and the argument for it stood here: a second, ungoverned path into the same
  * data, beside a control plane claiming there is only one. #157 retires that
  * argument, and `DESIGN.md` → Business system records the reversal. The
- * governed read cost two `Deals_GetDeal` calls on every page load, so the panel
+ * governed read cost two `DealDesk_GetDeal` calls on every page load, so the panel
  * showed tool calls before the presenter had said anything and the audience
  * could not tell the agent's work from the page's chrome; and because a page
  * load was the only read, an approval the agent had just made never appeared on

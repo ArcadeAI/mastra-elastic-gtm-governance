@@ -15,10 +15,10 @@ catches all four while the model never gets a vote.
    printed *hooks: … status active (read back)*. Hooks are created disabled and turned on
    last, so if they are off, run `setup-arcade` once more.
 3. Run the four acts, in the words `README.md` → Try it out uses:
-   - **Act 1.** Sign in as Bob and ask for the approval. `Deals_ApproveDiscount` is not in his
+   - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
      tool list. Nothing was refused; the tool was never offered.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
-     work."* `/hooks/pre` refuses, the denial names `Approvals_RequestApproval`, the agent
+     work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
      calls it, Charlie gets a Slack DM from Alice's own account, Alice's turn ends. Charlie
      approves; Alice's retry passes on a single-use grant.
    - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both

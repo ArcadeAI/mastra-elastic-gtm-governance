@@ -60,8 +60,7 @@ function configFor(setting: ScannerSetting): HooksConfig {
     dbPath: ":memory:",
     signingSecret: SECRET,
     approvalsStoreToken: "test-store-token",
-    loanToolkit: "Deals",
-    approvalsToolkit: "Approvals",
+    toolkit: "DealDesk",
     deadlineMs: 2500,
     policyPollMs: POLL_MS,
     grantTtlSeconds: 900,
@@ -123,7 +122,7 @@ async function getLoan(base: string): Promise<Record<string, unknown> | undefine
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_switch_${++execution}`,
-      tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: "DL-2291" },
       success: true,
       output: LOAN,
@@ -229,7 +228,7 @@ describe("disarmed by the switch, which is the control run", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
       body: JSON.stringify({
         execution_id: "tc_switch_broken",
-        tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+        tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
         success: true,
         output: LOAN,
         context: { user_id: DANA },

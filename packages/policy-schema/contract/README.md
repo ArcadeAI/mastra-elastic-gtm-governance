@@ -10,7 +10,7 @@ data, and the point is that nothing here can only be read by TypeScript.
 
 | file | rule | read by |
 |---|---|---|
-| `approver-routing-cases.json` | minimum-sufficient-clearance approver routing (#9) | `packages/governance-core/test/approver-router.test.ts`, `tools/approvals/tests/test_routing.py` |
+| `approver-routing-cases.json` | minimum-sufficient-clearance approver routing (#9) | `packages/governance-core/test/approver-router.test.ts`, `mcp/tests/approvals/test_routing.py` |
 
 ## Reading one
 

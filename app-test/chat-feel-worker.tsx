@@ -268,10 +268,10 @@ describe("AC3: the status line names the current wait", () => {
       await settle("Thinking…", () => statusText(container) === "Thinking…");
       expect(statusKind(container)).toBe("running");
 
-      await stepped.send({ kind: "tool-call", tool: "Deals_SearchDeals", inputs: { min_amount: 90000 } });
-      await settle("Calling Deals_SearchDeals…", () => statusText(container) === "Calling Deals_SearchDeals…");
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_SearchDeals", inputs: { min_amount: 90000 } });
+      await settle("Calling DealDesk_SearchDeals…", () => statusText(container) === "Calling DealDesk_SearchDeals…");
 
-      await stepped.send({ kind: "tool-result", tool: "Deals_SearchDeals", result: [{ deal_id: "DL-2291" }] });
+      await stepped.send({ kind: "tool-result", tool: "DealDesk_SearchDeals", result: [{ deal_id: "DL-2291" }] });
       await settle("Thinking… again", () => statusText(container) === "Thinking…");
 
       await stepped.send({ kind: "text", text: "One loan matches." });
@@ -290,15 +290,15 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_RequestApproval", inputs: { resource_id: "DL-2291" } });
       await stepped.send({
         kind: "tool-result",
-        tool: "Approvals_RequestApproval",
+        tool: "DealDesk_RequestApproval",
         result: { request_id: "apr_0m4xq7bd91kz", approver: "Charlie" },
       });
       await stepped.send({
         kind: "waiting",
-        tool: "Approvals_RequestApproval",
+        tool: "DealDesk_RequestApproval",
         request_id: "apr_0m4xq7bd91kz",
         approver: "Charlie",
         approver_id: "charlie@bank.example",
@@ -330,16 +330,16 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Approvals_RequestApproval", inputs: { resource_id: "DL-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_RequestApproval", inputs: { resource_id: "DL-2291" } });
       await stepped.send({
         kind: "authorization",
-        tool: "Approvals_RequestApproval",
+        tool: "DealDesk_RequestApproval",
         url: "https://slack.com/oauth/v2/authorize?client_id=x",
       });
       await stepped.send({ kind: "done", calls: 1 });
       stepped.close();
       await settle("the turn to end", () => idle(container));
-      expect(statusText(container)).toBe("Waiting for you to authorize Approvals_RequestApproval…");
+      expect(statusText(container)).toBe("Waiting for you to authorize DealDesk_RequestApproval…");
       expect(statusKind(container)).toBe("held");
 
       await act(async () => {
@@ -348,7 +348,7 @@ describe("AC3: the status line names the current wait", () => {
           ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       });
       await settle("Continue's attempt to be thinking", () => statusText(container) === "Thinking…");
-      await stepped.send({ kind: "fault", tool: "Approvals_RequestApproval", message: "Slack answered 503" }, 2);
+      await stepped.send({ kind: "fault", tool: "DealDesk_RequestApproval", message: "Slack answered 503" }, 2);
       await settle("the line to clear on fault", () => statusText(container) === null);
       await stepped.send({ kind: "done", calls: 1 }, 2);
       stepped.close(2);
@@ -364,8 +364,8 @@ describe("AC3: the status line names the current wait", () => {
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } });
-      await settle("Calling Deals_GetDeal…", () => statusText(container) === "Calling Deals_GetDeal…");
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: "DL-2291" } });
+      await settle("Calling DealDesk_GetDeal…", () => statusText(container) === "Calling DealDesk_GetDeal…");
       await stepped.send({ kind: "error", message: "the provider returned 500" });
       await settle("the line to clear on error", () => statusText(container) === null);
       await stepped.send({ kind: "done", calls: 1 });
@@ -396,11 +396,11 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
     try {
       await submit(container);
       await stepped.send({ kind: "text", text: "Reading it now." });
-      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } });
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: "DL-2291" } });
       await settle("the tool row", () => container.querySelector('[data-kind="tool"]') !== null);
       const row = container.querySelector<HTMLDetailsElement>('details[data-kind="tool"]');
       expect(row?.getAttribute("data-state")).toBe("running…");
-      await stepped.send({ kind: "tool-result", tool: "Deals_GetDeal", result: RESULT });
+      await stepped.send({ kind: "tool-result", tool: "DealDesk_GetDeal", result: RESULT });
       await stepped.send({ kind: "text", text: "It is for $95,000." });
       await stepped.send({ kind: "done", calls: 1 });
       stepped.close();
@@ -411,7 +411,7 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
       const tool = rows[0] as HTMLDetailsElement;
       // Collapsed, and named by the tool.
       expect(tool.open).toBe(false);
-      expect(tool.querySelector("summary .chat-tool-name")?.textContent).toBe("Deals_GetDeal");
+      expect(tool.querySelector("summary .chat-tool-name")?.textContent).toBe("DealDesk_GetDeal");
       expect(tool.getAttribute("data-state")).toBe("returned");
 
       // Opens onto both views.
@@ -446,8 +446,8 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
 
       // The prose either side of the call stays either side of it.
       const markup = container.innerHTML;
-      expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Deals_GetDeal"));
-      expect(markup.indexOf("Deals_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
+      expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("DealDesk_GetDeal"));
+      expect(markup.indexOf("DealDesk_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
     } finally {
       await cleanup(container, root);
     }
@@ -458,10 +458,10 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
     const { container, root } = await mount();
     try {
       await submit(container);
-      await stepped.send({ kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } });
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } });
       await stepped.send({
         kind: "denied",
-        tool: "Deals_ApproveDiscount",
+        tool: "DealDesk_ApproveDiscount",
         reason: "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. [ref evt_4k7xq2m9hz]",
         ref: "evt_4k7xq2m9hz",
       });
@@ -501,7 +501,7 @@ describe("AC1, AC4, AC5: one transcript, and tool rows that open onto the wire",
 describe("AC6: chat, don't click", () => {
   const challenge: ChatEvent = {
     kind: "authorization",
-    tool: "Deals_GetDeal",
+    tool: "DealDesk_GetDeal",
     url: "https://provider.example/authorize/request-1",
   };
 
@@ -549,8 +549,8 @@ describe("AC6: chat, don't click", () => {
       expect(stepped.posts[1]).toEqual({ prompt: DEFAULT_PROMPT });
       expect(JSON.stringify(stepped.posts[1])).not.toContain('"done"');
 
-      await stepped.send({ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } }, 2);
-      await stepped.send({ kind: "tool-result", tool: "Deals_GetDeal", result: { deal_id: "DL-2291" } }, 2);
+      await stepped.send({ kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: "DL-2291" } }, 2);
+      await stepped.send({ kind: "tool-result", tool: "DealDesk_GetDeal", result: { deal_id: "DL-2291" } }, 2);
       await stepped.send({ kind: "text", text: "Read it." }, 2);
       await stepped.send({ kind: "done", calls: 1 }, 2);
       stepped.close(2);
@@ -624,7 +624,7 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
 
     const harness = await startAgentHarness();
     const scripted = scriptedModel([
-      { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+      { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
       { say: ["Northwind ", "Robotics, ", "$95,000."] },
     ]);
     const web = Bun.serve({
@@ -658,7 +658,7 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
       await submit(container);
       await settle("the real turn to end", () => idle(container) && container.textContent?.includes("this turn.") === true);
 
-      const tool = container.querySelector('details[data-kind="tool"][data-tool="Deals_GetDeal"]');
+      const tool = container.querySelector('details[data-kind="tool"][data-tool="DealDesk_GetDeal"]');
       expect(tool?.getAttribute("data-state")).toBe("returned");
       const shown = renderedJson(tool?.querySelector('[data-json="Result"]') as Element);
 
@@ -666,7 +666,7 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
       const part = last
         .filter((message) => message.role === "tool")
         .flatMap((message) => message.content as Array<Record<string, unknown>>)
-        .find((candidate) => candidate.type === "tool-result" && candidate.toolName === "Deals_GetDeal");
+        .find((candidate) => candidate.type === "tool-result" && candidate.toolName === "DealDesk_GetDeal");
       const saw = (part?.output as { value: unknown }).value;
 
       expect(shown).toEqual(saw);

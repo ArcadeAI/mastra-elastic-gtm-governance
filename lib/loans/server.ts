@@ -22,7 +22,7 @@
  * about governance: it does not check authority, withhold fields, or consult
  * anything before applying a write. That is the whole point — the controls
  * live outside it, in a control plane it cannot influence, and the tools that
- * call it (`tools/loan`) are stateless clients that hold no state of their
+ * call it (`mcp/deal_desk/deals.py`) are stateless clients that hold no state of their
  * own. Anything that would check a caller belongs in the control plane.
  *
  * Every route under `/loans` requires a bearer token, and the actor recorded

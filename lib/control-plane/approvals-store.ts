@@ -2,7 +2,7 @@
  * `approval_requests` — the escalations a human acts on.
  *
  * The row is the wire record written out under "The approvals store contract"
- * in `tools/approvals/README.md`, one column per field, plus the control
+ * in `mcp/APPROVALS.md`, one column per field, plus the control
  * plane's own resolution of the bare `action` name (see `action-binding.ts`).
  * Every record that leaves this module is `parse()`d through
  * `@cg/policy-schema`'s `ApprovalRecord`, so a hand-edited row that no longer
@@ -12,7 +12,7 @@
  *
  * **It does not authorize.** Answering a read is not permission and recording
  * a decision is not deciding: whether the person clicking may decide is a
- * `/pre` decision on `Approvals.Decide`, made before the decision request is
+ * `/pre` decision on `DealDesk.Decide`, made before the decision request is
  * ever sent. The requester can read the DM she sent, so she can reach the read
  * too — which is exactly why the link is safe to put in a conversation.
  *

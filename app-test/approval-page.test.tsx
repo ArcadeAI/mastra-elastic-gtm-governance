@@ -98,7 +98,7 @@ describe("pressing a button", () => {
       message: `Recorded as approved by ${RILEY}.`,
     });
     // As the clicking user, through the same pre-hook as any other tool call.
-    expect(harness.preCalls).toEqual([{ user_id: RILEY, tool: "Approvals.Decide" }]);
+    expect(harness.preCalls).toEqual([{ user_id: RILEY, tool: "DealDesk.Decide" }]);
 
     const after = await harness.read(request.id);
     expect(after).toMatchObject({ status: "approved", decided_by: RILEY, note: "Coverage checks out." });
@@ -138,8 +138,8 @@ describe("pressing a button", () => {
     // Filtered by person rather than counted, because this file shares one
     // `governance.db` across its cases and a bare count would be an assertion
     // about test order.
-    const hers = self(await harness.audit({ hook: "pre", decision: "deny", user_id: DANA, tool: "Approvals.Decide" }));
-    const his = self(await harness.audit({ hook: "pre", decision: "deny", user_id: RILEY, tool: "Approvals.Decide" }));
+    const hers = self(await harness.audit({ hook: "pre", decision: "deny", user_id: DANA, tool: "DealDesk.Decide" }));
+    const his = self(await harness.audit({ hook: "pre", decision: "deny", user_id: RILEY, tool: "DealDesk.Decide" }));
 
     expect(hers.length).toBeGreaterThan(0);
     expect(hers.every((row) => row.user_id === DANA)).toBe(true);
@@ -289,7 +289,7 @@ describe("what the page says about it", () => {
     expect(html).toContain("Signed in as");
     expect(html).toContain("Alice");
     expect(html).toContain(DANA);
-    expect(html).toContain("Approvals.Decide");
+    expect(html).toContain("DealDesk.Decide");
     expect(html).toContain("carries no authority");
     expect(html).toContain("the buttons");
   });

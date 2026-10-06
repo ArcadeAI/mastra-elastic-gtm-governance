@@ -128,8 +128,7 @@ class UsageError extends Error {}
 
 const config = readConfig();
 const seedOptions = {
-  loanToolkit: config.loanToolkit,
-  approvalsToolkit: config.approvalsToolkit,
+  toolkit: config.toolkit,
 };
 const actor = `cli:${userInfo().username}`;
 
@@ -220,7 +219,7 @@ function describeGeneratedPassword(email: string, password: string): string {
  * a role stops the reminder for that role without this script changing.
  */
 function inviteReminder(governance: Database, subject: NewSubject): string | null {
-  const tool = { toolkit: config.approvalsToolkit, name: REQUEST_TOOL };
+  const tool = { toolkit: config.toolkit, name: REQUEST_TOOL };
   if (hiddenFrom(governance, subject, tool)) return null;
   return (
     `  arcade     ${subject.user_id} can request approvals, and requests go through Arcade's Slack provider, ` +
@@ -249,7 +248,7 @@ function impliesNoClearance(governance: Database, role: string): boolean {
   return hiddenFrom(
     governance,
     { user_id: "role-probe@users.invalid", display_name: "", role, clearance: 0 },
-    { toolkit: config.loanToolkit, name: APPROVE_TOOL },
+    { toolkit: config.toolkit, name: APPROVE_TOOL },
   );
 }
 

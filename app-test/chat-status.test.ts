@@ -13,18 +13,18 @@ import { statusLine, type StatusInput } from "../components/chat/status.ts";
 import type { ChatEvent } from "../lib/agent/events.ts";
 
 const REQUEST_ID = "apr_0m4xq7bd91kz";
-const call: ChatEvent = { kind: "tool-call", tool: "Deals_SearchDeals", inputs: { min_amount: 90000 } };
-const result: ChatEvent = { kind: "tool-result", tool: "Deals_SearchDeals", result: [] };
+const call: ChatEvent = { kind: "tool-call", tool: "DealDesk_SearchDeals", inputs: { min_amount: 90000 } };
+const result: ChatEvent = { kind: "tool-result", tool: "DealDesk_SearchDeals", result: [] };
 const waiting: ChatEvent = {
   kind: "waiting",
-  tool: "Approvals_RequestApproval",
+  tool: "DealDesk_RequestApproval",
   request_id: REQUEST_ID,
   approver: "Charlie",
   approver_id: "charlie@bank.example",
 };
 const authorization: ChatEvent = {
   kind: "authorization",
-  tool: "Approvals_RequestApproval",
+  tool: "DealDesk_RequestApproval",
   url: "https://slack.com/oauth/v2/authorize?client_id=x",
 };
 
@@ -44,13 +44,13 @@ describe("while a turn is running", () => {
   });
 
   test("a tool call in flight is named by its wire name", () => {
-    expect(statusLine(input([call]))).toEqual({ kind: "running", text: "Calling Deals_SearchDeals…" });
+    expect(statusLine(input([call]))).toEqual({ kind: "running", text: "Calling DealDesk_SearchDeals…" });
   });
 
   test("done, error and fault each clear it", () => {
     expect(statusLine(input([call, result, { kind: "done", calls: 1 }]))).toBeNull();
     expect(statusLine(input([call, { kind: "error", message: "provider 500" }]))).toBeNull();
-    expect(statusLine(input([call, { kind: "fault", tool: "Deals_SearchDeals", message: "ECONNREFUSED" }]))).toBeNull();
+    expect(statusLine(input([call, { kind: "fault", tool: "DealDesk_SearchDeals", message: "ECONNREFUSED" }]))).toBeNull();
   });
 
   test("once the approval is requested, the closing words stream under the wait", () => {
@@ -75,7 +75,7 @@ describe("after the turn has ended", () => {
   test("an unanswered authorization names the tool, not a provider guessed from the URL", () => {
     const events = [authorization, { kind: "done", calls: 1 } as ChatEvent];
     const status = statusLine(input(events, { running: false, challengeHeld: true }));
-    expect(status).toEqual({ kind: "held", text: "Waiting for you to authorize Approvals_RequestApproval…" });
+    expect(status).toEqual({ kind: "held", text: "Waiting for you to authorize DealDesk_RequestApproval…" });
     expect(status?.text).not.toContain("Slack");
     // Continued, or a new message: no longer held.
     expect(statusLine(input(events, { running: false, challengeHeld: false }))).toBeNull();

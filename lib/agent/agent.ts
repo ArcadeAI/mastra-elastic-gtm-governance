@@ -108,7 +108,7 @@ export const INSTRUCTIONS = [
 ].join("\n");
 
 /**
- * What the Elastic module adds to the prompt, when `ARCADE_ELASTIC_TOOLKIT` is
+ * What the Elastic module adds to the prompt, when `ELASTIC_MODULE` is
  * set: facts about the index and nothing else.
  *
  * Read the header first. Every sentence is something the model could not

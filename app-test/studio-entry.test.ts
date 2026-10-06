@@ -114,8 +114,7 @@ describe("one agent, two entries", () => {
     const env: Record<string, string> = {
       ARCADE_API_URL: harness.config.arcadeApiUrl,
       ARCADE_GATEWAY_ID: harness.config.identity.gatewayId,
-      ARCADE_LOAN_TOOLKIT: harness.config.agent.toolkits[0]!,
-      ARCADE_APPROVALS_TOOLKIT: harness.config.agent.approvalsToolkit,
+      ARCADE_TOOLKIT: harness.config.agent.toolkits[0]!,
       ANTHROPIC_API_KEY: harness.config.agent.anthropicApiKey,
       MODEL_ID: harness.config.agent.modelId,
       MEMORY_DB_PATH: join(memoryDir, "memory.db"),
@@ -196,12 +195,12 @@ describe("one agent, two entries", () => {
     // pass for agreement.
     expect(fromChat!.system).toEqual([INSTRUCTIONS]);
     expect(fromChat!.tools.map((tool) => tool.name)).toEqual([
-      "Approvals_Decide",
-      "Approvals_RequestApproval",
-      "Deals_ApproveDiscount",
-      "Deals_DenyDiscount",
-      "Deals_GetDeal",
-      "Deals_SearchDeals",
+      "DealDesk_Decide",
+      "DealDesk_RequestApproval",
+      "DealDesk_ApproveDiscount",
+      "DealDesk_DenyDiscount",
+      "DealDesk_GetDeal",
+      "DealDesk_SearchDeals",
     ]);
     expect(fromStudio).toEqual(fromChat!);
 
@@ -294,8 +293,7 @@ describe("Studio's hop 1, over loopback", () => {
     config = readIdentitySurface({
       ARCADE_API_URL: arcade.url,
       ARCADE_GATEWAY_ID: GATEWAY_ID,
-      ARCADE_LOAN_TOOLKIT: "Deals",
-      ARCADE_APPROVALS_TOOLKIT: "Approvals",
+      ARCADE_TOOLKIT: "DealDesk",
       ANTHROPIC_API_KEY: "anthropic-key-for-studio-tests",
     });
     // Studio's two routes, on a server of their own, the way `mastra dev`
@@ -344,7 +342,7 @@ describe("Studio's hop 1, over loopback", () => {
     expect(arcade.issued.length).toBe(before + 1);
 
     const tools = await studioTools(config, `http://localhost:${studio.port}`);
-    expect(Object.keys(tools)).toEqual(["Deals_GetDeal"]);
+    expect(Object.keys(tools)).toEqual(["DealDesk_GetDeal"]);
     // The bearer that went out is the one the token endpoint issued to Studio.
     expect(arcade.bearers.at(-1)).toBe(arcade.issued.at(-1));
   });
@@ -363,7 +361,7 @@ describe("Studio's hop 1, over loopback", () => {
     arcade.expireIssuedTokens();
 
     const tools = await studioTools(config, `http://localhost:${studio.port}`);
-    expect(Object.keys(tools)).toEqual(["Deals_GetDeal"]);
+    expect(Object.keys(tools)).toEqual(["DealDesk_GetDeal"]);
     expect(arcade.refreshes).toBe(refreshes + 1);
     expect(arcade.bearers.at(-1)).toBe(arcade.issued.at(-1));
   });

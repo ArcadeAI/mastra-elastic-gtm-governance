@@ -5,7 +5,7 @@
  * Round 1 of #52's review drove this by hand and it worked: both `Decide`
  * calls pass `/pre` while the request is still `pending`, the approving one
  * mints a grant, the denial is recorded first, the approval's store write
- * loses with a `409` — and `Deals.ApproveDiscount` then returned `OK` against a
+ * loses with a `409` — and `DealDesk.ApproveDiscount` then returned `OK` against a
  * request whose recorded outcome was `denied`.
  *
  * These tests close the class rather than that sequence. A grant is minted
@@ -43,8 +43,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 10_000,
   grantTtlSeconds: 900,
@@ -124,9 +123,9 @@ async function escalate(resourceId: string): Promise<ApprovalRecord> {
   return ((await response.json()) as { request: ApprovalRecord }).request;
 }
 
-/** `/pre` for `Approvals.Decide`, as Charlie. Authorizes; records nothing. */
+/** `/pre` for `DealDesk.Decide`, as Charlie. Authorizes; records nothing. */
 const authorize = (id: string, decision: "approved" | "denied") =>
-  pre(RILEY, "Approvals", "Decide", { request_id: id, decision });
+  pre(RILEY, "DealDesk", "Decide", { request_id: id, decision });
 
 /** The store write the tool makes after `/pre` said OK. */
 const record = (id: string, decision: "approved" | "denied") =>
@@ -134,7 +133,7 @@ const record = (id: string, decision: "approved" | "denied") =>
 
 /** Alice's retry of the call that was blocked in the first place. */
 const retry = (resourceId: string) =>
-  pre(DANA, "Deals", "ApproveDiscount", { deal_id: resourceId, amount: 95_000 });
+  pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: resourceId, amount: 95_000 });
 
 /** The most recent audit row for one tool. */
 const lastRowFor = (tool: string) =>
@@ -241,7 +240,7 @@ describe("the reviewer's sequence, verbatim", () => {
 
     await retry("DL-LOUD");
 
-    const row = lastRowFor("Deals.ApproveDiscount");
+    const row = lastRowFor("DealDesk.ApproveDiscount");
     // A grant that was present and ignored must be visible as exactly that. A
     // control that fires silently is indistinguishable from one that did not.
     expect(row?.reason).toContain("was not considered");

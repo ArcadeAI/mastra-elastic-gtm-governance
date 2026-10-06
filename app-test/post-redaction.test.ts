@@ -160,7 +160,7 @@ const of = <K extends ChatEvent["kind"]>(events: readonly ChatEvent[], kind: K) 
 const context = (result: Turned): string => (LIVE_KEY ? result.sent : result.prompt);
 
 const READ_SCRIPT: readonly Turn[] = [
-  { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+  { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
   {
     say:
       "Northwind Robotics, $95,000, pending. The file's bank account number and tax ID came " +
@@ -183,7 +183,7 @@ describe("Alice reads the file the demo turns on", () => {
 
   test("the call went through and the tool returned", () => {
     expect(result.status).toBe(200);
-    expect(of(result.events, "tool-call").map((event) => event.tool)).toContain("Deals_GetDeal");
+    expect(of(result.events, "tool-call").map((event) => event.tool)).toContain("DealDesk_GetDeal");
     expect(of(result.events, "fault")).toHaveLength(0);
     expect(of(result.events, "denied")).toHaveLength(0);
   });
@@ -235,7 +235,7 @@ describe("Alice reads the file the demo turns on", () => {
   test("the control plane recorded the rewrite, naming the rules and no values", async () => {
     const rows = await harness.audit();
     const post = rows.find(
-      (row) => row.hook === "post" && row.tool === "Deals.GetDeal" && row.decision === "modify",
+      (row) => row.hook === "post" && row.tool === "DealDesk.GetDeal" && row.decision === "modify",
     );
     expect(post).toBeDefined();
     expect(post?.user_id).toBe(DANA);
@@ -257,7 +257,7 @@ describe("Alice reads the file the demo turns on", () => {
     const pre = rows.find(
       (row) => row.hook === "pre" && row.execution_id === post?.execution_id,
     );
-    expect(pre?.tool).toBe("Deals.GetDeal");
+    expect(pre?.tool).toBe("DealDesk.GetDeal");
   });
 });
 
@@ -336,7 +336,7 @@ describe("Michael reads the same file", () => {
     const post = rows.find(
       (row) =>
         row.hook === "post" &&
-        row.tool === "Deals.GetDeal" &&
+        row.tool === "DealDesk.GetDeal" &&
         row.decision === "modify" &&
         row.user_id === MORGAN,
     );
@@ -374,7 +374,7 @@ describe("#91 re-measured: the $95K beat with /post live", () => {
         await turn({ cookie: await browserFor(DANA), prompt, script: [{ say: "unused" }] });
         return harness.calls
           .slice(before)
-          .some((call) => call.tool === "Deals_ApproveDiscount" && call.inputs.deal_id === loanId);
+          .some((call) => call.tool === "DealDesk_ApproveDiscount" && call.inputs.deal_id === loanId);
       };
 
       let poisoned = 0;

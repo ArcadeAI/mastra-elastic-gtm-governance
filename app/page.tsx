@@ -29,7 +29,7 @@
  *    `tools/list` with the session's bearer (#15, `lib/agent/tool-list.ts`).
  *    That is the *whole* cost of this page against the gateway — one listing,
  *    zero governed tool calls — since #157 moved the loan cards off the MCP
- *    path. They used to be two `Deals_GetDeal` reads made here, which put two
+ *    path. They used to be two `DealDesk_GetDeal` reads made here, which put two
  *    decisions on the control plane before the presenter had said anything and
  *    left the audience unable to tell the agent's calls from the page's chrome.
  *    `app-test/home-surface.test.ts` asserts the counts.
@@ -61,7 +61,7 @@
  * In the bank pane's tool-list slot, which is what that slot was cut for. #15's
  * `PersonaToolList` says so from its own side — *"everything this component
  * needs arrives as data"* — and this is the line where the two halves of that
- * sentence meet. Act 1 is an absence: as Bob, `Deals_ApproveDiscount` is missing
+ * sentence meet. Act 1 is an absence: as Bob, `DealDesk_ApproveDiscount` is missing
  * from a list the **gateway** answered, not struck through by anything here.
  */
 import type { CSSProperties } from "react";

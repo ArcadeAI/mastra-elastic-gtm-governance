@@ -3,7 +3,7 @@
  * service on an OS-assigned port.
  *
  * This is the TypeScript counterpart of
- * `tools/approvals/tests/test_store_contract.py`, which drives the same
+ * `mcp/tests/approvals/test_store_contract.py`, which drives the same
  * contract against a Python stand-in. Both exist on purpose: the Python one
  * says what the toolkit was built against, this one says what the service
  * actually serves, and a difference between them is the bug neither would
@@ -32,8 +32,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 10_000,
   grantTtlSeconds: 900,
@@ -41,7 +40,7 @@ const config: HooksConfig = {
   resetToken: "",
 };
 
-/** The escalation act 2 produces, as `tools/approvals` sends it. */
+/** The escalation act 2 produces, as `mcp/deal_desk/approvals.py` sends it. */
 const ACT_TWO = {
   requester_id: DANA,
   action: "approve_discount",
@@ -54,8 +53,8 @@ const ACT_TWO = {
 };
 
 /**
- * Every field the contract in `tools/approvals/README.md` says a record
- * carries — the same tuple `tools/approvals/tests/conftest.py` pins, so a
+ * Every field the contract in `mcp/APPROVALS.md` says a record
+ * carries — the same tuple `mcp/tests/approvals/conftest.py` pins, so a
  * field dropped on one side is a failing test on both.
  */
 const RECORD_FIELDS = [

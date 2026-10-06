@@ -10,7 +10,7 @@
  *
  * ## The two claims, and which half of each a keyless run can make
  *
- * The beat is: **as Bob, `Deals_ApproveDiscount` is absent, and no denied tool call
+ * The beat is: **as Bob, `DealDesk_ApproveDiscount` is absent, and no denied tool call
  * appears in the audit log because no call was attempted.** Both halves of the
  * first claim and both halves of the second are mechanical and are measured
  * here without a model: the gateway's answer, the agent's toolset built from
@@ -44,9 +44,9 @@ const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;
 const DEMO_PROMPT =
   "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
 
-/** `Deals.ApproveDiscount` in the hook frame's spelling; `Deals_ApproveDiscount` on the wire. */
-const APPROVE_WIRE = "Deals_ApproveDiscount";
-const APPROVE_FRAME = "Deals.ApproveDiscount";
+/** `DealDesk.ApproveDiscount` in the hook frame's spelling; `DealDesk_ApproveDiscount` on the wire. */
+const APPROVE_WIRE = "DealDesk_ApproveDiscount";
+const APPROVE_FRAME = "DealDesk.ApproveDiscount";
 const ACCESS_RULE = "access.analysts-cannot-see-approve";
 
 let harness: AgentHarness;
@@ -154,11 +154,11 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // another.
     expect(names).not.toContain(APPROVE_WIRE);
     expect(names).toEqual([
-      "Deals_SearchDeals",
-      "Deals_GetDeal",
-      "Deals_DenyDiscount",
-      "Approvals_RequestApproval",
-      "Approvals_Decide",
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
     ]);
   });
 
@@ -186,8 +186,8 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
    * scoped to the approvals toolkit and green, while the Python `request_approval`
    * that `arcade deploy` publishes still said "and only then … tell the user who
    * was asked and stop". The deployed sentences are guarded where they live, by
-   * `tools/loan/tests/test_descriptions.py` and
-   * `tools/approvals/tests/test_descriptions.py`, against the same vocabulary.
+   * `mcp/tests/deals/test_descriptions.py` and
+   * `mcp/tests/approvals/test_descriptions.py`, against the same vocabulary.
    */
   test("no tool description instructs the model in anything", async () => {
     const result = await sessionTools(sessionFor(DANA), { config: harness.config });
@@ -197,12 +197,12 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // All six, so a toolkit that silently stopped being advertised cannot pass
     // this by having nothing to check.
     expect(result.tools.map((tool) => tool.name)).toEqual([
-      "Deals_SearchDeals",
-      "Deals_GetDeal",
-      "Deals_ApproveDiscount",
-      "Deals_DenyDiscount",
-      "Approvals_RequestApproval",
-      "Approvals_Decide",
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_ApproveDiscount",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
     ]);
 
     for (const tool of result.tools) {
@@ -240,7 +240,7 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // The description is the sentence the *model* picks a tool from. One
     // invented here would put a different surface on screen from the one in the
     // model's context.
-    const search = result.tools.find((tool) => tool.name === "Deals_SearchDeals");
+    const search = result.tools.find((tool) => tool.name === "DealDesk_SearchDeals");
     expect(search?.description).toContain("deal book");
   });
 
@@ -301,12 +301,12 @@ describe("who the /access frame names", () => {
     // tools the way every hook payload does — the underscore belongs in the one
     // place a rule addresses the model, and nowhere else.
     expect(rows.map((row) => row.tool).sort()).toEqual([
-      "Approvals.Decide",
-      "Approvals.RequestApproval",
-      "Deals.ApproveDiscount",
-      "Deals.DenyDiscount",
-      "Deals.GetDeal",
-      "Deals.SearchDeals",
+      "DealDesk.Decide",
+      "DealDesk.RequestApproval",
+      "DealDesk.ApproveDiscount",
+      "DealDesk.DenyDiscount",
+      "DealDesk.GetDeal",
+      "DealDesk.SearchDeals",
     ]);
 
     const hidden = rows.find((row) => row.tool === APPROVE_FRAME);
@@ -342,12 +342,12 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     result = await turn({
       cookie: await browserFor(SAM),
       prompt: DEMO_PROMPT,
-      // The script cannot call `Deals_ApproveDiscount`: it is not in the toolset the
+      // The script cannot call `DealDesk_ApproveDiscount`: it is not in the toolset the
       // gateway gave this persona, which is the whole point. What it does is
       // what a model with this surface can do — read, and then say so.
       script: [
-        { call: "Deals_SearchDeals", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
-        { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+        { call: "DealDesk_SearchDeals", input: { status: "pending", min_amount: 95000, max_amount: 95000 } },
+        { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
         { say: "I can read this application but I have no tool that can approve a loan." },
       ],
     });
@@ -363,11 +363,11 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     // — nothing in the policy takes them from him, and act 1's claim is about
     // `ApproveDiscount` specifically, not about a narrower surface in general.
     expect(lastSurface?.governed).toEqual([
-      "Deals_SearchDeals",
-      "Deals_GetDeal",
-      "Deals_DenyDiscount",
-      "Approvals_RequestApproval",
-      "Approvals_Decide",
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
     ]);
   });
 
@@ -414,7 +414,7 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     const reply = result.reply.toLowerCase();
     expect(reply).toMatch(/(can(no|')t|cannot|unable|don'?t have|no (tool|capability|access)|not available)/);
     // And it did not quietly approve something else instead.
-    expect(harness.calls.slice(callsBefore).map((call) => call.tool)).not.toContain("Deals_DenyDiscount");
+    expect(harness.calls.slice(callsBefore).map((call) => call.tool)).not.toContain("DealDesk_DenyDiscount");
   });
 });
 

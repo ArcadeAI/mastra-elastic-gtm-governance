@@ -253,8 +253,7 @@ async function measureHome(options: {
         ARCADE_API_URL: agents.gateway.url,
         ARCADE_API_KEY: "arcade-key-for-full-screen-browser",
         ARCADE_GATEWAY_ID: "cg-demo-us",
-        ARCADE_LOAN_TOOLKIT: "Deals",
-        ARCADE_APPROVALS_TOOLKIT: "Approvals",
+        ARCADE_TOOLKIT: "DealDesk",
         ANTHROPIC_API_KEY: "not-used-by-this-test",
         MODEL_ID: "claude-sonnet-5",
         SESSION_SECRET,
@@ -513,7 +512,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
             {
               id: "evt_fullscreen0",
               kind: "pre",
-              tool: "Deals_ApproveDiscount",
+              tool: "DealDesk_ApproveDiscount",
               user_id: DANA,
               decision: "denied",
               at: new Date().toISOString(),

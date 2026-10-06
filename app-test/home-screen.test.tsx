@@ -95,7 +95,7 @@ const samSession = (): Session => ({
 /**
  * What the gateway answers `tools/list` with for Bob — three tools, not four.
  *
- * `Deals_ApproveDiscount` is missing because `access.analysts-cannot-see-approve`
+ * `DealDesk_ApproveDiscount` is missing because `access.analysts-cannot-see-approve`
  * removed it before the gateway answered, which is act 1. It is measured
  * end-to-end in `app-test/act1-tool-list.test.ts` (#15); here it is a fixture,
  * because what this file is asserting is that #22's layout does not put it back.
@@ -103,9 +103,9 @@ const samSession = (): Session => ({
 const SAM_TOOLS: SessionTools = {
   ok: true,
   tools: [
-    { name: "Deals_SearchDeals", description: "Find discount requests in the deal book." },
-    { name: "Deals_GetDeal", description: "Read one discount requests's complete file by ID." },
-    { name: "Approvals_RequestApproval", description: "Ask a human for approval." },
+    { name: "DealDesk_SearchDeals", description: "Find discount requests in the deal book." },
+    { name: "DealDesk_GetDeal", description: "Read one discount requests's complete file by ID." },
+    { name: "DealDesk_RequestApproval", description: "Ask a human for approval." },
   ],
   filtered: ["System_ManageAuthorization", "Arcade_ListApps"],
 };
@@ -259,7 +259,7 @@ describe("the screen", () => {
     expect(markup).toContain("No tool list was supplied");
     // No tool names invented here. A second, client-side tool list is exactly
     // the control-that-does-nothing this project is organised against.
-    expect(markup).not.toContain("Deals_ApproveDiscount");
+    expect(markup).not.toContain("DealDesk_ApproveDiscount");
   });
 
   test("the slot renders what it is given and drops the placeholder", () => {
@@ -281,7 +281,7 @@ describe("the screen", () => {
    *
    * `app/page.tsx` asks the gateway what this session may see and hands
    * `PersonaToolList` into the bank's slot. This is that arrangement rendered:
-   * act 1's absence — `Deals_ApproveDiscount` missing from Bob's list — surviving
+   * act 1's absence — `DealDesk_ApproveDiscount` missing from Bob's list — surviving
    * the move to full screen, with the list still saying where it came from.
    *
    * Both halves of the claim are checked, because only one of them is about
@@ -309,9 +309,9 @@ describe("the screen", () => {
     );
 
     expect(markup).toContain(`data-slot="${TOOL_LIST_SLOT}"`);
-    expect(markup).toContain("Deals_SearchDeals");
-    expect(markup).toContain("Deals_GetDeal");
-    expect(markup).not.toContain("Deals_ApproveDiscount");
+    expect(markup).toContain("DealDesk_SearchDeals");
+    expect(markup).toContain("DealDesk_GetDeal");
+    expect(markup).not.toContain("DealDesk_ApproveDiscount");
     // #15's provenance line, still on screen inside the bank's chrome.
     expect(markup).toContain("tools/list");
     // And the built-in it filtered, named rather than quietly dropped.
@@ -723,7 +723,7 @@ describe("a denial is a decision, not an error", () => {
     <EventView
       event={{
         kind: "denied",
-        tool: "Deals_ApproveDiscount",
+        tool: "DealDesk_ApproveDiscount",
         reason: "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. [ref evt_kbfcdksrpk]",
         ref: "evt_kbfcdksrpk",
       }}
@@ -731,7 +731,7 @@ describe("a denial is a decision, not an error", () => {
   );
   const fault = renderToStaticMarkup(
     <EventView
-      event={{ kind: "fault", tool: "Deals_GetDeal", message: "connect ECONNREFUSED" }}
+      event={{ kind: "fault", tool: "DealDesk_GetDeal", message: "connect ECONNREFUSED" }}
     />,
   );
   const failed = renderToStaticMarkup(
@@ -740,7 +740,7 @@ describe("a denial is a decision, not an error", () => {
 
   test("it is announced as a decision, with the tool and the word", () => {
     expect(denied).toContain("Control plane decision");
-    expect(denied).toContain("Deals_ApproveDiscount");
+    expect(denied).toContain("DealDesk_ApproveDiscount");
     expect(denied).toContain("denied");
   });
 
@@ -782,7 +782,7 @@ describe("a denial is a decision, not an error", () => {
       <EventView
         event={{
           kind: "fault",
-          tool: "Approvals_RequestApproval",
+          tool: "DealDesk_RequestApproval",
           message:
             "Approval request apr_j0ffxn5c05tg was recorded and routed to Charlie, but Slack method " +
             "users.lookupByEmail failed with error code invalid_arguments; the notice was not delivered. " +
@@ -804,7 +804,7 @@ describe("a denial is a decision, not an error", () => {
       <EventView
         event={{
           kind: "authorization",
-          tool: "Deals_GetDeal",
+          tool: "DealDesk_GetDeal",
           url: "https://cloud.arcade.dev/api/v1/oauth/flow/abc",
         }}
       />,
@@ -824,7 +824,7 @@ describe("a denial is a decision, not an error", () => {
       <EventView
         event={{
           kind: "waiting",
-          tool: "Approvals_RequestApproval",
+          tool: "DealDesk_RequestApproval",
           request_id: "apr_0m4xq7bd91kz",
           approver: "Charlie",
           approver_id: "charlie@bank.example",
@@ -865,11 +865,11 @@ describe("a denial is a decision, not an error", () => {
   test("tool calls are shown as they happen, with their inputs", () => {
     const call = renderToStaticMarkup(
       <EventView
-        event={{ kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } }}
+        event={{ kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: "DL-2291" } }}
       />,
     );
 
-    expect(call).toContain("Deals_GetDeal");
+    expect(call).toContain("DealDesk_GetDeal");
     expect(call).toContain("DL-2291");
   });
 });
@@ -1063,7 +1063,7 @@ describe("the fork seam", () => {
   /**
    * Since #5 no module here reads the deal book at an address: the board reads
    * the loan module in-process. Until #6 that was a statement about the loan
-   * API's own host variable, which only `tools/loan` and the control plane's
+   * API's own host variable, which only `mcp/deal_desk/deals.py` and the control plane's
    * boot check read. #6 replaced it with `APP_PUBLIC_HOST`, the app's one
    * public host, which more modules read for what it is — the app's origin —
    * and the list below is exactly those. That none of them reaches the app's

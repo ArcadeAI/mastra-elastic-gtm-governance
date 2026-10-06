@@ -88,14 +88,14 @@ export interface AgentConfig {
   /** `MODEL_ID` — `claude-sonnet-5`. */
   modelId: string;
   /**
-   * Every toolkit this project owns, as Arcade files them — `["Deals",
-   * "Approvals"]`, measured on #35. The agent's **allow-list**.
+   * Every toolkit this project owns, as Arcade files them — `["DealDesk",
+   * "DealDesk"]`, measured on #35. The agent's **allow-list**.
    *
    * Both, not just `Deals`. Round 1 of #88's review found the chat handler
    * passing the deals toolkit alone: the documented eight-tool surface selected
-   * four, `Approvals_RequestApproval` and `Approvals_Decide` were dropped
+   * four, `DealDesk_RequestApproval` and `DealDesk_Decide` were dropped
    * alongside the gateway's built-ins, and the pre-hook's own remediation
-   * instruction — *"call Approvals.RequestApproval"* — named a tool the model
+   * instruction — *"call DealDesk.RequestApproval"* — named a tool the model
    * could not see. That is the failure #89 records the live model reasoning
    * its way to, out loud.
    *
@@ -109,31 +109,26 @@ export interface AgentConfig {
    */
   toolkits: readonly string[];
   /**
-   * Which of `toolkits` is the approvals one — `ARCADE_APPROVALS_TOOLKIT`,
-   * `Approvals` as Arcade files it (#35).
-   *
-   * Named separately as well as listed above because #20's resume half has to
-   * recognise one specific tool on the wire, `Approvals_RequestApproval`, and
-   * working that out by picking the second entry of an allow-list would be a
-   * guess. The allow-list answers "may the agent reach this?"; this answers
-   * "which one is the escalation?", and they are different questions.
+   * The one toolkit, `ARCADE_TOOLKIT` — `DealDesk`, as Arcade files
+   * `MCPApp(name="deal_desk")` (mcp/). Every tool is `DealDesk_<Tool>` on the
+   * wire: the four deal tools, the two approvals tools and the 26
+   * Elasticsearch tools. Held as well as listed in `toolkits` because #20's
+   * resume half has to recognise one specific tool, `DealDesk_RequestApproval`,
+   * and reading the allow-list for it would be a guess.
    */
-  approvalsToolkit: string;
+  toolkit: string;
   /**
-   * `ARCADE_ELASTIC_TOOLKIT` — `Elasticsearch`, as Arcade files the
-   * Elasticsearch toolkit (measured off `elastic-demo` on 2026-09-25: every
-   * wire name is `Elasticsearch_<Tool>`). The third entry of the allow-list
-   * when set; **blank means the Elastic module is off** and the agent's
-   * surface is exactly what it was before it. Held separately as well as
-   * listed in `toolkits` for the same reason `approvalsToolkit` is: the
-   * instructions have to say whether the index exists, and inferring that
-   * from the third entry of a list would be a guess. See docs/ELASTIC.md.
+   * `ELASTIC_MODULE` — `on` turns the Elastic module on (docs/ELASTIC.md):
+   * the instructions then say the index exists and name it. Off, the agent's
+   * surface is the six deal and approvals tools the gateway lists; the
+   * Elasticsearch tools are deployed either way, in the same server, and
+   * `setup-arcade` only lists them on the gateway when this is on.
    */
-  elasticToolkit: string;
+  elasticEnabled: boolean;
   /**
    * `ELASTIC_INDEX` — the index `scripts/seed-elastic.ts` writes the deal book
    * into, named in the instructions so the model does not spend a turn on
-   * `ListIndices`. Read only when `elasticToolkit` is set.
+   * `ListIndices`. Read only when `elasticEnabled`.
    */
   elasticIndex: string;
 }
@@ -161,7 +156,7 @@ export interface WebConfig {
   arcadeApiUrl: string;
   arcadeApiKey: string;
   /** `tool.toolkit` as Arcade files the deployed approvals toolkit. */
-  approvalsToolkit: string;
+  toolkit: string;
   /** Sign-in, the gateway hop, and the custom verifier route. */
   identity: IdentityConfig;
   /** The model, and which toolkits the agent may reach through the gateway. */
@@ -230,19 +225,12 @@ export function readIdentitySurface(
       // Defaulted rather than required: a deployment that never set it still
       // runs the model `DESIGN.md` names.
       modelId: env.MODEL_ID?.trim() || "claude-sonnet-5",
-      // The same two variables `apps/hooks` keys its rules on, read here as an
-      // allow-list. Blank entries are dropped rather than turned into a bare
-      // `_` prefix, which would match every tool the gateway advertises.
-      //
-      // The Elastic toolkit is the one entry with no default: unset is the
-      // template as it was, and the blank is dropped by the same filter.
-      toolkits: [
-        env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
-        env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
-        env.ARCADE_ELASTIC_TOOLKIT?.trim() ?? "",
-      ].filter((name) => name !== ""),
-      approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
-      elasticToolkit: env.ARCADE_ELASTIC_TOOLKIT?.trim() ?? "",
+      // The same variable the hooks key their rules on, read here as an
+      // allow-list of one. A blank is the default, never a bare `_` prefix,
+      // which would match every tool the gateway advertises.
+      toolkits: [env.ARCADE_TOOLKIT?.trim() || "DealDesk"],
+      toolkit: env.ARCADE_TOOLKIT?.trim() || "DealDesk",
+      elasticEnabled: elasticOn(env.ELASTIC_MODULE),
       elasticIndex: env.ELASTIC_INDEX?.trim() || "deal-files",
     },
     identity: {
@@ -289,7 +277,7 @@ export function readWebConfig(env: Record<string, string | undefined> = process.
       `localhost:${env.PORT?.trim() || "3000"}`,
     ),
     approvalsStoreToken: storeToken || DEV_STORE_TOKEN,
-    approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
+    toolkit: env.ARCADE_TOOLKIT?.trim() || "DealDesk",
     ...readIdentitySurface(env),
   };
 }
@@ -469,11 +457,16 @@ export function verifierProblems(config: IdentitySurface): string[] {
  * a deployment that never sets it runs the model `DESIGN.md` names. A key is
  * different: there is no default that could stand in for it.
  */
+/** `ELASTIC_MODULE`: `on`, `true`, `yes` or `1` turn the Elastic module on; anything else is off. */
+export function elasticOn(value: string | undefined): boolean {
+  return ["on", "true", "yes", "1"].includes((value ?? "").trim().toLowerCase());
+}
+
 export function agentProblems(config: IdentitySurface): string[] {
   return [
     ...gatewayProblems(config),
     ...(config.agent.anthropicApiKey ? [] : ["ANTHROPIC_API_KEY is not set"]),
-    ...(config.agent.toolkits.length > 0 ? [] : ["ARCADE_LOAN_TOOLKIT is not set"]),
+    ...(config.agent.toolkits.length > 0 ? [] : ["ARCADE_TOOLKIT is not set"]),
   ];
 }
 
@@ -494,7 +487,7 @@ export function cookiesAreSecure(config: IdentitySurface): boolean {
  * `APP_PUBLIC_HOST`: the one host Arcade Cloud reaches this app at (#6).
  *
  * The ngrok host in a real run, and the one Arcade tool secret besides the
- * store token: `tools/loan` and `tools/approvals` read it too. It replaced
+ * store token: `mcp/deal_desk/deals.py` and `mcp/deal_desk/approvals.py` read it too. It replaced
  * one host variable per service — the loan API's, the control plane's and the
  * web UI's, three services that are now one app — and the identity module's
  * `IDP_PUBLIC_URL`, the sign-in's `IDP_ISSUER` and the app's `PUBLIC_URL`,

@@ -54,27 +54,19 @@ import fixture from "./fixtures/governance.json" with { type: "json" };
 // The fixture
 // ---------------------------------------------------------------------------
 
-/** Placeholders the fixture uses for the three configured toolkit names. */
+/**
+ * The placeholder the fixture uses for the configured toolkit name. One
+ * toolkit since the one-deploy change: `DealDesk`, as Arcade files
+ * `MCPApp(name="deal_desk")` in `mcp/`, carrying the deal, approvals and
+ * Elasticsearch tools alike.
+ */
 const TOOLKIT_PLACEHOLDERS = {
-  $LOAN: "loanToolkit",
-  $APPROVALS: "approvalsToolkit",
-  $ELASTIC: "elasticToolkit",
+  $TOOLKIT: "toolkit",
 } as const;
 
-/**
- * `tool.toolkit` as Arcade files the Elasticsearch toolkit: `MCPApp(name="Elasticsearch")`
- * PascalCased is itself. Measured off the `elastic-demo` gateway's tools/list on
- * 2026-09-25, where every entry is `Elasticsearch_<Tool>`. The default is here
- * rather than in `config.ts` so a `SeedOptions` written without it — every test
- * that predates the Elastic module — seeds the same rules a deployment does.
- */
-export const DEFAULT_ELASTIC_TOOLKIT = "Elasticsearch";
-
 export interface SeedOptions {
-  loanToolkit: string;
-  approvalsToolkit: string;
-  /** `ARCADE_ELASTIC_TOOLKIT`. Optional: unset means `DEFAULT_ELASTIC_TOOLKIT`. */
-  elasticToolkit?: string;
+  /** `ARCADE_TOOLKIT`. */
+  toolkit: string;
 }
 
 const seedSubjectSchema = z
@@ -126,7 +118,7 @@ export function loadSeed(options: SeedOptions, raw: unknown = fixture): Seed {
   const substitute = (text: string): string =>
     Object.entries(TOOLKIT_PLACEHOLDERS).reduce(
       (acc, [placeholder, key]) =>
-        acc.split(placeholder).join(options[key] ?? DEFAULT_ELASTIC_TOOLKIT),
+        acc.split(placeholder).join(options[key]),
       text,
     );
   const substituteDeep = (value: unknown): unknown => {
@@ -271,7 +263,7 @@ const SCHEMA = `
   -- Approval requests: the escalations the approvals toolkit writes and the
   -- approval page reads. Empty on seed; every row arrives over
   -- POST /approvals. The columns up to 'note' are the wire record written out
-  -- in tools/approvals/README.md, one column each so a presenter can read the
+  -- in mcp/APPROVALS.md, one column each so a presenter can read the
   -- table; the four after it are the control plane's own resolution of the
   -- bare action name, recorded at creation.
   --

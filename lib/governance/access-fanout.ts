@@ -2,8 +2,8 @@
  * The measured `/access` fan-out, as a fixture.
  *
  * Recorded at the #13 sitting on 2026-09-10, with retry **off** on the hook
- * extension: one `Deals.GetDeal` call through the gateway produced **three**
- * `access` audit rows, and one `Deals.ApproveDiscount` produced **two**. Arcade
+ * extension: one `DealDesk.GetDeal` call through the gateway produced **three**
+ * `access` audit rows, and one `DealDesk.ApproveDiscount` produced **two**. Arcade
  * calls `/access` once per tool-schema resolution, so a single `tools/call`
  * fans out into several decisions about the same person and the same tool.
  *
@@ -29,16 +29,16 @@ const DANA = "alice@bank.example";
  * therefore groupable.
  */
 const FANOUT: ReadonlyArray<{ tool: string; times: number }> = [
-  { tool: "Deals.GetDeal", times: 3 },
-  { tool: "Deals.ApproveDiscount", times: 2 },
+  { tool: "DealDesk.GetDeal", times: 3 },
+  { tool: "DealDesk.ApproveDiscount", times: 2 },
 ];
 
 /** Milliseconds between two decisions of one fan-out. Sub-second, as measured. */
 const APART_MS = 40;
 
 /**
- * Five access events, oldest first: three for one `Deals.GetDeal` call and two
- * for one `Deals.ApproveDiscount`. Deterministic — no clock — so a panel test
+ * Five access events, oldest first: three for one `DealDesk.GetDeal` call and two
+ * for one `DealDesk.ApproveDiscount`. Deterministic — no clock — so a panel test
  * against it does not fail at midnight.
  */
 export function anAccessFanout(): GovernanceEvent[] {

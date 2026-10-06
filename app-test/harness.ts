@@ -3,7 +3,7 @@
  * stand-in for Arcade that behaves the way Arcade behaves.
  *
  * **The control plane is real.** `apps/hooks` is booted as a subprocess on an
- * OS-assigned port, the same way `tools/loan`'s suite boots `apps/loan-app`.
+ * OS-assigned port, the same way `mcp/deal_desk/deals.py`'s suite boots `apps/loan-app`.
  * `apps/web` does not depend on it in the package graph and should not start
  * to, so a subprocess is how the two are exercised together without inventing
  * an edge between them. Its port is read off its own boot line rather than
@@ -97,7 +97,7 @@ export async function startHarness(): Promise<Harness> {
     approvalsStoreToken: STORE_TOKEN,
     arcadeApiUrl: `http://localhost:${arcade.port}`,
     arcadeApiKey: "arcade-key-for-web-tests",
-    approvalsToolkit: "Approvals",
+    toolkit: "DealDesk",
     // Nothing in these suites signs anyone in or runs the agent;
     // `identity-flow.test.ts` and `tracer-bullet.test.ts` build their own
     // configurations for those. Read from an empty environment rather than
@@ -148,7 +148,7 @@ export async function startHarness(): Promise<Harness> {
   };
 }
 
-/** Act 2's escalation, as `tools/approvals` sends it. */
+/** Act 2's escalation, as `mcp/deal_desk/approvals.py` sends it. */
 export const ESCALATION = {
   requester_id: DANA,
   action: "approve_discount",
@@ -187,8 +187,7 @@ export async function startHooks(
   if (!own) {
     scratch = mkdtempSync(join(tmpdir(), "cg-harness-hooks-"));
     seedDemoGovernance(join(scratch, "governance.db"), {
-      loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? "Deals",
-      approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT ?? "Approvals",
+      toolkit: env.ARCADE_TOOLKIT ?? "DealDesk",
     });
   }
   const child = spawnChild({
@@ -202,8 +201,7 @@ export async function startHooks(
       GOVERNANCE_DB_PATH: scratch === null ? ":memory:" : join(scratch, "governance.db"),
       ARCADE_HOOK_SIGNING_SECRET: HOOK_SECRET,
       APPROVALS_STORE_TOKEN: STORE_TOKEN,
-      ARCADE_LOAN_TOOLKIT: "Deals",
-      ARCADE_APPROVALS_TOOLKIT: "Approvals",
+      ARCADE_TOOLKIT: "DealDesk",
       NODE_ENV: "test",
       ...env,
     },

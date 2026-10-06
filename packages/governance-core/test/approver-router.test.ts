@@ -3,9 +3,9 @@
  * `packages/policy-schema/contract/approver-routing-cases.json`.
  *
  * The rows used to live here as a TypeScript literal. They moved out on #18,
- * which reimplements this rule in Python for `tools/approvals`: two
+ * which reimplements this rule in Python for `mcp/deal_desk/approvals.py`: two
  * implementations of one rule in two languages is a real divergence risk, and
- * the cheap defence is that both read the same file. `tools/approvals/tests/
+ * the cheap defence is that both read the same file. `mcp/tests/approvals/
  * test_routing.py` loads exactly these rows. A row added here is checked on
  * both sides; a row deleted here stops being checked on both sides.
  *

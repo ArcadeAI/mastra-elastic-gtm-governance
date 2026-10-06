@@ -1,6 +1,6 @@
 {
   "$schema_note": "Hand-written. Not generated, not vendored — see contract/README.md.",
-  "description": "Cross-language test vectors for minimum-sufficient-clearance approver routing (#9). The roles below are deliberately neutral: this contract is shared by the reusable TypeScript and Python routers and must not encode one application's domain. Consumed by packages/governance-core/test/approver-router.test.ts and by tools/approvals/tests/test_routing.py, so the two implementations are checked against the same rows rather than argued to agree.",
+  "description": "Cross-language test vectors for minimum-sufficient-clearance approver routing (#9). The roles below are deliberately neutral: this contract is shared by the reusable TypeScript and Python routers and must not encode one application's domain. Consumed by packages/governance-core/test/approver-router.test.ts and by mcp/tests/approvals/test_routing.py, so the two implementations are checked against the same rows rather than argued to agree.",
   "rule": [
     "1. Drop the requester, always, even when their own clearance would cover the amount.",
     "2. Drop everyone whose clearance is below the amount. Clearance is a ceiling, so clearance == amount is sufficient.",

@@ -50,8 +50,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "test-store-token",
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 10,
   grantTtlSeconds: 900,
@@ -125,7 +124,7 @@ function removedSpan(entry: Injection): string {
 }
 
 /**
- * One `Deals.GetDeal` result carrying nothing but the note.
+ * One `DealDesk.GetDeal` result carrying nothing but the note.
  *
  * Act 3's rule names `bank_account_number` and `tax_id`; a payload without them
  * matches nothing there, which is what isolates act 4. So every `redactions[]`
@@ -142,7 +141,7 @@ async function sweep(note: string): Promise<{
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id,
-      tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: "DL-0000" },
       success: true,
       output: { deal_id: "DL-0000", crm_notes: note },

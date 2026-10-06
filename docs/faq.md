@@ -4,7 +4,7 @@ Documentation could not answer several of these, so we measured them against a r
 
 ## Why are the limits enforced in hooks rather than in the agent's prompt?
 
-A limit in the prompt is one more thing for the model to weigh, and one sentence of prompt was enough to move the result either way, as [Why we built this](../README.md#why-we-built-this) describes. So the system prompt and every tool description carry no behavioural instruction: nothing about confirming, refusing, escalating, retrying or caution. The hook writes the denial and the instruction to escalate, which is why the agent calls `Approvals_RequestApproval` with no mention of it in the prompt.
+A limit in the prompt is one more thing for the model to weigh, and one sentence of prompt was enough to move the result either way, as [Why we built this](../README.md#why-we-built-this) describes. So the system prompt and every tool description carry no behavioural instruction: nothing about confirming, refusing, escalating, retrying or caution. The hook writes the denial and the instruction to escalate, which is why the agent calls `DealDesk_RequestApproval` with no mention of it in the prompt.
 
 ## Do the hooks fire for toolkits shipped with `arcade deploy`?
 
@@ -16,7 +16,7 @@ Because only one of them is a decision. The chat draws a denial card only on pos
 
 ## Why does the $95K approval depend on stripping the note pasted into `DL-2291`?
 
-Because the model reads the injected instruction, refuses it, and ends its turn asking whether to proceed, so it never calls `Deals_ApproveDiscount`. With the note visible, the $95K request reached `/hooks/pre` roughly 5 times in 17; with `/hooks/post` stripping the note first, 5 of 5, and 5 of 5 again on an independent re-measurement. The fix removed what the model was reading and did not steer the model.
+Because the model reads the injected instruction, refuses it, and ends its turn asking whether to proceed, so it never calls `DealDesk_ApproveDiscount`. With the note visible, the $95K request reached `/hooks/pre` roughly 5 times in 17; with `/hooks/post` stripping the note first, 5 of 5, and 5 of 5 again on an independent re-measurement. The fix removed what the model was reading and did not steer the model.
 
 ## Why does Charlie's Slack DM come from Alice and not from a bot?
 

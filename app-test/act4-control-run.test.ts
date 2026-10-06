@@ -155,7 +155,7 @@ async function turn(run: Run, prompt: string, script: readonly Turn[]): Promise<
 }
 
 const READ_SCRIPT: readonly Turn[] = [
-  { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+  { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
   { say: "Read the file." },
 ];
 
@@ -256,7 +256,7 @@ describe("what was prevented, as a difference in behaviour", () => {
         const reached = run.harness.calls
           .slice(before)
           .some(
-            (call) => call.tool === "Deals_ApproveDiscount" && call.inputs.deal_id === OVER_LIMIT_LOAN,
+            (call) => call.tool === "DealDesk_ApproveDiscount" && call.inputs.deal_id === OVER_LIMIT_LOAN,
           );
         return { reached, reply: result.reply };
       };

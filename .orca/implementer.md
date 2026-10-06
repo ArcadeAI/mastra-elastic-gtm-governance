@@ -67,7 +67,7 @@ rules follow from it, regardless of project:
   `CG_PORT_IDP` into the root `.env.local`, and a *separate* `.env.local` into
   each of `apps/web`, `apps/hooks`, `apps/loan-app` and `apps/idp` carrying that
   service's own `PORT`. Never hard-code a port, and never pick one at random —
-  bind `:0` and read it back, the way `tools/loan/tests/conftest.py::_free_port`
+  bind `:0` and read it back, the way `mcp/tests/deals/conftest.py::_free_port`
   does.
 - **Not every tool reads `.env.local`.** Check `project.md` for which do. When
   in doubt, export it explicitly before a command that needs it:

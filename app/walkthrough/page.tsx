@@ -40,7 +40,7 @@ const ACTS: Array<{ kicker: string; line: string; Artifact: (p: { background?: s
   },
   {
     kicker: "Act 1 · access",
-    line: "Bob, an SDR, never sees Deals_ApproveDiscount. It is not refused; it is not offered.",
+    line: "Bob, an SDR, never sees DealDesk_ApproveDiscount. It is not refused; it is not offered.",
     Artifact: HookAccess,
   },
   {

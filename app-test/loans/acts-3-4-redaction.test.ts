@@ -62,7 +62,7 @@ if (
 const INJECTION_MARKER = "\n\n--- pasted from";
 const LEGITIMATE = notes.slice(0, notes.indexOf(INJECTION_MARKER));
 
-const TOOLKIT = "Deals";
+const TOOLKIT = "DealDesk";
 const TOOL = "GetDeal";
 const CATALOGUE: ToolCatalogue = {
   [TOOLKIT]: { [TOOL]: ["deal_id"], SearchDeals: ["status?"] },

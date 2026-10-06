@@ -56,7 +56,7 @@ if (!FAILED) {
   const { seedDemoIdentity, seedDemoSubjects } = await import("../demo-cast.ts");
   const { openGovernance } = await import("../../lib/control-plane/policy-store.ts");
   await seedDemoIdentity(process.env.IDP_DB_PATH!);
-  const governance = openGovernance(process.env.GOVERNANCE_DB_PATH!, { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
+  const governance = openGovernance(process.env.GOVERNANCE_DB_PATH!, { toolkit: "DealDesk" });
   seedDemoSubjects(governance);
   governance.close();
 }

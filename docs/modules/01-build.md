@@ -10,15 +10,15 @@ and watched it in Mastra Studio.
 
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:
    `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`, `APP_PUBLIC_HOST`.
-2. Register with Arcade: `bun run setup-arcade <APP_PUBLIC_HOST>`. It deploys the two
-   toolkits, mints the OAuth clients, registers the identity provider and the hooks, and
+2. Register with Arcade: `bun run setup-arcade <APP_PUBLIC_HOST>`. It runs one `arcade deploy`
+   (`mcp`: the Deals, Approvals and Elasticsearch tools together), mints the OAuth clients, registers the identity provider and the hooks, and
    creates the gateway. Read what it prints; every name it reports is a name a rule is
    keyed on later.
 3. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000`.
 4. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
-   The agent calls `Deals_SearchDeals` and lists the eight requests.
+   The agent calls `DealDesk_SearchDeals` and lists the eight requests.
 5. Open Studio: `bun run studio`, sign in at `localhost:4111/arcade/authorize`, and send the
    same prompt. Same agent, same gateway, every step visible.
 
@@ -33,9 +33,9 @@ and watched it in Mastra Studio.
 
 ## Checkpoint
 
-You can name the six tools on the wire (`Deals_SearchDeals`, `Deals_GetDeal`,
-`Deals_ApproveDiscount`, `Deals_DenyDiscount`, `Approvals_RequestApproval`,
-`Approvals_Decide`) and you have seen one of them called from both the app and Studio.
+You can name the six tools on the wire (`DealDesk_SearchDeals`, `DealDesk_GetDeal`,
+`DealDesk_ApproveDiscount`, `DealDesk_DenyDiscount`, `DealDesk_RequestApproval`,
+`DealDesk_Decide`) and you have seen one of them called from both the app and Studio.
 
 ## If you are behind
 

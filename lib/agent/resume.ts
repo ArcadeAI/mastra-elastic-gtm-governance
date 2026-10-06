@@ -24,7 +24,7 @@
  * remediation instruction, not the system prompt — and a message the UI slips
  * into the conversation is the system prompt wearing a different hat. The
  * agent already holds the hook's own sentence from the turn that was refused
- * (*"…then wait for the approval and retry Deals_ApproveDiscount with deal_id=…
+ * (*"…then wait for the approval and retry DealDesk_ApproveDiscount with deal_id=…
  * unchanged"*); what this adds is the single fact that sentence was waiting
  * on. If the model does not act on it, the remediation text is what is wrong,
  * and it is fixed in the policy row rather than here.

@@ -121,7 +121,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       next = web.child;
       const origin = `http://127.0.0.1:${web.port}`;
       // The deal book is the app's own module since #5: Charlie's approvals
-      // below go to the app's `/bank/…`, the same route `tools/loan` calls.
+      // below go to the app's `/bank/…`, the same route `mcp/deal_desk/deals.py` calls.
       const loanAppHost = `127.0.0.1:${web.port}`;
 
       profile = mkdtempSync(join(tmpdir(), "cg-loan-board-chrome-"));

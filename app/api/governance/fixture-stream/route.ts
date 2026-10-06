@@ -67,7 +67,7 @@ export function GET(request: Request): Response {
    * two kinds of card can be watched rather than described:
    *
    * - the fan-out measured on #13 — three access decisions for one
-   *   `Deals.GetDeal` call, two for one `Deals.ApproveDiscount` — which is a
+   *   `DealDesk.GetDeal` call, two for one `DealDesk.ApproveDiscount` — which is a
    *   `tools/call` shape and draws as runs of repeats; then
    * - one persona's whole `tools/list` (#156), ten seconds later so it is
    *   unmistakably a second burst, which draws as one listing card naming the

@@ -8,7 +8,7 @@
  *
  * Ports are never hard-coded and never guessed. `port: 0` asks the OS for a
  * free one and `server.port` reads it back, the way
- * `tools/loan/tests/conftest.py::_free_port` does.
+ * `mcp/tests/deals/conftest.py::_free_port` does.
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import type { GovernanceEvent } from "@cg/policy-schema";

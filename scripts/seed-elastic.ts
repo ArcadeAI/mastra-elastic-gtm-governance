@@ -49,7 +49,7 @@ import loansFixture from "../lib/loans/fixtures/loans.json" with { type: "json" 
 
 const ARCADE_API_URL = (process.env.ARCADE_API_URL?.trim() || "https://api.arcade.dev").replace(/\/+$/, "");
 const ARCADE_API_KEY = process.env.ARCADE_API_KEY?.trim() ?? "";
-const TOOLKIT = process.env.ARCADE_ELASTIC_TOOLKIT?.trim() || "Elasticsearch";
+const TOOLKIT = process.env.ARCADE_TOOLKIT?.trim() || "DealDesk";
 const INDEX = process.env.ELASTIC_INDEX?.trim() || "deal-files";
 /** Blank: the project's default `semantic_text` endpoint (Jina v5 on Serverless). */
 const INFERENCE_ID = process.env.ELASTIC_INFERENCE_ID?.trim() ?? "";

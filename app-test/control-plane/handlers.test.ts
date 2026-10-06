@@ -22,7 +22,7 @@ const MORGAN = "michael@bank.example";
 
 /** A fresh governance.db seeds nobody (#33); these suites act as the demo cast. */
 const governance = (): Database => {
-  const db = openGovernance(":memory:", { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
+  const db = openGovernance(":memory:", { toolkit: "DealDesk" });
   seedDemoSubjects(db);
   return db;
 };
@@ -37,8 +37,8 @@ let n = 0;
 const contextFor = (db: Database): HandlerContext => ({
   now: () => "2026-01-01T00:00:00.000Z",
   newId: () => `evt_${String(++n).padStart(10, "0")}`,
-  approvals: createApprovalControl(db, { toolkit: "Approvals", grantTtlSeconds: 900 }),
-  configuredToolkits: new Set(["Deals", "Approvals"]),
+  approvals: createApprovalControl(db, { toolkit: "DealDesk", grantTtlSeconds: 900 }),
+  configuredToolkits: new Set(["DealDesk", "DealDesk"]),
 });
 
 const ready = (): CacheState => createPolicyCache(governance()).reload();
@@ -76,7 +76,7 @@ const LOAN_TOOLS = { SearchDeals: V, GetDeal: V, ApproveDiscount: V, DenyDiscoun
 
 const pre = (user_id: string, name: string, inputs: Record<string, unknown>) => ({
   execution_id: "tc_1",
-  tool: { name, toolkit: "Deals", version: "1.0.0" },
+  tool: { name, toolkit: "DealDesk", version: "1.0.0" },
   inputs,
   context: { authorization: [{}], user_id },
 });
@@ -84,11 +84,11 @@ const pre = (user_id: string, name: string, inputs: Record<string, unknown>) => 
 describe("/access — act 1", () => {
   test("hides ApproveDiscount from Bob, in the request's own shape down to the version array", () => {
     const { response, events } = handleAccess(
-      { user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } },
+      { user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } },
       ready(),
       ctx,
     );
-    expect(response).toEqual({ deny: { Deals: { tools: { ApproveDiscount: V } } } });
+    expect(response).toEqual({ deny: { DealDesk: { tools: { ApproveDiscount: V } } } });
     expect(AccessHookResult.parse(response)).toEqual(response);
 
     const hidden = events.filter((e) => e.decision === "deny");
@@ -96,42 +96,42 @@ describe("/access — act 1", () => {
     expect(hidden[0]).toMatchObject({
       hook: "access",
       user_id: SAM,
-      tool: "Deals.ApproveDiscount",
+      tool: "DealDesk.ApproveDiscount",
       rule_id: "access.analysts-cannot-see-approve",
       execution_id: "",
     });
     // One row per governed tool, allowed or not.
     expect(events.map((e) => e.tool).sort()).toEqual(
-      ["Deals.ApproveDiscount", "Deals.DenyDiscount", "Deals.GetDeal", "Deals.SearchDeals"],
+      ["DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.GetDeal", "DealDesk.SearchDeals"],
     );
   });
 
   test.each([DANA, RILEY, MORGAN])("shows everything to %s", (user) => {
-    const { response } = handleAccess({ user_id: user, toolkits: { Deals: { tools: LOAN_TOOLS } } }, ready(), ctx);
+    const { response } = handleAccess({ user_id: user, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }, ready(), ctx);
     expect(response).toEqual({ deny: {} });
   });
 
   test("never returns a bare {} — an empty deny map is still a map", () => {
-    const { response } = handleAccess({ user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } }, ready(), ctx);
+    const { response } = handleAccess({ user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }, ready(), ctx);
     expect(response).toHaveProperty("deny");
   });
 
   test("matches the user id case-insensitively — the join key is an email", () => {
     const { response } = handleAccess(
-      { user_id: SAM.toUpperCase(), toolkits: { Deals: { tools: LOAN_TOOLS } } },
+      { user_id: SAM.toUpperCase(), toolkits: { DealDesk: { tools: LOAN_TOOLS } } },
       ready(),
       ctx,
     );
-    expect(response.deny?.Deals?.tools).toHaveProperty("ApproveDiscount");
+    expect(response.deny?.DealDesk?.tools).toHaveProperty("ApproveDiscount");
   });
 
   test("hides every tool from a user the roster does not know", () => {
     const { response, events } = handleAccess(
-      { user_id: "stranger@bank.example", toolkits: { Deals: { tools: LOAN_TOOLS } } },
+      { user_id: "stranger@bank.example", toolkits: { DealDesk: { tools: LOAN_TOOLS } } },
       ready(),
       ctx,
     );
-    expect(Object.keys(response.deny?.Deals?.tools ?? {}).sort()).toEqual(Object.keys(LOAN_TOOLS).sort());
+    expect(Object.keys(response.deny?.DealDesk?.tools ?? {}).sort()).toEqual(Object.keys(LOAN_TOOLS).sort());
     expect(events.every((e) => e.decision === "deny" && e.rule_id === null)).toBe(true);
     expect(events[0]?.reason).toMatch(/no registered subject/);
   });
@@ -141,7 +141,7 @@ describe("/access — act 1", () => {
       {
         user_id: DANA,
         toolkits: {
-          Deals: { tools: LOAN_TOOLS },
+          DealDesk: { tools: LOAN_TOOLS },
           Github: { tools: { CreateIssue: [{ version: "2.0.0" }], ListRepos: [{ version: "2.0.0" }] } },
         },
       },
@@ -154,10 +154,10 @@ describe("/access — act 1", () => {
     });
     // Four Deals rows, one row for everything outside the catalogue.
     expect(events.map((e) => e.tool)).toEqual([
-      "Deals.SearchDeals",
-      "Deals.GetDeal",
-      "Deals.ApproveDiscount",
-      "Deals.DenyDiscount",
+      "DealDesk.SearchDeals",
+      "DealDesk.GetDeal",
+      "DealDesk.ApproveDiscount",
+      "DealDesk.DenyDiscount",
       "*",
     ]);
     const summary = events.at(-1)!;
@@ -170,13 +170,13 @@ describe("/access — act 1", () => {
 
   test("fails closed when the policy is unavailable: denies everything named, one row per tool, says why", () => {
     const { response, events } = handleAccess(
-      { user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } },
+      { user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } },
       failed,
       ctx,
     );
-    expect(response).toEqual({ deny: { Deals: { tools: LOAN_TOOLS } } });
+    expect(response).toEqual({ deny: { DealDesk: { tools: LOAN_TOOLS } } });
     expect(events.map((e) => e.tool).sort()).toEqual(
-      ["Deals.ApproveDiscount", "Deals.DenyDiscount", "Deals.GetDeal", "Deals.SearchDeals"],
+      ["DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.GetDeal", "DealDesk.SearchDeals"],
     );
     for (const e of events) {
       expect(e).toMatchObject({ decision: "deny", rule_id: null });
@@ -187,11 +187,11 @@ describe("/access — act 1", () => {
 
   test("a cold cache denies everything — it never loads policy on a hook call", () => {
     const { response, events } = handleAccess(
-      { user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } },
+      { user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } },
       cold,
       ctx,
     );
-    expect(response).toEqual({ deny: { Deals: { tools: LOAN_TOOLS } } });
+    expect(response).toEqual({ deny: { DealDesk: { tools: LOAN_TOOLS } } });
     expect(events).toHaveLength(4);
     expect(events[0]?.reason).toMatch(/has not loaded its policy yet/);
   });
@@ -210,8 +210,8 @@ describe("/pre — act 2", () => {
    *
    * `toContain` is what the tests around this one use and it is the right tool
    * for asking whether a fact survived. It is the wrong tool for #89, because
-   * the bug it is guarding against is not an absence: `Approvals.RequestApproval`
-   * and `Approvals_RequestApproval` both contain "RequestApproval", and a rule
+   * the bug it is guarding against is not an absence: `DealDesk.RequestApproval`
+   * and `DealDesk_RequestApproval` both contain "RequestApproval", and a rule
    * regressed to the dot spelling would keep every other assertion in this file
    * green. So this one pins the string — the literal below is what a live model
    * reads, and changing the rule means changing it here and looking at it.
@@ -222,9 +222,9 @@ describe("/pre — act 2", () => {
 
     expect(message).toBe(
       "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. " +
-        "To proceed, call Approvals_RequestApproval with action=approve_discount, " +
+        "To proceed, call DealDesk_RequestApproval with action=approve_discount, " +
         "resource_id=DL-2291, amount=95000 and justification=<why this discount should be " +
-        "approved>, then wait for the approval and retry Deals_ApproveDiscount with " +
+        "approved>, then wait for the approval and retry DealDesk_ApproveDiscount with " +
         "deal_id=DL-2291 and amount=95000 unchanged. [ref]",
     );
   });
@@ -240,11 +240,11 @@ describe("/pre — act 2", () => {
     // own tool list spells both tools that way (#89). A dot here names a tool
     // it cannot see, and measured on #14 it refuses the instruction rather
     // than acting on it.
-    expect(message).toContain("Approvals_RequestApproval");
+    expect(message).toContain("DealDesk_RequestApproval");
     expect(message).toContain("resource_id=DL-2291");
-    expect(message).toContain("Deals_ApproveDiscount");
-    expect(message).not.toContain("Approvals.RequestApproval");
-    expect(message).not.toContain("Deals.ApproveDiscount");
+    expect(message).toContain("DealDesk_ApproveDiscount");
+    expect(message).not.toContain("DealDesk.RequestApproval");
+    expect(message).not.toContain("DealDesk.ApproveDiscount");
     expect(message).toMatch(CORRELATION_TOKEN);
 
     // The token is the audit row's id, so the panel can join exactly.
@@ -254,7 +254,7 @@ describe("/pre — act 2", () => {
       hook: "pre",
       execution_id: "tc_1",
       user_id: DANA,
-      tool: "Deals.ApproveDiscount",
+      tool: "DealDesk.ApproveDiscount",
       decision: "deny",
       rule_id: "pre.approve-within-clearance",
     });
@@ -324,7 +324,7 @@ describe("/pre — act 2", () => {
     expect(response.error_message).toMatch(CORRELATION_TOKEN);
     expect(events[0]?.reason).toContain("FAIL-CLOSED");
     expect(events[0]?.reason).toContain("Policy failed to compile");
-    expect(events[0]).toMatchObject({ decision: "deny", rule_id: null, tool: "Deals.GetDeal" });
+    expect(events[0]).toMatchObject({ decision: "deny", rule_id: null, tool: "DealDesk.GetDeal" });
   });
 });
 
@@ -347,7 +347,7 @@ describe("/post — acts 3 and 4", () => {
 
   const postBody = (user_id: string, output: unknown = LOAN, execution_id = "tc_9") => ({
     execution_id,
-    tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+    tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
     inputs: { deal_id: "DL-2291" },
     success: true,
     output,
@@ -360,20 +360,22 @@ describe("/post — acts 3 and 4", () => {
   ])("fails closed when the cache is %s: CHECK_FAILED, output withheld, deny row", (_label, state) => {
     const { response, events } = handlePost(postBody(DANA), state, ctx);
     expect(response.code).toBe("CHECK_FAILED");
-    expect(response.error_message).toMatch(/cannot release the output of Deals\.GetDeal/);
+    expect(response.error_message).toMatch(/cannot release the output of DealDesk\.GetDeal/);
     expect(response.error_message).toMatch(CORRELATION_TOKEN);
     expect(response).not.toHaveProperty("override");
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ hook: "post", execution_id: "tc_9", tool: "Deals.GetDeal", decision: "deny", rule_id: null });
+    expect(events[0]).toMatchObject({ hook: "post", execution_id: "tc_9", tool: "DealDesk.GetDeal", decision: "deny", rule_id: null });
     expect(events[0]?.reason).toContain("FAIL-CLOSED");
     expect(correlationId(response.error_message ?? "")).toBe(onlyEvent(events).id);
   });
 
   test("a tool no output rule names passes through unchanged, and the row says so", () => {
-    // Since #4 both output rules name every Deals tool (`"*"`), so the unnamed
-    // tool is one from the other toolkit. It was `Deals.SearchDeals` until then.
+    // Every output rule is keyed on the one toolkit, and two of them name every
+    // tool in it (`"*"`), so the unnamed tool is one from another toolkit on the
+    // same gateway. It was `DealDesk.RequestApproval` while approvals were a
+    // toolkit of their own.
     const { response, events } = handlePost(
-      { ...postBody(DANA), tool: { name: "RequestApproval", toolkit: "Approvals", version: "1.0.0" } },
+      { ...postBody(DANA), tool: { name: "SendMessage", toolkit: "Slack", version: "1.0.0" } },
       ready(),
       ctx,
     );
@@ -382,7 +384,7 @@ describe("/post — acts 3 and 4", () => {
     expect(events[0]).toMatchObject({
       hook: "post",
       user_id: DANA,
-      tool: "Approvals.RequestApproval",
+      tool: "Slack.SendMessage",
       decision: "allow",
       rule_id: null,
     });

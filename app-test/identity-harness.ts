@@ -324,7 +324,7 @@ export interface ArcadeStandIn {
     effective_user_id: string | null;
     finalized: boolean;
   }>;
-  /** The later Deals_SearchDeals auth decision, with no credential material. */
+  /** The later DealDesk_SearchDeals auth decision, with no credential material. */
   loanSearchCalls: Array<{
     user_id: string;
     grant_flow_id: string | null;
@@ -369,7 +369,7 @@ export interface ArcadeStandIn {
  * Faithful where it matters and no further: the discovery chain is the one
  * measured on #04, PKCE is verified rather than accepted, `confirm_user`
  * demands the project API key, and the grant is only recorded once something
- * fetches `next_uri`. The focused `Deals_SearchDeals` probe below is the one
+ * fetches `next_uri`. The focused `DealDesk_SearchDeals` probe below is the one
  * tool path modeled here; all other tool execution remains absent because this
  * harness does not attempt to model the whole gateway.
  */
@@ -532,7 +532,7 @@ export function startArcadeStandIn(): ArcadeStandIn {
             result: {
               tools: [
                 {
-                  name: "Deals_GetDeal",
+                  name: "DealDesk_GetDeal",
                   description: "Read one deal record.",
                   inputSchema: {
                     type: "object",
@@ -547,7 +547,7 @@ export function startArcadeStandIn(): ArcadeStandIn {
         }
         if (body.method === "tools/call") {
           const toolName = body.params?.name;
-          if (toolName === "Deals_SearchDeals") {
+          if (toolName === "DealDesk_SearchDeals") {
             const actor = actors.get(bearer) ?? "";
             const grantFlowId = grantsByUser.get(actor) ?? null;
             state.loanSearchCalls.push({
@@ -565,7 +565,7 @@ export function startArcadeStandIn(): ArcadeStandIn {
                     {
                       type: "text",
                       text: JSON.stringify({
-                        authorization_url: `${state.url}/oauth/authorize?tool=Deals_SearchDeals`,
+                        authorization_url: `${state.url}/oauth/authorize?tool=DealDesk_SearchDeals`,
                         llm_instructions: "Authorize the tool and try again.",
                       }),
                     },

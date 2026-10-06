@@ -21,9 +21,9 @@ const DANA = "alice@bank.example";
 const V = [{ version: "1.0.0" }];
 const LOAN_TOOLS = { SearchDeals: V, GetDeal: V, ApproveDiscount: V, DenyDiscount: V };
 
-const db = openGovernance(":memory:", { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
+const db = openGovernance(":memory:", { toolkit: "DealDesk" });
 // A fresh governance.db seeds nobody (#33); the bench acts as the demo cast.
-for (const subject of loadSeed({ loanToolkit: "Deals", approvalsToolkit: "Approvals" }).subjects) addSubject(db, subject, "bench");
+for (const subject of loadSeed({ toolkit: "DealDesk" }).subjects) addSubject(db, subject, "bench");
 const cache = createPolicyCache(db);
 cache.start();
 const server = createServer({
@@ -32,8 +32,7 @@ const server = createServer({
     dbPath: ":memory:",
     signingSecret: SECRET,
     approvalsStoreToken: "bench-store-token",
-    loanToolkit: "Deals",
-    approvalsToolkit: "Approvals",
+    toolkit: "DealDesk",
     deadlineMs: 2500,
     policyPollMs: 250,
     grantTtlSeconds: 900,
@@ -50,7 +49,7 @@ const auditRows = (): number =>
   db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM audit_log").get()?.n ?? 0;
 
 function bigCatalogue(targetBytes: number) {
-  const toolkits: Record<string, unknown> = { Deals: { tools: LOAN_TOOLS } };
+  const toolkits: Record<string, unknown> = { DealDesk: { tools: LOAN_TOOLS } };
   let bytes = 0;
   for (let t = 0; bytes < targetBytes; t++) {
     const tools: Record<string, unknown> = {};
@@ -111,16 +110,16 @@ await time("/access whole-project catalogue", "/access", { user_id: SAM, toolkit
  * a README.
  */
 const rowsPerCatalogueCall = (auditRows() - beforeCatalogue) / CATALOGUE_RUNS;
-await time("/access scoped to Deals", "/access", { user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } }, 200);
+await time("/access scoped to Deals", "/access", { user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }, 200);
 await time("/pre deny (act 2)", "/pre", {
   execution_id: "tc_bench",
-  tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+  tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
   inputs: { deal_id: "DL-2291", amount: 95_000 },
   context: { authorization: [{}], user_id: DANA },
 }, 200);
 await time("/pre allow", "/pre", {
   execution_id: "tc_bench",
-  tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+  tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
   inputs: { deal_id: "DL-2291" },
   context: { authorization: [{}], user_id: DANA },
 }, 200);
@@ -151,7 +150,7 @@ const sizeOf = (source: typeof db, name: string): number => {
   return statSync(path).size;
 };
 
-const empty = openGovernance(":memory:", { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
+const empty = openGovernance(":memory:", { toolkit: "DealDesk" });
 const baseline = sizeOf(empty, "empty.db");
 empty.close();
 
@@ -168,15 +167,15 @@ empty.close();
 const PRICING_ROWS = 50_000;
 const pricingCalls: Array<[string, unknown]> = [
   // Alice: four governed tools, four allows. The demo's ordinary shape.
-  ["/access", { user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } }],
+  ["/access", { user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }],
   // Bob: the same four, one of them hidden by a rule, with the rule's own reason.
-  ["/access", { user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } }],
+  ["/access", { user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }],
   // A summary row, and the reason that goes with it.
   ["/access", { user_id: DANA, toolkits: { Stock: { tools: { A: V, B: V, C: V } } } }],
   // The longest reason this service writes: act 2's rendered remediation.
   ["/pre", {
     execution_id: "tc_bench_price",
-    tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+    tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
     inputs: { deal_id: "DL-2291", amount: 95_000 },
     context: { authorization: [{}], user_id: DANA },
   }],

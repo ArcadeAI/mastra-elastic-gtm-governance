@@ -171,7 +171,7 @@ ENVEOF
   echo "CG_PORT_BASE=$BASE"
   echo "CG_PORT_WEB=$WEB"
   echo "CG_PORT_HOOKS=$HOOKS"
-  echo "CG_PORT_LOAN_APP=$LOAN"
+  echo "CG_PORT_LOAN_APP=$TOOLKIT"
   echo "CG_PORT_IDP=$IDP"
   echo "CG_PORT_STUDIO=$STUDIO"
   echo "# Mastra Studio's port. \`mastra dev\` loads this file, and \`src/mastra/index.ts\`"
@@ -186,4 +186,4 @@ if command -v bun >/dev/null 2>&1; then
   bun install
 fi
 
-echo "orca-setup: ready — ports $BASE-$((BASE + BLOCK - 1)) (web $WEB, hooks $HOOKS, loan-app $LOAN, idp $IDP, studio $STUDIO)"
+echo "orca-setup: ready — ports $BASE-$((BASE + BLOCK - 1)) (web $WEB, hooks $HOOKS, loan-app $TOOLKIT, idp $IDP, studio $STUDIO)"

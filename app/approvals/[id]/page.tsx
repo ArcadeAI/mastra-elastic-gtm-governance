@@ -5,7 +5,7 @@
  * id and nothing else: no token, no signature, no query string. Whether the
  * person looking may act is not asked here and could not be answered here — it
  * is settled when a button is pressed, by a `/pre` decision on
- * `Approvals.Decide`.
+ * `DealDesk.Decide`.
  *
  * **Who the person looking *is* is answered here, and only from the sealed
  * session (#180).** Until this slice the page read `cg_persona` and, with no

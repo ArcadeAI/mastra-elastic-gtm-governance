@@ -66,11 +66,11 @@
  * selects the project (spec `securitySchemes.Bearer`).
  */
 /**
- * The hop-2 provider id, fixed because `tools/loan` reads `OAuth2(id=...)` at
+ * The hop-2 provider id, fixed because `mcp/deal_desk/deals.py` reads `OAuth2(id=...)` at
  * import. A literal rather than an import of the identity provider's
  * constant: nothing outside `lib/identity/` imports the provider's internals
  * (`only-identity-mints.test.ts`). `app-test/identity/provider-id.test.ts`
- * fails if this, the provider's and `tools/loan`'s ever disagree.
+ * fails if this, the provider's and `mcp/deal_desk/deals.py`'s ever disagree.
  */
 export const PROVIDER_ID = "app-identity";
 
@@ -180,10 +180,14 @@ export function providerDifferences(existing: unknown, desired: unknown): string
 }
 
 /** The tool secrets the toolkits read, in the order they are set. */
-export function toolSecrets(host: string, approvalsStoreToken: string) {
+export function toolSecrets(host: string, approvalsStoreToken: string, approvalsChannel = "") {
   return [
     { key: "APP_PUBLIC_HOST", description: "The app's public host (setup-arcade)", value: host },
     { key: "APPROVALS_STORE_TOKEN", description: "Bearer for the app's approvals store (setup-arcade)", value: approvalsStoreToken },
+    // Only when set: a blank is "no channel", and the tool reads a missing secret as exactly that.
+    ...(approvalsChannel.trim() === ""
+      ? []
+      : [{ key: "SLACK_APPROVALS_CHANNEL", description: "Slack channel approval requests are announced in (setup-arcade)", value: approvalsChannel.trim() }]),
   ];
 }
 
@@ -427,20 +431,20 @@ export function unverifiedLine({ path, sent }: { path: string; sent: string }): 
 /**
  * The Arcade Elasticsearch toolkit's 26 tools, as its `MCPApp` names them
  * (docs/ELASTIC.md). Listed here so the gateway's `tool_filter` can carry them
- * when `ARCADE_ELASTIC_TOOLKIT` is set; the toolkit itself is not deployed by
+ * when `ELASTIC_MODULE` is set; the toolkit itself is not deployed by
  * this script, it is Arcade's, added to the project in the dashboard.
  */
 export const ELASTIC_TOOLS = ["WhoAmI", "ListIndices", "GetIndexMapping", "ListAliases", "ListInferenceEndpoints", "GetClusterHealth", "GetIndexStats", "GetShards", "SearchByText", "SemanticSearch", "VectorSearch", "HybridSearch", "SearchDocuments", "AggregateDocuments", "CountDocuments", "GetDocument", "RunEsqlQuery", "IndexDocument", "BulkIndexDocuments", "UpdateDocument", "DeleteDocument", "DeleteDocumentsByQuery", "CreateIndex", "ReindexDocuments", "DeleteIndex", "RefreshIndex"] as const;
 
 /**
  * The tools the agent is given, as a gateway's `tool_filter` names them: `Toolkit.Tool`.
- * Six without the Elastic module; 32 with it, when `elasticToolkit` is non-blank.
+ * Six without the Elastic module; 32 with it. One toolkit, `DealDesk`, either way.
  */
-export function gatewayTools(loanToolkit: string, approvalsToolkit: string, elasticToolkit = ""): string[] {
+export function gatewayTools(toolkit: string, elastic = false): string[] {
   return [
-    ...["SearchDeals", "GetDeal", "ApproveDiscount", "DenyDiscount"].map((tool) => `${loanToolkit}.${tool}`),
-    ...["RequestApproval", "Decide"].map((tool) => `${approvalsToolkit}.${tool}`),
-    ...(elasticToolkit.trim() === "" ? [] : ELASTIC_TOOLS.map((tool) => `${elasticToolkit.trim()}.${tool}`)),
+    ...["SearchDeals", "GetDeal", "ApproveDiscount", "DenyDiscount"].map((tool) => `${toolkit}.${tool}`),
+    ...["RequestApproval", "Decide"].map((tool) => `${toolkit}.${tool}`),
+    ...(elastic ? ELASTIC_TOOLS.map((tool) => `${toolkit}.${tool}`) : []),
   ];
 }
 
@@ -463,11 +467,11 @@ export interface GatewayCheck {
  * six is a warning, because leaving a live gateway ungoverned over it would be
  * worse. An `auth_type` Arcade leaves out is not the User Source either.
  */
-export function gatewayCheck(gateway: unknown, loanToolkit: string, approvalsToolkit: string, elasticToolkit = ""): GatewayCheck {
+export function gatewayCheck(gateway: unknown, toolkit: string, elastic = false): GatewayCheck {
   const authType = at(gateway, "auth_type");
   const tools = at(gateway, "tool_filter.allowed_tools");
   const have = Array.isArray(tools) ? [...(tools as unknown[])].map(String).sort() : null;
-  const want = [...gatewayTools(loanToolkit, approvalsToolkit, elasticToolkit)].sort();
+  const want = [...gatewayTools(toolkit, elastic)].sort();
   const toolDifferences: string[] = [];
   if (have === null) {
     toolDifferences.push(`tool_filter.allowed_tools: Arcade has ${JSON.stringify(tools) ?? "nothing"}, this app needs ${JSON.stringify(want)}`);
@@ -495,10 +499,9 @@ export function gatewayCheck(gateway: unknown, loanToolkit: string, approvalsToo
 export interface GatewaySpec {
   slug: string;
   userSourceId: string;
-  loanToolkit: string;
-  approvalsToolkit: string;
-  /** Blank or absent: the Elastic module is off and the gateway carries six tools. */
-  elasticToolkit?: string;
+  toolkit: string;
+  /** Off or absent: the gateway carries six tools. On: 32. */
+  elastic?: boolean;
 }
 
 export function gatewayBody(spec: GatewaySpec) {
@@ -508,7 +511,7 @@ export function gatewayBody(spec: GatewaySpec) {
     slug: spec.slug,
     auth_type: GATEWAY_AUTH_TYPE,
     user_source_id: spec.userSourceId,
-    tool_filter: { allowed_tools: gatewayTools(spec.loanToolkit, spec.approvalsToolkit, spec.elasticToolkit ?? "") },
+    tool_filter: { allowed_tools: gatewayTools(spec.toolkit, spec.elastic ?? false) },
   };
 }
 
@@ -527,7 +530,7 @@ export function gatewayDifferences(gateway: unknown, spec: GatewaySpec): string[
   compare(
     "tool_filter.allowed_tools",
     Array.isArray(tools) ? [...tools].sort() : tools,
-    [...gatewayTools(spec.loanToolkit, spec.approvalsToolkit, spec.elasticToolkit ?? "")].sort(),
+    [...gatewayTools(spec.toolkit, spec.elastic ?? false)].sort(),
   );
   return differences;
 }

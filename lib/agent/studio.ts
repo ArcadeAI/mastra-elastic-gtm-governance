@@ -132,7 +132,7 @@ export function studioProblems(config: IdentitySurface): string[] {
     ...(config.identity.gatewayId ? [] : ["ARCADE_GATEWAY_ID is not set"]),
     ...(config.arcadeApiUrl ? [] : ["ARCADE_API_URL is not set"]),
     ...(config.agent.anthropicApiKey ? [] : ["ANTHROPIC_API_KEY is not set"]),
-    ...(config.agent.toolkits.length > 0 ? [] : ["ARCADE_LOAN_TOOLKIT is not set"]),
+    ...(config.agent.toolkits.length > 0 ? [] : ["ARCADE_TOOLKIT is not set"]),
   ];
 }
 
@@ -324,7 +324,7 @@ export async function studioTools(
 
   return readableErrors(
     closeTurnOnEscalation(readableAuthorization(selected.tools, webUi(config)), {
-      escalationTool: `${config.agent.approvalsToolkit}_RequestApproval`,
+      escalationTool: `${config.agent.toolkit}_RequestApproval`,
       onRefused: (tool) =>
         console.warn(`[studio] ${tool} was asked for after this turn ended on an approval request; nothing reached the gateway`),
     }).tools,
@@ -591,7 +591,7 @@ export function studioAgent(
     memory: () => studioMemory(config),
     instructions: (() => {
       const surface = config();
-      return instructionsFor(surface.agent.elasticToolkit === "" ? null : { index: surface.agent.elasticIndex });
+      return instructionsFor(surface.agent.elasticEnabled ? { index: surface.agent.elasticIndex } : null);
     })(),
   });
 }

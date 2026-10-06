@@ -5,7 +5,7 @@ is about loans. This document is the concrete walk from the loan domain to yours
 
 The promise, stated as an instruction rather than a claim:
 
-> Replace **`lib/loans/`** (the business system), **`tools/loan`** (the Arcade
+> Replace **`lib/loans/`** (the business system), **`mcp/deal_desk/deals.py`** (the Arcade
 > toolkit that wraps it) and the **seed fixtures**. Touch nothing under `packages/`.
 
 That is a better story than the one this repo started with. You are not writing an MCP
@@ -22,14 +22,14 @@ control layers, two OAuth hops, three databases.
 | | | |
 |---|---|---|
 | `lib/loans/` | **replace** | The system of record, a module of the app served under `/bank`. A plain HTTP API over `loans.db`. Yours already exists — you probably delete this directory rather than edit it |
-| `tools/loan` | **replace** | Four Python `arcade-mcp` tools, each a stateless client of the API above |
+| `mcp/deal_desk/deals.py` | **replace** | Four Python `arcade-mcp` tools, each a stateless client of the API above |
 | `lib/control-plane/fixtures/governance.json` | **rewrite** | The catalogue, the demo cast, the rules. Your own people come from `bun run users` (§3) |
 | `lib/identity/provider/` | **delete** | The enterprise IdP, as a demo fixture the app serves on its own port. You have an Okta |
 | `lib/identity/session.ts` | **repoint** | One function pair, `readSession` / `readSessionFromCookies` |
 | the rest of the app (`app/`, `components/`, `lib/`) | **keep** | Chat, panel, approval page, the bank's screen |
 | `lib/control-plane/` | **keep** | `/hooks/access`, `/hooks/pre`, `/hooks/post`, audit, SSE, reset |
 | `packages/` | **do not touch** | The hook framework, the policy engine, the shared types |
-| `tools/approvals` | **keep** | Routing and Slack are domain-independent; it names actions, not loans |
+| `mcp/deal_desk/approvals.py` | **keep** | Routing and Slack are domain-independent; it names actions, not loans |
 
 Eight seams follow, each with a path, then the boundary check and how to run it. Work
 them in order — later ones read values the earlier ones produce.
@@ -49,7 +49,7 @@ GET  /health
 ```
 
 Those are the module's own paths. The app mounts them under `/bank`
-(`app/bank/[...path]/route.ts`), so `tools/loan` calls `GET /bank/loans/:deal_id` and so
+(`app/bank/[...path]/route.ts`), so `mcp/deal_desk/deals.py` calls `GET /bank/loans/:deal_id` and so
 on, on the app's host; `bun run loans` runs the module on a port of its own.
 
 **If you already have this service, you delete the directory and skip to §2.** That is
@@ -94,7 +94,7 @@ injected note is what the model is reacting to.
 
 ---
 
-## 2. The tools — `tools/loan`
+## 2. The tools — `mcp/deal_desk/deals.py`
 
 A Python `arcade-mcp` package, shipped with `arcade deploy`. Four tools, each a
 stateless `httpx` call carrying the end user's OAuth token. Nothing here holds state and
@@ -120,7 +120,7 @@ basis. One rule survives the swap, and one known exception is tracked:
   irreversibility. Measured on #14: one "irreversible, no undo" line made the model ask
   permission and `/pre` never fired; one "do not ask the person to confirm" line pushed it
   the other way. The checked-in descriptions carry none, and
-  `tools/loan/tests/test_descriptions.py` and `tools/approvals/tests/test_descriptions.py`
+  `mcp/tests/deals/test_descriptions.py` and `mcp/tests/approvals/test_descriptions.py`
   fail if one appears, against the same pattern the app's guard uses
   (`app-test/behaviour.ts`). Copy those tests with the toolkit. Say what each tool does
   and what its arguments mean, and nothing about how to act.
@@ -135,12 +135,12 @@ tool functions itself, before Arcade ever sees them.
 
 | `MCPApp(name=...)` | toolkit | tools |
 |---|---|---|
-| `loan` | `Deals` | `Deals.SearchDeals`, `Deals.GetDeal`, `Deals.ApproveDiscount`, `Deals.DenyDiscount` |
+| `loan` | `Deals` | `DealDesk.SearchDeals`, `DealDesk.GetDeal`, `DealDesk.ApproveDiscount`, `DealDesk.DenyDiscount` |
 | `loan_mcp_probe` | `LoanMcpProbe` | `LoanMcpProbe.PingProbe` |
 
 Underscores are consumed; `mcp` is **not** stripped (that is where `arcade deploy`
 differs from Remote MCP registration). Hyphens are rejected by `MCPApp` at
-construction. Full measurement in [`tools/loan/README.md`](../tools/loan/README.md).
+construction. Full measurement in [`mcp/DEALS.md`](../mcp/DEALS.md).
 
 **Deploy first, then read the name back, then write rules against it.** Do not derive
 it:
@@ -152,7 +152,7 @@ curl -fsS -H "Authorization: Bearer $ARCADE_API_KEY" \
   https://api.arcade.dev/v1/workers/<server>/tools | jq '.items[].fully_qualified_name'
 ```
 
-Put the observed toolkit name in `ARCADE_LOAN_TOOLKIT`. **A rule keyed on the wrong
+Put the observed toolkit name in `ARCADE_TOOLKIT`. **A rule keyed on the wrong
 string matches nothing, and a rule that matches nothing is indistinguishable from a rule
 that permits.** It is the recurring failure mode of this whole project: it looks like a
 working demo.
@@ -161,8 +161,8 @@ working demo.
 
 | where | spelling |
 |---|---|
-| MCP `tools/list`, and therefore what the model can call | `Deals_GetDeal` |
-| hook payloads, audit rows, policy rules | `Deals.GetDeal` |
+| MCP `tools/list`, and therefore what the model can call | `DealDesk_GetDeal` |
+| hook payloads, audit rows, policy rules | `DealDesk.GetDeal` |
 
 Key rules the dot way. Write the underscore spelling in any text **addressed to the
 model** — a `/pre` denial's remediation sentence, for instance, because the model can
@@ -180,13 +180,13 @@ The one file that is entirely about your domain and lives outside it. Four keys.
 
 ```json
 "catalogue": {
-  "$LOAN": { "GetDeal": ["deal_id"], "ApproveDiscount": ["deal_id", "amount"] },
-  "$APPROVALS": { "RequestApproval": ["action", "resource_id", "amount", "justification"] }
+  "$TOOLKIT": { "GetDeal": ["deal_id"], "ApproveDiscount": ["deal_id", "amount"] },
+  "$TOOLKIT": { "RequestApproval": ["action", "resource_id", "amount", "justification"] }
 }
 ```
 
-`$LOAN` and `$APPROVALS` are **placeholders**, substituted at seed time with
-`ARCADE_LOAN_TOOLKIT` and `ARCADE_APPROVALS_TOOLKIT`
+`$TOOLKIT` and `$TOOLKIT` are **placeholders**, substituted at seed time with
+`ARCADE_TOOLKIT` and `ARCADE_TOOLKIT`
 (`lib/control-plane/policy-store.ts`, `TOOLKIT_PLACEHOLDERS`). Keep the indirection: it is
 what stops a measured toolkit name from having to be typed into a dozen rows.
 
@@ -242,7 +242,7 @@ own scalar or add attributes — the engine reads `subjects.roles`,
 
 ```json
 { "id": "access.analysts-cannot-see-approve",
-  "hook": "access", "match": { "toolkit": "$LOAN", "tool": "ApproveDiscount" },
+  "hook": "access", "match": { "toolkit": "$TOOLKIT", "tool": "ApproveDiscount" },
   "subjects": { "roles": ["sdr"] },
   "effect": "deny", "reason": "…", "priority": 10 }
 ```
@@ -351,7 +351,7 @@ real IdP replaces how the **session** is established, not hop 1.
 
 ---
 
-## 5. Approvals — `tools/approvals`
+## 5. Approvals — `mcp/deal_desk/approvals.py`
 
 **Keep it.** It routes on `action`, `amount` and the roster, and never on what the
 resource is. `action` is a bare action name, not a fully-qualified tool: resolving it
@@ -361,17 +361,17 @@ Two things to align with your domain:
 
 - The `action` strings your `/pre` remediation text names (`approve_discount` in the loan
   book) must be the ones `POST /approvals` receives.
-- The Slack message body in `tools/approvals/approvals/message.py` names the action and
+- The Slack message body in `mcp/deal_desk/approvals_message.py` names the action and
   the resource. It is domain-flavoured prose, not domain-coupled code.
 
 Whoever requests an approval must be a member of your Arcade project, because
-`Approvals_RequestApproval` uses Arcade's stock Slack provider, and Arcade sends that
+`DealDesk_RequestApproval` uses Arcade's stock Slack provider, and Arcade sends that
 through its own verifier rather than your custom one. The FAQ's
 [Do my users need Arcade accounts?](./faq.md#do-my-users-need-arcade-accounts) has the detail and the way out:
 your own Slack app, registered as a custom OAuth provider.
 
 The approval link **carries no authority** — no token, no signature, no query string —
-and `tools/approvals/tests/test_message.py` asserts it, because that is exactly the
+and `mcp/tests/approvals/test_message.py` asserts it, because that is exactly the
 convenience someone adds back later. Keep that test.
 
 ---
@@ -451,7 +451,7 @@ system look like part of the same product as the thing governing it.
 
 | | |
 |---|---|
-| `lib/governance/access-fanout.ts` | the panel's **fixture replay** — pins the measured access-row fanout using `Deals.GetDeal` and `Deals.ApproveDiscount` as sample tool names. Not a live path; update it or leave it as a replay of somebody else's demo |
+| `lib/governance/access-fanout.ts` | the panel's **fixture replay** — pins the measured access-row fanout using `DealDesk.GetDeal` and `DealDesk.ApproveDiscount` as sample tool names. Not a live path; update it or leave it as a replay of somebody else's demo |
 
 ### Six user-visible strings, in files you otherwise keep
 
@@ -467,7 +467,7 @@ the leftover this guide exists to prevent.
 | `lib/governance/control-plane.ts` | the Reset result sentence |
 
 `lib/agent/handlers.ts` and `lib/config.ts` also match, but only on the variable name
-`ARCADE_LOAN_TOOLKIT` — that is §7's configuration seam, not a string to edit here.
+`ARCADE_TOOLKIT` — that is §7's configuration seam, not a string to edit here.
 
 ### The sweep, so you can repeat it
 
@@ -496,9 +496,9 @@ overrides with their defaults. The domain swap touches:
 
 | | |
 |---|---|
-| `ARCADE_LOAN_TOOLKIT` | your toolkit name, **measured off a real deploy**, not derived |
-| `ARCADE_APPROVALS_TOOLKIT` | unchanged unless you rename `tools/approvals` |
-| `APP_PUBLIC_HOST` | the app's public host, which is also where `tools/loan` finds the API (under `API_BASE_PATH`). If your API lives on a host of its own, give the toolkit a secret of its own for it |
+| `ARCADE_TOOLKIT` | your toolkit name, **measured off a real deploy**, not derived |
+| `ARCADE_TOOLKIT` | unchanged unless you rename `mcp/deal_desk/approvals.py` |
+| `APP_PUBLIC_HOST` | the app's public host, which is also where `mcp/deal_desk/deals.py` finds the API (under `API_BASE_PATH`). If your API lives on a host of its own, give the toolkit a secret of its own for it |
 | `IDENTITY_HOST` | where `lib/loans/` validates bearers; unset, the app's own listener. Point it at your IdP (§4) |
 | `LOANS_DB_PATH` | only if you keep a database of your own |
 
@@ -632,7 +632,7 @@ try once it runs is its Try it out section.
 - [ ] Business system replaced or deleted; actor derived from the token, never a parameter
 - [ ] Seed fixture carries an over-authority record, sensitive fields, an injected note, and a control record
 - [ ] Toolkit copied, renamed, `MCPApp(name=…)` set; descriptions carry no behavioural instruction
-- [ ] `arcade deploy` run, toolkit name **read back** and put in `ARCADE_LOAN_TOOLKIT`
+- [ ] `arcade deploy` run, toolkit name **read back** and put in `ARCADE_TOOLKIT`
 - [ ] `lib/control-plane/fixtures/governance.json` rewritten: catalogue, demo cast, policy rules, output rules
 - [ ] Your people added with `bun run users add`, or, with your own IdP, each given a `subjects` row under the email it asserts
 - [ ] Every injection pattern has both halves of a corpus entry; `bun test ./app-test/control-plane/` green

@@ -269,7 +269,7 @@ describe("README.md follows Mastra's outline", () => {
     const register = registerStep(README);
     expect(inOrder(register, ONE_CLICK_ORDER)).toEqual(ONE_CLICK_ORDER.map(([name]) => name));
     expect(register).toContain("the contextual access hooks through Arcade's API");
-    expect(register).toContain("it runs `arcade deploy` in `tools/loan` and then in `tools/approvals`");
+    expect(register).toContain("it runs `arcade deploy` once, in `mcp`");
     expect(register).toContain("It creates the hooks disabled, and turns them on last.");
     expect(register).toContain("with exactly the four Deals tools and the two Approvals tools, never Arcade Headers");
     expect(register).toContain("Run it again, and it says everything is already in place.");

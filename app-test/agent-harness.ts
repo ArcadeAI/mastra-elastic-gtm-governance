@@ -42,9 +42,11 @@ export const HOOK_SECRET = "hook-secret-for-agent-tests";
 export const STORE_TOKEN = "store-token-for-agent-tests";
 export const SESSION_SECRET = "agent-suite-session-secret-0123456789";
 export const GATEWAY_ID = "cg-demo-us";
-export const LOAN_TOOLKIT = "Deals";
+export const TOOLKIT = "DealDesk";
+/** Kept as aliases of {@link TOOLKIT}: one toolkit since the one-deploy change. */
+export const LOAN_TOOLKIT = TOOLKIT;
 /** `tool.toolkit` as Arcade files the deployed approvals toolkit (#35). */
-export const APPROVALS_TOOLKIT = "Approvals";
+export const APPROVALS_TOOLKIT = TOOLKIT;
 
 /**
  * What the dev IdP stub accepts as a bearer: `dev:<email>`.
@@ -206,8 +208,7 @@ export async function startAgentHarness(
   const governancePath = hooksEnv.GOVERNANCE_DB_PATH ?? join(workspace, "governance.db");
   if (governancePath !== ":memory:") {
     seedDemoGovernance(governancePath, {
-      loanToolkit: hooksEnv.ARCADE_LOAN_TOOLKIT ?? LOAN_TOOLKIT,
-      approvalsToolkit: hooksEnv.ARCADE_APPROVALS_TOOLKIT ?? APPROVALS_TOOLKIT,
+      toolkit: hooksEnv.ARCADE_TOOLKIT ?? LOAN_TOOLKIT,
     });
   }
 
@@ -220,8 +221,7 @@ export async function startAgentHarness(
       GOVERNANCE_DB_PATH: join(workspace, "governance.db"),
       ARCADE_HOOK_SIGNING_SECRET: HOOK_SECRET,
       APPROVALS_STORE_TOKEN: STORE_TOKEN,
-      ARCADE_LOAN_TOOLKIT: LOAN_TOOLKIT,
-      ARCADE_APPROVALS_TOOLKIT: APPROVALS_TOOLKIT,
+      ARCADE_TOOLKIT: LOAN_TOOLKIT,
       APP_PUBLIC_HOST: "localhost:1",
       NODE_ENV: "test",
       ...options.hooksEnv,
@@ -257,12 +257,10 @@ export async function startAgentHarness(
     hooksHost,
     hookSigningSecret: HOOK_SECRET,
     loanAppHost,
-    loanToolkit: LOAN_TOOLKIT,
-    // Advertised always, since #89: a live `tools/list` carries both project
-    // toolkits, and an agent that cannot see `Approvals_RequestApproval`
-    // refuses the pre-hook's own remediation instruction. Every suite gets the
-    // surface the deployed system has.
-    approvalsToolkit: APPROVALS_TOOLKIT,
+    // One toolkit since the one-deploy change: every tool, the approvals ones
+    // included, is advertised under it, so an agent can always see
+    // `DealDesk_RequestApproval`, the pre-hook's own remediation instruction (#89).
+    toolkit: TOOLKIT,
     // And **runnable**, since #20's resume half: with the store token the two
     // approvals tools are real clients of the real `/approvals` endpoints on
     // this harness's own control plane, so act 2's second half can be driven
@@ -280,8 +278,7 @@ export async function startAgentHarness(
     ARCADE_API_URL: gateway.url,
     ARCADE_API_KEY: "arcade-key-for-agent-tests",
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: LOAN_TOOLKIT,
-    ARCADE_APPROVALS_TOOLKIT: APPROVALS_TOOLKIT,
+    ARCADE_TOOLKIT: LOAN_TOOLKIT,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY?.trim() || "anthropic-key-for-agent-tests",
     MODEL_ID: process.env.MODEL_ID?.trim() || "claude-sonnet-5",
     SESSION_SECRET,

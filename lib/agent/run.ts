@@ -5,7 +5,7 @@
  * the order `DESIGN.md` → Identity and OAuth draws:
  *
  *     this browser's session  →  gateway token  →  MCPClient (static bearer)
- *       →  api.arcade.dev/mcp/cg-demo-us  →  /access, /pre  →  tools/loan
+ *       →  api.arcade.dev/mcp/cg-demo-us  →  /access, /pre  →  mcp/deal_desk/deals.py
  *         →  the app's loan module, under /bank
  *
  * What this file is careful about is what it does *not* do to what comes back.
@@ -29,14 +29,14 @@
  * the acceptance criterion unfalsifiable.
  *
  * **Nothing here waits for an approval, and the turn really does end.** #20's
- * `waiting` event is emitted after `Approvals_RequestApproval` returns, and
+ * `waiting` event is emitted after `DealDesk_RequestApproval` returns, and
  * from that point the turn is *closing*: the model's last words still stream —
  * *"Approval requested from Charlie, VP Sales. Waiting."* is what the issue
  * asks for by name — but the first tool call after it ends the reading and
  * aborts the agent loop.
  *
  * Round 1 of #110's review found this half-done: `waiting` was emitted and the
- * loop carried on, so a model that called `Deals_ApproveDiscount` straight after the
+ * loop carried on, so a model that called `DealDesk_ApproveDiscount` straight after the
  * escalation got that call executed, against a control plane holding no grant.
  * The guarantee is not here — it is in `escalation.ts`, which shuts the turn's
  * toolset synchronously with the escalation's own return, so a later call
@@ -136,11 +136,11 @@ export interface RunOptions {
   prompt: string | readonly TurnMessage[];
   maxSteps?: number;
   /**
-   * The wire name of the escalation tool — `Approvals_RequestApproval` — so a
+   * The wire name of the escalation tool — `DealDesk_RequestApproval` — so a
    * successful call to it can be recognised and reported as `waiting`.
    *
    * Passed in rather than hard-coded because the toolkit name is an
-   * environment variable measured off a real deployment (`ARCADE_APPROVALS_TOOLKIT`),
+   * environment variable measured off a real deployment (`ARCADE_TOOLKIT`),
    * and this file is the wrong place to have an opinion about it. Unset, the
    * run behaves exactly as it did before #20: every tool result is a
    * `tool-result` and nothing else.
@@ -195,7 +195,7 @@ export async function runTurn(options: RunOptions): Promise<void> {
    * matters: it stops Mastra before the next step, so the model is never asked
    * again and no further tool is executed. Breaking out of the loop below only
    * stops us reading — on its own it would leave the agent running in a
-   * detached pipeline, still free to call `Deals_ApproveDiscount` against a control
+   * detached pipeline, still free to call `DealDesk_ApproveDiscount` against a control
    * plane that has no grant yet. Round 1 of this PR's review reproduced exactly
    * that: a later `tool-call` after the `waiting` event.
    */
@@ -322,7 +322,7 @@ export async function runTurn(options: RunOptions): Promise<void> {
         // rather than somebody else's, and the next turn is a new one.
         //
         // Ending here is the acceptance criterion, not a tidiness: a turn that
-        // carried on could call `Deals_ApproveDiscount` again while the approval is
+        // carried on could call `DealDesk_ApproveDiscount` again while the approval is
         // still pending, which is a governed write attempted on an authority
         // nobody has granted yet. The hook would refuse it — that is what the
         // hook is for — but the demo's claim is that the *agent stops*, and an

@@ -49,8 +49,8 @@ export interface ToolSurface {
 /**
  * `Deals` → the prefix a wire tool name starts with.
  *
- * MCP names a tool `Deals_GetDeal`; the hook frame names the same tool
- * `Deals.GetDeal`. Both spellings are real and neither is invented here — see
+ * MCP names a tool `DealDesk_GetDeal`; the hook frame names the same tool
+ * `DealDesk.GetDeal`. Both spellings are real and neither is invented here — see
  * `scripts/gateway-stand-in.ts::qualifiedToolName` for the conversion, which is
  * the only place in the repo that does it.
  */
@@ -166,7 +166,7 @@ export function gatewayClient(options: GatewayToolsOptions): MCPClient {
  * gateway answered at all.
  *
  * Toolsets rather than the flat `listTools()` on purpose: the flat form
- * namespaces every tool with the server key, so `Deals_ApproveDiscount` would reach
+ * namespaces every tool with the server key, so `DealDesk_ApproveDiscount` would reach
  * the model as `arcade_Loan_ApproveDiscount`. The name the model sees should be the
  * name the wire uses and the name a rule is keyed on, modulo the dot.
  *
@@ -176,7 +176,7 @@ export function gatewayClient(options: GatewayToolsOptions): MCPClient {
  * dropped, and what the caller gets back is indistinguishable from a gateway
  * that answered a perfectly good `tools/list` carrying none of our toolkits.
  * Those are two different sentences to put on screen and only one of them
- * mentions `ARCADE_LOAN_TOOLKIT`. The `WithErrors` variant hands back the
+ * mentions `ARCADE_TOOLKIT`. The `WithErrors` variant hands back the
  * per-server failure, so `error` here means *no listing arrived* and an empty
  * `advertised` with no `error` means *the gateway really advertises nothing*.
  */

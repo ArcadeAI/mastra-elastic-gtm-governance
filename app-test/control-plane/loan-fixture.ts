@@ -27,7 +27,7 @@ export function loanFixtures(): LoanFixture[] {
 }
 
 /**
- * One seeded loan, as `Deals.GetDeal` returns it — a fresh copy each call, so a
+ * One seeded loan, as `DealDesk.GetDeal` returns it — a fresh copy each call, so a
  * test that hands it to a handler cannot be poisoned by an earlier one.
  */
 export function loanFixture(loanId: string): LoanFixture {

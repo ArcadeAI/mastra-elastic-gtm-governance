@@ -140,11 +140,11 @@ describe("a denial shows the specific rule that fired", () => {
   test("so is the reason, in full rather than truncated", () => {
     const reason =
       "DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. " +
-      "To proceed, call Approvals.RequestApproval then retry Deals.ApproveDiscount unchanged.";
+      "To proceed, call DealDesk.RequestApproval then retry DealDesk.ApproveDiscount unchanged.";
     const markup = render([aGovernanceEvent({ id: "evt_1", decision: "deny", reason })]);
 
     expect(markup).toContain("exceeds your approval authority of 50000");
-    expect(markup).toContain("retry Deals.ApproveDiscount unchanged");
+    expect(markup).toContain("retry DealDesk.ApproveDiscount unchanged");
   });
 
   test("and the tool, and who was refused", () => {
@@ -152,12 +152,12 @@ describe("a denial shows the specific rule that fired", () => {
       aGovernanceEvent({
         id: "evt_1",
         decision: "deny",
-        tool: "Deals.ApproveDiscount",
+        tool: "DealDesk.ApproveDiscount",
         user_id: "alice@northwind.test",
       }),
     ]);
 
-    expect(markup).toContain("Deals.ApproveDiscount");
+    expect(markup).toContain("DealDesk.ApproveDiscount");
     expect(markup).toContain("alice@northwind.test");
   });
 
@@ -188,7 +188,7 @@ describe("long audit values remain reachable", () => {
         id: "evt_long_reason",
         hook: "pre",
         decision: "deny",
-        tool: "Approvals.RequestApproval",
+        tool: "DealDesk.RequestApproval",
         reason,
         rule_id: "pre.approval-notice-delivery",
       }),
@@ -279,7 +279,7 @@ describe("a redaction event, which carries no payload to diff", () => {
     id: "evt_payloadless",
     hook: "post",
     decision: "modify",
-    tool: "Deals.GetDeal",
+    tool: "DealDesk.GetDeal",
     // Null because two rules fired, which is the ordinary case for DL-2291: the
     // per-leaf ids are on the records, and rendering them is the point.
     rule_id: null,
@@ -359,7 +359,7 @@ describe("a redaction event, which carries no payload to diff", () => {
         id: "evt_untouched",
         hook: "post",
         decision: "modify",
-        tool: "Deals.SearchDeals",
+        tool: "DealDesk.SearchDeals",
         redactions: [],
       }),
     ]);
@@ -406,7 +406,7 @@ describe("the fixture replay renders the same card the live Post lane does", () 
     id: "evt_live",
     hook: "post",
     decision: "modify",
-    tool: "Deals.GetDeal",
+    tool: "DealDesk.GetDeal",
     rule_id: null,
     reason: "Output rewritten before it reached the model; 2 redaction(s) by 2 rule(s).",
     redactions: [
@@ -455,7 +455,7 @@ describe("nothing is hidden behind a hover", () => {
       aGovernanceEvent({
         id: "evt_1",
         decision: "deny",
-        tool: "Deals.ApproveDiscount",
+        tool: "DealDesk.ApproveDiscount",
         user_id: "alice@northwind.test",
         rule_id: "rule.clearance",
         reason: "Exceeds your authority.",
@@ -463,7 +463,7 @@ describe("nothing is hidden behind a hover", () => {
     ]);
 
     for (const text of [
-      "Deals.ApproveDiscount",
+      "DealDesk.ApproveDiscount",
       "alice@northwind.test",
       "rule.clearance",
       "Exceeds your authority.",
@@ -779,7 +779,7 @@ describe("the type hierarchy the card is read through", () => {
   const event = aGovernanceEvent({
     id: "evt_1",
     decision: "deny",
-    tool: "Deals.ApproveDiscount",
+    tool: "DealDesk.ApproveDiscount",
     user_id: "alice@northwind.test",
     rule_id: "rule.clearance",
     reason: "Exceeds your approval authority of 50000.",

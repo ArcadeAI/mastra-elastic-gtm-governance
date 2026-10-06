@@ -136,7 +136,7 @@ async function governedCall(executionId: string): Promise<Response> {
     headers: { authorization: `Bearer ${HOOK_SECRET}`, "content-type": "application/json" },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),

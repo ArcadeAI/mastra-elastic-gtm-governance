@@ -29,12 +29,12 @@ import { resolveStandInPort } from "../scripts/gateway-stand-in.ts";
  * 2026-09-12: **eight** entries, not six. The two extras are the gateway's own.
  */
 const LIVE_TOOLS_LIST = [
-  "Deals_SearchDeals",
-  "Deals_GetDeal",
-  "Deals_ApproveDiscount",
-  "Deals_DenyDiscount",
-  "Approvals_RequestApproval",
-  "Approvals_Decide",
+  "DealDesk_SearchDeals",
+  "DealDesk_GetDeal",
+  "DealDesk_ApproveDiscount",
+  "DealDesk_DenyDiscount",
+  "DealDesk_RequestApproval",
+  "DealDesk_Decide",
   "System_ManageAuthorization",
   "Arcade_ListApps",
 ];
@@ -44,16 +44,16 @@ const asRecord = (names: readonly string[]) => Object.fromEntries(names.map((nam
 describe("which tools the agent is given", () => {
   test("the gateway's own two are dropped, and the project's six are kept", () => {
     const { governed, dropped } = selectGoverned(asRecord(LIVE_TOOLS_LIST), {
-      toolkits: ["Deals", "Approvals"],
+      toolkits: ["DealDesk", "DealDesk"],
     });
 
     expect(Object.keys(governed)).toEqual([
-      "Deals_SearchDeals",
-      "Deals_GetDeal",
-      "Deals_ApproveDiscount",
-      "Deals_DenyDiscount",
-      "Approvals_RequestApproval",
-      "Approvals_Decide",
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_ApproveDiscount",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
     ]);
     // Named, so that a future gateway built-in showing up in `dropped` is a
     // readable diff rather than a silent extra tool in the model's hands.
@@ -66,30 +66,38 @@ describe("which tools the agent is given", () => {
     // two names above would.
     const { governed, dropped } = selectGoverned(
       asRecord([...LIVE_TOOLS_LIST, "Arcade_SomethingNew"]),
-      { toolkits: ["Deals"] },
+      { toolkits: ["DealDesk"] },
     );
-    expect(Object.keys(governed)).toEqual(["Deals_SearchDeals", "Deals_GetDeal", "Deals_ApproveDiscount", "Deals_DenyDiscount"]);
+    expect(Object.keys(governed)).toEqual([
+      "DealDesk_SearchDeals",
+      "DealDesk_GetDeal",
+      "DealDesk_ApproveDiscount",
+      "DealDesk_DenyDiscount",
+      "DealDesk_RequestApproval",
+      "DealDesk_Decide",
+    ]);
     expect(dropped).toContain("Arcade_SomethingNew");
   });
 
   test("the agent's own configured allow-list selects all six, from an empty environment", () => {
     // Round 1 of #88's review reproduced the bug with exactly these eight names
-    // and `{ toolkits: ["Deals"] }`, which selected four and dropped
-    // `Approvals_RequestApproval` and `Approvals_Decide` alongside the gateway
+    // and `{ toolkits: ["DealDesk"] }`, which selected four and dropped
+    // `DealDesk_RequestApproval` and `DealDesk_Decide` alongside the gateway
     // built-ins — so the pre-hook's own remediation instruction ("call
-    // Approvals.RequestApproval") named a tool the model could not see.
+    // DealDesk.RequestApproval") named a tool the model could not see.
     //
     // This asserts against `readIdentitySurface`'s value rather than a literal,
     // because the bug was not in `selectGoverned` — it was in what the chat
-    // handler passed it. A test that hand-wrote `["Deals", "Approvals"]` here
-    // would have passed while the handler stayed wrong.
+    // handler passed it. A test that hand-wrote `["DealDesk"]` here would have
+    // passed while the handler stayed wrong. One toolkit since the one-deploy
+    // change, so the six are selected by one prefix.
     const { agent } = readIdentitySurface({});
-    expect(agent.toolkits).toEqual(["Deals", "Approvals"]);
+    expect(agent.toolkits).toEqual(["DealDesk"]);
 
     const { governed, dropped } = selectGoverned(asRecord(LIVE_TOOLS_LIST), agent);
     expect(Object.keys(governed)).toHaveLength(6);
-    expect(Object.keys(governed)).toContain("Approvals_RequestApproval");
-    expect(Object.keys(governed)).toContain("Approvals_Decide");
+    expect(Object.keys(governed)).toContain("DealDesk_RequestApproval");
+    expect(Object.keys(governed)).toContain("DealDesk_Decide");
     expect(dropped).toEqual([...GATEWAY_BUILTINS]);
   });
 
@@ -98,10 +106,7 @@ describe("which tools the agent is given", () => {
     // empty prefix in a different implementation would match every tool the
     // gateway advertises, built-ins included. `wirePrefixes` drops blanks, and
     // `readIdentitySurface` filters them out before they get here.
-    expect(readIdentitySurface({ ARCADE_APPROVALS_TOOLKIT: "   " }).agent.toolkits).toEqual([
-      "Deals",
-      "Approvals",
-    ]);
+    expect(readIdentitySurface({ ARCADE_TOOLKIT: "   " }).agent.toolkits).toEqual(["DealDesk"]);
     const { governed } = selectGoverned(asRecord(LIVE_TOOLS_LIST), { toolkits: ["", "  "] });
     expect(Object.keys(governed)).toEqual([]);
   });
@@ -116,10 +121,10 @@ describe("which tools the agent is given", () => {
   });
 
   test("the prefix is the toolkit plus an underscore, which is how MCP spells it", () => {
-    // MCP: `Deals_GetDeal`. The hook frame: `Deals.GetDeal`. Two spellings of one
+    // MCP: `DealDesk_GetDeal`. The hook frame: `DealDesk.GetDeal`. Two spellings of one
     // tool; there is no third.
-    expect(wirePrefixes({ toolkits: ["Deals", "Approvals"] })).toEqual(["Deals_", "Approvals_"]);
-    expect(wirePrefixes({ toolkits: ["Deals", "  ", ""] })).toEqual(["Deals_"]);
+    expect(wirePrefixes({ toolkits: ["DealDesk"] })).toEqual(["DealDesk_"]);
+    expect(wirePrefixes({ toolkits: ["DealDesk", "  ", ""] })).toEqual(["DealDesk_"]);
   });
 });
 
@@ -127,7 +132,7 @@ describe("reading a failed tool call", () => {
   /** The shape measured off `@mastra/mcp` 1.17 on 2026-09-12. */
   const mastraToolError = (message: string) => ({
     name: "Error",
-    cause: { message, code: "MCP_CLIENT_TOOL_EXECUTION_FAILED", details: { toolName: "Deals_ApproveDiscount" } },
+    cause: { message, code: "MCP_CLIENT_TOOL_EXECUTION_FAILED", details: { toolName: "DealDesk_ApproveDiscount" } },
     id: "TOOL_EXECUTION_FAILED",
   });
 
@@ -256,7 +261,7 @@ describe("native MCP URL elicitation", () => {
             result: {
               tools: [
                 {
-                  name: "Deals_GetDeal",
+                  name: "DealDesk_GetDeal",
                   description: "Read one loan.",
                   inputSchema: { type: "object", properties: {}, required: [], additionalProperties: false },
                 },
@@ -360,7 +365,7 @@ describe("native MCP URL elicitation", () => {
               controller.enqueue({
                 type: "tool-error",
                 payload: {
-                  toolName: "Deals_GetDeal",
+                  toolName: "DealDesk_GetDeal",
                   error: { code: -32042, data: { elicitations: [request] } },
                 },
               });
@@ -382,7 +387,7 @@ describe("native MCP URL elicitation", () => {
     expect(events).toEqual([
       {
         kind: "authorization",
-        tool: "Deals_GetDeal",
+        tool: "DealDesk_GetDeal",
         url: request.url,
         instructions: request.message,
         mode: "url",
@@ -395,8 +400,8 @@ describe("native MCP URL elicitation", () => {
 
 describe("the stream protocol", () => {
   const events: ChatEvent[] = [
-    { kind: "tool-call", tool: "Deals_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
-    { kind: "denied", tool: "Deals_ApproveDiscount", reason: "DENIED: no. [ref evt_aaaaaaaaaa]", ref: "evt_aaaaaaaaaa" },
+    { kind: "tool-call", tool: "DealDesk_ApproveDiscount", inputs: { deal_id: "DL-2291", amount: 95000 } },
+    { kind: "denied", tool: "DealDesk_ApproveDiscount", reason: "DENIED: no. [ref evt_aaaaaaaaaa]", ref: "evt_aaaaaaaaaa" },
     { kind: "text", text: "I could not " },
     { kind: "text", text: "approve it." },
     { kind: "done", calls: 1 },
@@ -445,7 +450,7 @@ describe("the runnable stand-in's port", () => {
 
 describe("a tool that failed is not the same as a tool that was refused", () => {
   // Round 1 of #88's review: every non-authorization tool error was labelled
-  // `denied`. A probe with `Deals_GetDeal` failing as "The loan origination
+  // `denied`. A probe with `DealDesk_GetDeal` failing as "The loan origination
   // system could not be reached" produced
   // `{kind:"denied", reason:"The deal desk could not be reached", ref:null}`
   // — a refusal on screen that no hook made and no audit row backs.
@@ -478,7 +483,7 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
     // refusal is a decision with an audit row behind it. Rendering it as
     // plumbing would hide the one state an operator most needs to see.
     const failClosed =
-      "DENIED: the control plane cannot evaluate Deals.ApproveDiscount because its policy is " +
+      "DENIED: the control plane cannot evaluate DealDesk.ApproveDiscount because its policy is " +
       "unavailable. Do not retry; report the reference to an administrator. [ref evt_tkgv4b30gj]";
     expect(isHookDecision(failClosed)).toBe(true);
   });
@@ -486,25 +491,27 @@ describe("a tool that failed is not the same as a tool that was refused", () => 
 
 describe("the Elastic module's allow-list entry and prompt facts", () => {
   test("the Elastic toolkit joins the allow-list only when it is set, and then by the same prefix rule", () => {
-    // What `elastic-demo` advertised on 2026-09-25: every entry `Elasticsearch_<Tool>`,
-    // the same PascalCase the deals toolkit gets, because the server is `MCPApp(name="Elasticsearch")`.
-    const withElastic = [...LIVE_TOOLS_LIST, "Elasticsearch_HybridSearch", "Elasticsearch_RunEsqlQuery"];
+    // The Elasticsearch tools ship in the one server, so they carry the same
+    // prefix as the deal tools and the allow-list cannot tell them apart. What
+    // gates them is the gateway: `setup-arcade` lists them only when the
+    // module is on. The flag here decides the prompt facts, nothing else.
+    const withElastic = [...LIVE_TOOLS_LIST, "DealDesk_HybridSearch", "DealDesk_RunEsqlQuery"];
 
     const off = readIdentitySurface({}).agent;
-    expect(off.elasticToolkit).toBe("");
-    expect(off.toolkits).toEqual(["Deals", "Approvals"]);
-    expect(selectGoverned(asRecord(withElastic), off).dropped).toContain("Elasticsearch_HybridSearch");
+    expect(off.elasticEnabled).toBe(false);
+    expect(off.toolkits).toEqual(["DealDesk"]);
+    expect(Object.keys(selectGoverned(asRecord(withElastic), off).governed)).toContain("DealDesk_HybridSearch");
 
-    const on = readIdentitySurface({ ARCADE_ELASTIC_TOOLKIT: "Elasticsearch", ELASTIC_INDEX: "deal-files" }).agent;
-    expect(on.elasticToolkit).toBe("Elasticsearch");
+    const on = readIdentitySurface({ ELASTIC_MODULE: "on", ELASTIC_INDEX: "deal-files" }).agent;
+    expect(on.elasticEnabled).toBe(true);
     expect(on.elasticIndex).toBe("deal-files");
-    expect(on.toolkits).toEqual(["Deals", "Approvals", "Elasticsearch"]);
+    expect(on.toolkits).toEqual(["DealDesk"]);
     const { governed, dropped } = selectGoverned(asRecord(withElastic), on);
     expect(Object.keys(governed)).toHaveLength(8);
-    expect(Object.keys(governed)).toContain("Elasticsearch_HybridSearch");
+    expect(Object.keys(governed)).toContain("DealDesk_HybridSearch");
     expect(dropped).toEqual([...GATEWAY_BUILTINS]);
 
-    expect(readIdentitySurface({ ARCADE_ELASTIC_TOOLKIT: "  " }).agent.toolkits).toEqual(["Deals", "Approvals"]);
+    expect(readIdentitySurface({ ELASTIC_MODULE: "  " }).agent.elasticEnabled).toBe(false);
   });
 
   test("the prompt says nothing about the index unless the module is on, and then facts, never behaviour", () => {

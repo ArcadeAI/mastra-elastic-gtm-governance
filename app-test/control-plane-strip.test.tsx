@@ -59,7 +59,7 @@ const FAILED: ControlPlaneReport = {
   policy: {
     status: "failed",
     revision: 52,
-    error: 'reason names "Approvals.RequestApproval", the spelling hook payloads use',
+    error: 'reason names "DealDesk.RequestApproval", the spelling hook payloads use',
   },
 };
 
@@ -194,7 +194,7 @@ describe("what it says", () => {
     const host = await mount();
 
     expect(host.textContent).toContain("being refused");
-    expect(host.textContent).toContain("Approvals.RequestApproval");
+    expect(host.textContent).toContain("DealDesk.RequestApproval");
   });
 
   test("a long policy diagnostic remains readable in full", async () => {

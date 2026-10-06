@@ -38,8 +38,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 250,
   grantTtlSeconds: 900,
@@ -109,7 +108,7 @@ function seed(count: number, fields: SeedFields = {}): string[] {
       execution_id: `tc_seed_${index}`,
       hook: fields.hook ?? "access",
       user_id: fields.user_id ?? DANA,
-      tool: fields.tool ?? "Deals.GetDeal",
+      tool: fields.tool ?? "DealDesk.GetDeal",
       decision: fields.decision ?? "allow",
       reason: "seeded",
       rule_id: null,
@@ -127,7 +126,7 @@ const denyDana = (executionId: string) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: executionId,
-      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: "DL-2291", amount: 95_000 },
       context: { authorization: [{}], user_id: DANA },
     }),
@@ -172,7 +171,7 @@ describe("the rows are the audit rows", () => {
       hook: "pre",
       execution_id: "tc_audit_read",
       user_id: DANA,
-      tool: "Deals.ApproveDiscount",
+      tool: "DealDesk.ApproveDiscount",
       decision: "deny",
       rule_id: "pre.approve-within-clearance",
     });
@@ -212,9 +211,9 @@ describe("the rows are the audit rows", () => {
 
 describe("the filters", () => {
   beforeEach(() => {
-    seed(2, { user_id: DANA, hook: "pre", decision: "deny", tool: "Deals.ApproveDiscount" });
-    seed(3, { user_id: SAM, hook: "access", decision: "deny", tool: "Deals.ApproveDiscount" });
-    seed(4, { user_id: DANA, hook: "access", decision: "allow", tool: "Deals.GetDeal" });
+    seed(2, { user_id: DANA, hook: "pre", decision: "deny", tool: "DealDesk.ApproveDiscount" });
+    seed(3, { user_id: SAM, hook: "access", decision: "deny", tool: "DealDesk.ApproveDiscount" });
+    seed(4, { user_id: DANA, hook: "access", decision: "allow", tool: "DealDesk.GetDeal" });
   });
 
   test("user_id narrows to one persona", async () => {
@@ -230,9 +229,9 @@ describe("the filters", () => {
   });
 
   test("tool is the stored Toolkit.Tool", async () => {
-    const page = await body(await audit("?tool=Deals.ApproveDiscount"));
+    const page = await body(await audit("?tool=DealDesk.ApproveDiscount"));
     expect(page.total).toBe(5);
-    expect(page.rows.every((row) => row.tool === "Deals.ApproveDiscount")).toBe(true);
+    expect(page.rows.every((row) => row.tool === "DealDesk.ApproveDiscount")).toBe(true);
   });
 
   test("a tool nobody called returns nothing, and says nothing matched", async () => {
@@ -314,7 +313,7 @@ describe("the limit is a bound, not a suggestion", () => {
 describe("a filter that cannot mean anything is refused, never ignored", () => {
   test("an unknown query parameter is a 400 naming the ones that exist", async () => {
     seed(3);
-    const response = await audit("?toolname=Deals.GetDeal");
+    const response = await audit("?toolname=DealDesk.GetDeal");
     expect(response.status).toBe(400);
     const { error } = (await response.json()) as { error: string };
     expect(error).toContain("toolname");
@@ -411,7 +410,7 @@ describe("reading the log is not on the hook path", () => {
             execution_id: "tc_isolated",
             hook: "access",
             user_id: DANA,
-            tool: "Deals.GetDeal",
+            tool: "DealDesk.GetDeal",
             decision: "allow",
             reason: "seeded",
             rule_id: null,

@@ -85,7 +85,7 @@ beforeAll(async () => {
           APPROVALS_STORE_TOKEN: control.config.approvalsStoreToken,
           ARCADE_API_URL: control.config.arcadeApiUrl,
           ARCADE_API_KEY: control.config.arcadeApiKey,
-          ARCADE_APPROVALS_TOOLKIT: control.config.approvalsToolkit,
+          ARCADE_TOOLKIT: control.config.toolkit,
           ANTHROPIC_API_KEY: "not-used-by-this-suite",
         },
         stdout: "pipe",

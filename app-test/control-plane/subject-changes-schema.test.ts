@@ -21,7 +21,7 @@ import {
 import { addSubject, subjectChanges } from "../../lib/control-plane/subjects.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
-const OPTIONS: SeedOptions = { loanToolkit: "Deals", approvalsToolkit: "Approvals" };
+const OPTIONS: SeedOptions = { toolkit: "DealDesk" };
 
 function withDir(body: (dir: string) => void): void {
   const dir = mkdtempSync(join(tmpdir(), "cg-subject-changes-"));

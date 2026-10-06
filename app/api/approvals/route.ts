@@ -5,7 +5,7 @@
  * in-process since #4, behind the `APPROVALS_STORE_TOKEN` bearer. Under
  * `/api/approvals` because the app's `/approvals/{id}` is the approval page;
  * the service served it at `/approvals/…`. The contract is in
- * `tools/approvals/README.md`.
+ * `mcp/APPROVALS.md`.
  */
 import { serve } from "../../../lib/control-plane/instance.ts";
 

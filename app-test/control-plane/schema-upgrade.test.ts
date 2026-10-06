@@ -42,8 +42,7 @@ import {
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const OPTIONS: SeedOptions = {
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
 };
 
 /** A fresh directory per test; the caller removes it. */
@@ -109,12 +108,12 @@ const SCHEMA_BEFORE_APPROVAL_REQUESTS = `
   INSERT INTO subjects (user_id, display_name, role, clearance)
     VALUES ('alice@bank.example', 'Alice', 'account_executive', 100000);
   INSERT INTO catalogue (toolkit, tool, arguments)
-    VALUES ('Deals', 'GetDeal', '["deal_id"]');
+    VALUES ('DealDesk', 'GetDeal', '["deal_id"]');
   INSERT INTO policy_rules (id, hook, toolkit, tool, effect, reason, priority)
-    VALUES ('access.stale-fixture', 'access', 'Deals', '*', 'allow', 'from the old disk', 100);
+    VALUES ('access.stale-fixture', 'access', 'DealDesk', '*', 'allow', 'from the old disk', 100);
   INSERT INTO audit_log (id, ts, hook, user_id, tool, decision, reason)
     VALUES ('ev_old', '2026-01-01T00:00:00.000Z', 'pre', 'alice@bank.example',
-            'Deals.GetDeal', 'allow', 'recorded before the upgrade');
+            'DealDesk.GetDeal', 'allow', 'recorded before the upgrade');
 `;
 
 function writeOldDisk(path: string): void {
@@ -232,7 +231,7 @@ describe("a database written before a table existed", () => {
             execution_id: "tc_post",
             hook: "post",
             user_id: "alice@bank.example",
-            tool: "Deals.GetDeal",
+            tool: "DealDesk.GetDeal",
             decision: "modify",
             reason: "redacted",
             rule_id: "post.redact-customer-identifiers",
@@ -300,7 +299,7 @@ describe("a fresh database", () => {
           execution_id: "tc_1",
           hook: "pre",
           user_id: "alice@bank.example",
-          tool: "Deals.ApproveDiscount",
+          tool: "DealDesk.ApproveDiscount",
           decision: "allow",
           reason: "because",
           rule_id: null,
@@ -437,7 +436,7 @@ const TAX_ID = "86-7530912";
 
 /**
  * A disk at version 2 — the schema #16 left — carrying rows whose `before`
- * and `after` hold raw `Deals.GetDeal` output. This is the shape of the stage
+ * and `after` hold raw `DealDesk.GetDeal` output. This is the shape of the stage
  * demo's disk: ~745,000 rows, most of them written before #101 stopped
  * binding those columns.
  *
@@ -463,7 +462,7 @@ function writeDiskAtVersion2(path: string, rows = 200): void {
       // decoration: measured, a bare `DROP COLUMN` zeroes what it defragments
       // inside a page and leaves the freed overflow pages verbatim, so the
       // same value ahead of the filler comes back clean and behind it does
-      // not. The real `Deals.GetDeal` output has `crm_notes` in it.
+      // not. The real `DealDesk.GetDeal` output has `crm_notes` in it.
       const payload = JSON.stringify({
         deal_id: "DL-2291",
         customer: "Northwind Robotics",
@@ -477,7 +476,7 @@ function writeDiskAtVersion2(path: string, rows = 200): void {
         `tc_${i}`,
         "post",
         "alice@bank.example",
-        "Deals.GetDeal",
+        "DealDesk.GetDeal",
         "modify",
         "Sensitive field masked.",
         "post.redact-customer-identifiers",
@@ -732,8 +731,7 @@ describe("GET /health after a migration (#103)", () => {
     // Unset, so `POST /admin/reset` is not mounted (#106): this file is about
     // the schema upgrade, not the reset.
     resetToken: "",
-    loanToolkit: "Deals",
-    approvalsToolkit: "Approvals",
+    toolkit: "DealDesk",
     deadlineMs: 2500,
     policyPollMs: 250,
     grantTtlSeconds: 900,

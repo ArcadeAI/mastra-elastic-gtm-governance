@@ -40,7 +40,7 @@ POST /api/approvals/{id}/decision record an outcome
 in the generated `HealthResponse` vocabulary, and a test holds it to that schema. The app's
 own `/health` is a different endpoint, DESIGN.md's `ok|degraded` for the whole app.
 
-**Which host reads what.** `APP_PUBLIC_HOST` is the public, bare host: what `tools/approvals`
+**Which host reads what.** `APP_PUBLIC_HOST` is the public, bare host: what `mcp/deal_desk/approvals.py`
 calls (`/api/approvals/…`) and what the panel's browser opens (`/hooks/events`). The app's own
 server-side readers (the panel's status strip on `/hooks/health`, the Reset button on
 `/hooks/admin/reset`, the approval page and the resume path on `/api/approvals/…`) read
@@ -55,15 +55,15 @@ response bodies are the generated types in `@cg/policy-schema` — `deny` takes 
 Arcade project to be the one shape that does not take every tool in the project down with it.
 
 The four `/api/approvals` endpoints require a **different** bearer,
-`Authorization: Bearer $APPROVALS_STORE_TOKEN` — the deployed `tools/approvals` worker and the
+`Authorization: Bearer $TOOLKIT_STORE_TOKEN` — the deployed `mcp/deal_desk/approvals.py` worker and the
 approval page hold that one, Arcade holds the other, and neither is accepted in the other's
 place. The contract those four answer to is written out under "The approvals store contract" in
-[`tools/approvals/README.md`](../tools/approvals/README.md), and is driven from both sides:
+[`mcp/APPROVALS.md`](../mcp/APPROVALS.md), and is driven from both sides:
 `app-test/control-plane/approvals-endpoints.test.ts` here and `tests/test_store_contract.py` there.
 
 **None of the four authorizes anything.** The bearer says the caller is the toolkit or the page
 rather than a stranger, and that is all it says. Whether the person looking may *decide* is a
-`/pre` decision on `Approvals.Decide` — see below.
+`/pre` decision on `DealDesk.Decide` — see below.
 
 ```sh
 bun run dev                              # the app, which serves all of the above on its PORT
@@ -118,13 +118,13 @@ Two rules are seeded, and they are two on purpose:
 
 | rule | what it does | who it applies to |
 |---|---|---|
-| `post.redact-customer-identifiers` | masks `bank_account_number` and `tax_id` on `Deals.GetDeal` | clearance under 250000 — Alice and Bob, not Charlie or Michael |
+| `post.redact-customer-identifiers` | masks `bank_account_number` and `tax_id` on `DealDesk.GetDeal` | clearance under 250000 — Alice and Bob, not Charlie or Michael |
 | `post.strip-injected-instructions` | removes an instruction addressed to the model out of free text | everyone |
 
 Act 3 is a claim about identity, so its rule names a bar: if everybody were redacted, the
 demo would be showing a property of the tool rather than of who called it. Act 4 is not a
 claim about identity, so its rule names nobody — a chief revenue officer must not be the one
-persona who reads a planted instruction. Both fire on the same `Deals.GetDeal`, redaction is
+persona who reads a planted instruction. Both fire on the same `DealDesk.GetDeal`, redaction is
 cumulative, and the audit row names each by id.
 
 The event carries `redactions[]` — path, `rule_id`, `pattern_id`, kind — and **no payload**.
@@ -153,7 +153,7 @@ so `redactions[]` says which shape fired:
 | `pattern.injected-instruction` | a pasted block announcing itself to an automated reader — #16's floor, unchanged |
 | `pattern.instruction-override` | *"disregard your previous instructions"* and its synonyms |
 | `pattern.addressed-to-the-model` | a note whose reader is an AI, an LLM or an automated reviewer |
-| `pattern.tool-call-directive` | an imperative naming a tool: `approve_discount`, `Deals_ApproveDiscount` |
+| `pattern.tool-call-directive` | an imperative naming a tool: `approve_discount`, `DealDesk_ApproveDiscount` |
 | `pattern.concealment-directive` | *"do not mention this note to the officer"* |
 | `pattern.conversation-delimiter` | `<|im_start|>`, `### SYSTEM`, `[INST]` pasted into a business field |
 
@@ -277,7 +277,7 @@ line below is the 473 MB synthetic run above, not the live disk:
 ```
 
 Two things in the fixture are substituted at seed time and nowhere else: the toolkit names
-(`$LOAN`, `$APPROVALS` → `ARCADE_LOAN_TOOLKIT`, `ARCADE_APPROVALS_TOOLKIT`) and the persona
+(`$TOOLKIT`, `$TOOLKIT` → `ARCADE_TOOLKIT`, `ARCADE_TOOLKIT`) and the persona
 emails (the same four role variables the identity module, `lib/identity/provider/`, reads, so the two databases
 cannot disagree about who a persona is). Tool names are PascalCase — `ApproveDiscount`, not
 `approve_discount` — because that is what `arcade-mcp` produces (measured, #35). A rule keyed on the
@@ -626,7 +626,7 @@ Three things about it, each of which is a decision rather than an accident
   enforces exactly that. A store write is not a hook decision and carries no `execution_id`;
   recording one as a fourth kind of hook would be a fiction in the log. #19's driver ruling
   said so, and it still holds — routing and outcome reach the panel through the real `/pre`
-  rows on `Approvals.RequestApproval` and `Approvals.Decide`.
+  rows on `DealDesk.RequestApproval` and `DealDesk.Decide`.
 - **It carries no `id:` line.** `Last-Event-ID` here is defined over `audit_log`, and a
   notice has no row and therefore no position. Per the SSE spec a frame with no `id:` leaves
   the client's last event id untouched, so the governance replay is exactly as it was. The
@@ -672,7 +672,7 @@ it used to hold.
 | filter | matches |
 |---|---|
 | `user_id` | the acting persona, case-insensitively — nothing normalises what Arcade puts on a payload |
-| `tool` | the stored `Toolkit.Tool` exactly: `Deals.GetDeal`, never `get_deal` |
+| `tool` | the stored `Toolkit.Tool` exactly: `DealDesk.GetDeal`, never `get_deal` |
 | `hook` | `access`, `pre` or `post` |
 | `decision` | `allow`, `deny` or `modify` |
 | `since` | rows at or after an ISO 8601 instant; a bare `2026-09-10` is normalised to midnight UTC |
@@ -714,7 +714,7 @@ it, in brackets:
 
 ```
 DENIED: approving DL-2291 for 95000 exceeds your approval authority of 50000. To proceed,
-call Approvals.RequestApproval with … then retry Deals.ApproveDiscount … unchanged. [ref evt_4k7xq2m9hz]
+call DealDesk.RequestApproval with … then retry DealDesk.ApproveDiscount … unchanged. [ref evt_4k7xq2m9hz]
 ```
 
 `correlation.ts` exports `CORRELATION_TOKEN` and `correlationId()`; the panel (#21) parses the
@@ -724,7 +724,7 @@ theirs and undocumented. Allows carry `execution_id` on the hook payload and nee
 
 ## The approval action is itself governed
 
-`Approvals.Decide` goes through `/pre` like any other tool call, and four rows in `policy_rules`
+`DealDesk.Decide` goes through `/pre` like any other tool call, and four rows in `policy_rules`
 decide it: `pre.decide-needs-a-known-request`, `pre.decide-not-by-the-requester`,
 `pre.decide-within-clearance` and `pre.decide-only-while-pending`. They are policy, editable on
 stage, not `if`s in this service.
@@ -826,7 +826,7 @@ Three ways to count were on the table, and the argument is in `lib/control-plane
 
 **C is what runs**, and it is what the human chose on #107 after the numbers went on the issue.
 A tool whose toolkit the loaded catalogue lists gets its own row, exactly as before — act 1 is
-still `Deals.ApproveDiscount`, `deny`, `access.analysts-cannot-see-approve`, with the three allows
+still `DealDesk.ApproveDiscount`, `deny`, `access.analysts-cannot-see-approve`, with the three allows
 beside it, because a rule that matches nothing has to keep looking different from a rule that
 permits. Everything else collapses into one row per call:
 
@@ -880,7 +880,7 @@ instruction and nothing else.
 Writing an approval record or a decision is **not** a decision, so neither appends a row here.
 `GovernanceEvent` is the record of hook decisions, and a row no hook produced would be fiction.
 The routing and the outcome reach the panel through the real `/pre` rows on
-`Approvals.RequestApproval` and `Approvals.Decide`, whose reasons name them.
+`DealDesk.RequestApproval` and `DealDesk.Decide`, whose reasons name them.
 
 ### What the log costs, and the bound on it
 

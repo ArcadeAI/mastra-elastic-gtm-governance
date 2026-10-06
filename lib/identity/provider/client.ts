@@ -27,7 +27,7 @@ import { PRIMARY_CLIENT_KEY, type OAuthClientSpec } from "./config.ts";
 
 /**
  * The id the Arcade auth provider for hop 2 is registered under, and the one
- * `tools/loan` names in `OAuth2(id=...)` (`IDP_PROVIDER_ID` there). Fixed, not
+ * `mcp/deal_desk/deals.py` names in `OAuth2(id=...)` (`IDP_PROVIDER_ID` there). Fixed, not
  * configurable: the toolkit reads it at import, and the README tells a
  * developer to register the provider under exactly this string. `cg-idp`, the
  * demo's service name, until #6. Named here only so the messages that tell a

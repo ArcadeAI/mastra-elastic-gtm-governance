@@ -413,7 +413,7 @@ export type ApprovalRequest = z.infer<typeof ApprovalRequest>;
 
 /**
  * The **wire record** the approvals store returns — one shape from all three
- * record-returning endpoints of the contract in `tools/approvals/README.md`.
+ * record-returning endpoints of the contract in `mcp/APPROVALS.md`.
  *
  * Distinct from `ApprovalRequest` above, and deliberately so. That type is the
  * control plane's internal view: a `ToolMatcher` and the raw `inputs` a grant

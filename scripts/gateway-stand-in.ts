@@ -19,9 +19,9 @@
  *      in the shape spike #2 measured off real Arcade over MCP:
  *      `{ isError: true, content: [{ type: "text", text: "<PREFIX><error_message>" }] }`,
  *      with the hook's `error_message` verbatim behind Arcade's fixed prefix.
- *   3. On `OK`, the tool runs — which for `tools/loan` is one HTTP call to
+ *   3. On `OK`, the tool runs — which for `mcp/deal_desk/deals.py` is one HTTP call to
  *      the loan API carrying the persona's bearer, exactly what the deployed
- *      Python toolkit does (`tools/loan/loan/__init__.py::_call`).
+ *      Python toolkit does (`mcp/deal_desk/deals.py::_call`).
  *   4. `POST /post` on the same control plane with what the tool returned, and
  *      **the model is handed `override.output` when the hook sends one** (#16).
  *      `CHECK_FAILED` there withholds the output entirely, in the same
@@ -48,12 +48,12 @@
  *
  * Not real, and deliberately so:
  *
- * - **Slack.** With a store token, `Approvals_RequestApproval` routes by #9's
+ * - **Slack.** With a store token, `DealDesk_RequestApproval` routes by #9's
  *   real rule and records the request against the real `/approvals` endpoints,
  *   and then does not post a DM, because a user token for Slack is a credential
  *   no local run holds. The result says that in words rather than reporting a
  *   `slack_message_ts` it invented — an agent that believes it has escalated
- *   something nobody will see is the one failure `tools/approvals` spends a
+ *   something nobody will see is the one failure `mcp/deal_desk/approvals.py` spends a
  *   comment block on. Without a store token the two approvals tools are still
  *   advertised and still governed, and a call to one is refused with a sentence
  *   saying so: being in the list is what act 2's second half needs (#89), and
@@ -126,14 +126,14 @@ export const GATEWAY_BUILTINS = ["System_ManageAuthorization", "Arcade_ListApps"
  * how — or whether — this stand-in runs it once `/pre` has allowed the call.
  *
  * Two targets, because the two deployed toolkits are stateless clients of two
- * different services and neither of them is Arcade. `tools/loan` calls
- * the loan API with the persona's bearer; `tools/approvals` calls the
+ * different services and neither of them is Arcade. `mcp/deal_desk/deals.py` calls
+ * the loan API with the persona's bearer; `mcp/deal_desk/approvals.py` calls the
  * `/approvals` endpoints on `apps/hooks` with the shared store token. The
  * split is `arcade deploy`'s, not this file's — see `DESIGN.md` → Services.
  *
  * **Advertising a tool and running it are two different things**, and the
  * approvals toolkit is where the difference is load-bearing in both directions.
- * The agent has to be able to *see* `Approvals_RequestApproval`, because the
+ * The agent has to be able to *see* `DealDesk_RequestApproval`, because the
  * pre-hook's remediation sentence names it and a model that cannot see it
  * refuses the instruction (#89) — so it is always advertised, always submitted
  * to `/access`, always governed at `/pre`. Whether it then *runs* depends on
@@ -189,12 +189,12 @@ const num = (description: string) => ({ type: "number", description });
 /**
  * The deal tools, named the way the wire names them.
  *
- * `Deals_GetDeal` with an underscore, because that is what MCP carries; the hook
- * frame names the same tool `Deals.GetDeal` with a dot. Two spellings of one
+ * `DealDesk_GetDeal` with an underscore, because that is what MCP carries; the hook
+ * frame names the same tool `DealDesk.GetDeal` with a dot. Two spellings of one
  * tool, and neither is invented here: `qualifiedToolName` below is the only
  * place that converts between them.
  *
- * The descriptions are shortened from `tools/loan`'s. They are what the model
+ * The descriptions are shortened from `mcp/deal_desk/deals.py`'s. They are what the model
  * picks a tool from, so they say what each one does and nothing about who may
  * do it — authority is the control plane's question, asked after the model has
  * already chosen (`DESIGN.md` → Thesis).
@@ -269,10 +269,10 @@ function loanTools(toolkit: string): LoanToolSpec[] {
 }
 
 /**
- * The half of `tools/approvals` that is not Slack, as an HTTP client of the
+ * The half of `mcp/deal_desk/approvals.py` that is not Slack, as an HTTP client of the
  * `/approvals` endpoints.
  *
- * Each method mirrors one tool body in `tools/approvals/approvals/__init__.py`,
+ * Each method mirrors one tool body in `mcp/deal_desk/approvals.py`,
  * including the two places that one raises rather than returns: an amount
  * nobody on the roster can cover, and a store that would not record the
  * request. Returning a plausible success there would let an agent believe it
@@ -325,7 +325,7 @@ function createApprovalsStore(options: {
       }
       const roster = ((await rosterResponse.json()) as { subjects?: Subject[] }).subjects ?? [];
 
-      // #9's rule, the real module, the same one `tools/approvals` is checked
+      // #9's rule, the real module, the same one `mcp/deal_desk/approvals.py` is checked
       // against. The agent does not choose the approver and neither does this.
       const routed = routeApproval(amount, actor, roster);
       if (routed.outcome === "no_eligible_approver") {
@@ -373,7 +373,7 @@ function createApprovalsStore(options: {
           // Not a `slack_message_ts`, because no message was sent. Saying so
           // is the difference between "go and tell Charlie" and an agent that
           // believes it has escalated something nobody has seen — the same
-          // distinction `tools/approvals` raises a `ToolExecutionError` for
+          // distinction `mcp/deal_desk/approvals.py` raises a `ToolExecutionError` for
           // when Slack refuses.
           notification:
             "No Slack message was sent: this is the offline gateway stand-in, which holds no " +
@@ -411,7 +411,7 @@ function createApprovalsStore(options: {
  *
  * They exist in this file for one reason: `tools/list` is where the agent's
  * surface comes from, and act 2's second half is the model reading a denial
- * that says *"call `Approvals_RequestApproval`"* and doing it. A stand-in that
+ * that says *"call `DealDesk_RequestApproval`"* and doing it. A stand-in that
  * advertised the deals toolkit alone would make that impossible offline and
  * would make it look like a model problem — which is exactly how #89 was found.
  *
@@ -475,7 +475,7 @@ function approvalsTools(toolkit: string, store?: ApprovalsStore): ApprovalsToolS
 }
 
 /**
- * `Deals_GetDeal` → `{ toolkit: "Deals", name: "GetDeal" }`.
+ * `DealDesk_GetDeal` → `{ toolkit: "DealDesk", name: "GetDeal" }`.
  *
  * The first underscore separates them, and only the first: every tool name
  * `arcade-mcp` produces is PascalCase on both sides, so a later underscore
@@ -500,17 +500,13 @@ export interface GatewayStandInOptions {
   hookSigningSecret: string;
   /** The loan API's host (the app's, since #5), HOST-form. The tools are stateless clients of it. */
   loanAppHost: string;
-  /** `tool.toolkit` as Arcade files the deployed deals toolkit. */
-  loanToolkit?: string;
   /**
-   * `tool.toolkit` as Arcade files the deployed approvals toolkit.
-   *
-   * Always advertised, whether or not this is set — the default is the name
-   * `.env.example` pins. The agent has to be able to see
-   * `Approvals_RequestApproval` because the pre-hook's remediation sentence
-   * names it (#89).
+   * `tool.toolkit` as Arcade files the one deployed server: every tool, the
+   * approvals ones included, is advertised under it, so the agent can always
+   * see `DealDesk_RequestApproval`, which the pre-hook's remediation sentence
+   * names (#89). The default is the name `.env.example` pins.
    */
-  approvalsToolkit?: string;
+  toolkit?: string;
   /**
    * The shared `APPROVALS_STORE_TOKEN` the two approvals tools present, which
    * is what makes them **runnable** here (#20).
@@ -591,8 +587,7 @@ type AuthorizationChallenge =
   | { kind: "protocol"; request?: NativeAuthorizationRequest };
 
 export function createGatewayStandIn(options: GatewayStandInOptions): GatewayStandIn {
-  const toolkit = options.loanToolkit ?? "Deals";
-  const approvalsToolkit = options.approvalsToolkit?.trim() || "Approvals";
+  const toolkit = options.toolkit?.trim() || "DealDesk";
   const actors = new Map<string, string>();
   const challenges = new Map<string, AuthorizationChallenge>();
   const pendingElicitations = new Map<string, (result: unknown) => void>();
@@ -603,7 +598,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
     host.startsWith("localhost") || host.startsWith("127.0.0.1") ? `http://${host}` : `https://${host}`;
   const hooks = base(options.hooksHost);
   // The loan API sits under `/bank` on its host since #5, which is where
-  // `tools/loan` calls it (`API_BASE_PATH` there). Written out rather than
+  // `mcp/deal_desk/deals.py` calls it (`API_BASE_PATH` there). Written out rather than
   // imported: this plays the deployed toolkit, and the toolkit cannot import
   // the app either.
   const loanApp = `${base(options.loanAppHost)}/bank`;
@@ -627,7 +622,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
   // and the request below has to carry every one of them.
   const byToolkit: Record<string, ToolSpec[]> = {
     [toolkit]: loanTools(toolkit),
-    [approvalsToolkit]: approvalsTools(approvalsToolkit, approvalsStore),
+    [toolkit]: approvalsTools(toolkit, approvalsStore),
   };
   const tools = Object.values(byToolkit).flat();
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
@@ -643,7 +638,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
    * so the two have to agree exactly. The version string is the one every other
    * payload in this file carries.
    *
-   * Returns wire names (`Deals_ApproveDiscount`), because that is what `tools/list`
+   * Returns wire names (`DealDesk_ApproveDiscount`), because that is what `tools/list`
    * answers in; `/access` speaks tool-and-toolkit, and this is the join.
    */
   async function hiddenFor(actor: string): Promise<{ ok: true; tools: Set<string> } | { ok: false; reason: string }> {
@@ -927,15 +922,15 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
         return rpc(
           message.id,
           toolError(
-            `"${wire}" passed /pre. This stand-in advertises the ${approvalsToolkit} toolkit so the ` +
+            `"${wire}" passed /pre. This stand-in advertises the ${toolkit} toolkit so the ` +
               `agent can reach it, but it holds no APPROVALS_STORE_TOKEN, so it cannot record the ` +
               `request or route an approver. Tell the user the request could not be sent.`,
           ),
         );
       }
 
-      // The tool itself. Two targets, one `/post` below: `tools/loan` is a
-      // client of the loan API with the persona's bearer, `tools/approvals`
+      // The tool itself. Two targets, one `/post` below: `mcp/deal_desk/deals.py` is a
+      // client of the loan API with the persona's bearer, `mcp/deal_desk/approvals.py`
       // is a client of the `/approvals` endpoints with the store token. Both
       // run only because `/pre` said OK, and both are asked about at `/post`.
       let payload: Record<string, unknown> | null;
@@ -1155,7 +1150,7 @@ if (import.meta.main) {
   const gatewayId = env.ARCADE_GATEWAY_ID?.trim() || "cg-demo-us";
   const hooksHost = env.APP_PUBLIC_HOST?.trim() || "localhost:3000";
   // Both toolkits always — the agent has to be able to see
-  // `Approvals_RequestApproval`, because the pre-hook's remediation sentence
+  // `DealDesk_RequestApproval`, because the pre-hook's remediation sentence
   // names it (#89). The store token is what decides whether they *run*.
   const storeToken = env.APPROVALS_STORE_TOKEN?.trim() || "";
   const standIn = createGatewayStandIn({
@@ -1164,9 +1159,8 @@ if (import.meta.main) {
     hookSigningSecret: env.ARCADE_HOOK_SIGNING_SECRET?.trim() || "cg-hooks-dev-secret-not-for-production",
     // The app's own default since #5: the loan API is a module of the app.
     loanAppHost: env.APP_PUBLIC_HOST?.trim() || "localhost:3000",
-    loanToolkit: env.ARCADE_LOAN_TOOLKIT?.trim() || "Deals",
-    // Advertised either way; runnable only with a store token.
-    approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT?.trim() || "Approvals",
+    toolkit: env.ARCADE_TOOLKIT?.trim() || "DealDesk",
+    // The approvals tools are advertised either way; runnable only with a store token.
     ...(storeToken === ""
       ? {}
       : {

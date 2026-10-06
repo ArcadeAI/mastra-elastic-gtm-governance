@@ -183,8 +183,7 @@ try {
         ARCADE_API_URL: agents.gateway.url,
         ARCADE_API_KEY: "arcade-key-for-local-chat-evidence",
         ARCADE_GATEWAY_ID: "cg-demo-us",
-        ARCADE_LOAN_TOOLKIT: LOAN_TOOLKIT,
-        ARCADE_APPROVALS_TOOLKIT: APPROVALS_TOOLKIT,
+        ARCADE_TOOLKIT: LOAN_TOOLKIT,
         ANTHROPIC_API_KEY: "not-used-the-chat-route-is-routed-to-the-harness",
         MODEL_ID: "claude-sonnet-5",
         SESSION_SECRET,
@@ -320,12 +319,12 @@ try {
     })()`,
   );
   await Bun.sleep(200);
-  await shoot("02-typed-done-tool-json", "typed 'done' resumed the read; Deals_GetDeal row expanded to its arguments and post-hook result");
+  await shoot("02-typed-done-tool-json", "typed 'done' resumed the read; DealDesk_GetDeal row expanded to its arguments and post-hook result");
 
   // 3. The $95K approval, mid-turn.
   await type(DEMO_PROMPT);
   await send();
-  await waitFor("Calling Deals_ApproveDiscount…", async () => (await status()) === `Calling ${APPROVE_LOAN}…`, 60_000);
+  await waitFor("Calling DealDesk_ApproveDiscount…", async () => (await status()) === `Calling ${APPROVE_LOAN}…`, 60_000);
   await toBottom();
   await shoot("03-calling-approve", `status line: ${await status()}`);
 

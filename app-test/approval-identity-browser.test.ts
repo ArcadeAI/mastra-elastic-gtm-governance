@@ -107,7 +107,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
             APPROVALS_STORE_TOKEN: harness.config.approvalsStoreToken,
             ARCADE_API_URL: harness.config.arcadeApiUrl,
             ARCADE_API_KEY: harness.config.arcadeApiKey,
-            ARCADE_APPROVALS_TOOLKIT: harness.config.approvalsToolkit,
+            ARCADE_TOOLKIT: harness.config.toolkit,
             ANTHROPIC_API_KEY: "not-used-by-this-suite",
           },
           stdout: "pipe",
@@ -137,7 +137,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       await cdp.command("Runtime.enable");
       await cdp.command("Network.enable");
 
-      // ---- the escalation, exactly as `tools/approvals` writes it ---------
+      // ---- the escalation, exactly as `mcp/deal_desk/approvals.py` writes it ---------
       // Alice raised it; routing sent it to Charlie and left Michael alone.
       const request = await control.escalate();
       const id = String(request.id);
@@ -170,12 +170,12 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
 
       // The call reached the pre-hook as **Alice** — not as the routed
       // approver the page used to assume the opener was.
-      expect(control.preCalls).toEqual([{ user_id: DANA, tool: "Approvals.Decide" }]);
+      expect(control.preCalls).toEqual([{ user_id: DANA, tool: "DealDesk.Decide" }]);
 
       // And the audit row names her. A row naming Charlie for a decision
       // Charlie was not present for is worse than no row: it is wrong in a way
       // indistinguishable from the correct case.
-      const denials = await audit(control.hooksHost, { hook: "pre", decision: "deny", tool: "Approvals.Decide" });
+      const denials = await audit(control.hooksHost, { hook: "pre", decision: "deny", tool: "DealDesk.Decide" });
       expect(denials.length).toBe(1);
       expect(denials[0]).toMatchObject({ user_id: DANA });
       expect(JSON.stringify(denials[0])).toContain("decide-not-by-the-requester");
@@ -198,7 +198,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       expect(recorded).toContain("Decision recorded");
       expect(recorded).not.toContain("CHECK_FAILED");
       expect(await control.read(id)).toMatchObject({ status: "approved", decided_by: RILEY });
-      expect(control.preCalls).toEqual([{ user_id: RILEY, tool: "Approvals.Decide" }]);
+      expect(control.preCalls).toEqual([{ user_id: RILEY, tool: "DealDesk.Decide" }]);
 
       // ---- A browser whose session is gone by the time it presses ---------
       // #6, criterion 4: the decider comes from the sealed session and from

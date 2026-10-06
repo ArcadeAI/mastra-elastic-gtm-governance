@@ -36,8 +36,10 @@ const SHIPPED = [
   "packages/governance-core/src",
   "packages/policy-schema/src",
   "packages/policy-schema/contract",
-  "tools/loan/loan",
-  "tools/approvals/approvals",
+  "mcp/deal_desk/deals.py",
+  "mcp/deal_desk/approvals.py",
+  "mcp/deal_desk/elasticsearch.py",
+  "mcp/deal_desk",
 ];
 const files = [
   ...SHIPPED.flatMap((dir) => [...new Glob(`${dir}/**/*.{ts,tsx,py}`).scanSync({ cwd: ROOT })]),

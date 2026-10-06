@@ -55,9 +55,9 @@ function session(email: string): Session {
 const SAM_TOOLS: SessionTools = {
   ok: true,
   tools: [
-    { name: "Deals_SearchDeals", description: "Find discount requests in the deal book." },
-    { name: "Deals_GetDeal", description: "Read one discount requests's complete file by ID." },
-    { name: "Deals_DenyDiscount", description: "Decline a discount requests with a stated reason." },
+    { name: "DealDesk_SearchDeals", description: "Find discount requests in the deal book." },
+    { name: "DealDesk_GetDeal", description: "Read one discount requests's complete file by ID." },
+    { name: "DealDesk_DenyDiscount", description: "Decline a discount requests with a stated reason." },
   ],
   filtered: ["System_ManageAuthorization", "Arcade_ListApps"],
 };
@@ -66,7 +66,7 @@ const DANA_TOOLS: SessionTools = {
   ok: true,
   tools: [
     ...SAM_TOOLS.ok ? SAM_TOOLS.tools : [],
-    { name: "Deals_ApproveDiscount", description: "Approve a discount requests for a given dollar amount." },
+    { name: "DealDesk_ApproveDiscount", description: "Approve a discount requests for a given dollar amount." },
   ],
   filtered: ["System_ManageAuthorization", "Arcade_ListApps"],
 };
@@ -152,9 +152,9 @@ describe("the tool list", () => {
   test("as Bob the approval tool is absent — not struck through, not greyed out, absent", () => {
     const markup = render({ session: session(SAM), tools: SAM_TOOLS });
 
-    expect(markup).toContain("Deals_SearchDeals");
-    expect(markup).toContain("Deals_GetDeal");
-    expect(markup).toContain("Deals_DenyDiscount");
+    expect(markup).toContain("DealDesk_SearchDeals");
+    expect(markup).toContain("DealDesk_GetDeal");
+    expect(markup).toContain("DealDesk_DenyDiscount");
     // The assertion the whole act rests on. There is nothing on this screen for
     // anyone to point at and ask "why is it still there?"
     expect(markup).not.toContain("ApproveDiscount");
@@ -162,7 +162,7 @@ describe("the tool list", () => {
   });
 
   test("as Alice it is there", () => {
-    expect(render({ session: session(DANA), tools: DANA_TOOLS })).toContain("Deals_ApproveDiscount");
+    expect(render({ session: session(DANA), tools: DANA_TOOLS })).toContain("DealDesk_ApproveDiscount");
   });
 
   test("the page says where the list came from, and that it was not filtered here", () => {

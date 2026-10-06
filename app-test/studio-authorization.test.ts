@@ -6,7 +6,7 @@
  * the result drawn as `[object Object]`, so the person had no link to follow.
  *
  * Each test drives one turn through the agent Studio registers
- * (`studioAgent`), against the gateway stand-in answering `Deals_GetDeal` with
+ * (`studioAgent`), against the gateway stand-in answering `DealDesk_GetDeal` with
  * one of the challenge shapes the chat route already reads. The chunk for that
  * call is sent through JSON, as Studio's server streams it, and drawn with the
  * function Studio's own page draws a tool error with, read out of the Studio
@@ -26,7 +26,7 @@ import { scriptedModel } from "./model.ts";
 import { forgetStudioGrant, holdGatewayGrant, studioAgent } from "../lib/agent/studio.ts";
 
 const ROOT = join(import.meta.dir, "..");
-const TOOL = "Deals_GetDeal";
+const TOOL = "DealDesk_GetDeal";
 
 /**
  * Studio's own "error text" function, out of the bundle `mastra dev` serves.
@@ -68,8 +68,7 @@ beforeAll(async () => {
   const env: Record<string, string> = {
     ARCADE_API_URL: harness.config.arcadeApiUrl,
     ARCADE_GATEWAY_ID: harness.config.identity.gatewayId,
-    ARCADE_LOAN_TOOLKIT: harness.config.agent.toolkits[0]!,
-    ARCADE_APPROVALS_TOOLKIT: harness.config.agent.approvalsToolkit,
+    ARCADE_TOOLKIT: harness.config.agent.toolkits[0]!,
     ANTHROPIC_API_KEY: harness.config.agent.anthropicApiKey,
     MODEL_ID: harness.config.agent.modelId,
     APP_PUBLIC_HOST: "lal-tunnel.example",
@@ -149,13 +148,13 @@ describe("a Deals tool that needs authorizing, in Studio", () => {
 
   test("a hook denial is still a tool error, and Studio draws it as the hook's own words", async () => {
     holdGatewayGrant({ access_token: harness.tokenFor(DANA), expires_at: Date.now() + 3_600_000, client_id: "studio-authorization-tests" });
-    const script = scriptedModel([{ call: "Deals_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 } }, { say: "Noted." }]);
+    const script = scriptedModel([{ call: "DealDesk_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 } }, { say: "Noted." }]);
     const agent = studioAgent({ port: 4999 });
     agent.__updateModel({ model: script.model as never });
     const streamed = await agent.stream("Approve the loan for $95K.");
     const outcomes: Array<{ type: string; shown: string }> = [];
     for await (const chunk of streamed.fullStream as AsyncIterable<{ type: string; payload: Record<string, unknown> }>) {
-      if (chunk.payload?.toolName === "Deals_ApproveDiscount" && /^tool-(error|result)$/.test(chunk.type)) {
+      if (chunk.payload?.toolName === "DealDesk_ApproveDiscount" && /^tool-(error|result)$/.test(chunk.type)) {
         outcomes.push({ type: chunk.type, shown: drawn(chunk, errorText) });
       }
     }

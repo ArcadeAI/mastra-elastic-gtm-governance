@@ -17,7 +17,7 @@
  *    against a grant that is still `pending` and therefore still refused —
  *    round 1 of #52's review, one layer up. This is checked by making the
  *    *retry itself* the assertion: the moment the frame lands, a `/pre` on
- *    `Deals.ApproveDiscount` is fired and must be allowed.
+ *    `DealDesk.ApproveDiscount` is fired and must be allowed.
  * 4. The panel is unaffected: a client filtering on `event: governance` — which
  *    is what `lib/governance/subscribe.ts` does — never sees one.
  */
@@ -53,8 +53,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 10_000,
   grantTtlSeconds: 900,
@@ -62,7 +61,7 @@ const config: HooksConfig = {
   resetToken: "",
 };
 
-/** Act 2's escalation, as `tools/approvals` sends it. */
+/** Act 2's escalation, as `mcp/deal_desk/approvals.py` sends it. */
 const ESCALATION = {
   requester_id: DANA,
   action: "approve_discount",
@@ -140,11 +139,11 @@ async function pre(
  * to the database.
  */
 async function upToTheClick(): Promise<ApprovalRecord> {
-  const refused = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+  const refused = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
   expect(refused.code).toBe("CHECK_FAILED");
 
   const request = await escalate();
-  const decide = await pre(RILEY, "Approvals", "Decide", {
+  const decide = await pre(RILEY, "DealDesk", "Decide", {
     request_id: request.id,
     decision: "approved",
   });
@@ -322,7 +321,7 @@ describe("the notice is published after the grant is usable, not before", () => 
     // The retry, made as a browser would make it: on the frame, with no wait
     // and no poll in between. The assertion is the whole ordering claim — if
     // the notice could ever precede the commit, this is the call that fails.
-    const retry = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const retry = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(retry.code).toBe("OK");
 
     reader.abort();

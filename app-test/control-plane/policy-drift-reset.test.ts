@@ -51,8 +51,7 @@ const baseConfig: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: "test-store-token",
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: POLL_MS,
   grantTtlSeconds: 900,
@@ -72,10 +71,10 @@ const baseConfig: HooksConfig = {
  */
 function pre89Fixture(): unknown {
   const text = JSON.stringify(rawFixture)
-    .split("$APPROVALS_RequestApproval")
-    .join("$APPROVALS.RequestApproval")
-    .split("$LOAN_ApproveDiscount")
-    .join("$LOAN.ApproveDiscount");
+    .split("$TOOLKIT_RequestApproval")
+    .join("$TOOLKIT.RequestApproval")
+    .split("$TOOLKIT_ApproveDiscount")
+    .join("$TOOLKIT.ApproveDiscount");
   return JSON.parse(text) as unknown;
 }
 
@@ -190,7 +189,7 @@ const pre = (base: string, tool: string, inputs: Record<string, unknown>) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_${Math.random().toString(36).slice(2)}`,
-      tool: { name: tool, toolkit: "Deals", version: "1.0.0" },
+      tool: { name: tool, toolkit: "DealDesk", version: "1.0.0" },
       inputs,
       context: { authorization: [{}], user_id: DANA },
     }),
@@ -227,8 +226,8 @@ describe("/health is 200 even when the policy will not compile (#112)", () => {
     expect(body.status).toBe("degraded");
     expect(body.policy.status).toBe("failed");
     // The compile error, in the body, in words a human can act on.
-    expect(body.policy.error).toMatch(/Approvals\.RequestApproval/);
-    expect(body.warnings.join(" ")).toMatch(/Approvals_RequestApproval/);
+    expect(body.policy.error).toMatch(/DealDesk\.RequestApproval/);
+    expect(body.warnings.join(" ")).toMatch(/DealDesk_RequestApproval/);
   });
 
   test("and the hooks it fronts still fail closed", async () => {
@@ -244,11 +243,11 @@ describe("/health is 200 even when the policy will not compile (#112)", () => {
       headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
       body: JSON.stringify({
         user_id: DANA,
-        toolkits: { Deals: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
+        toolkits: { DealDesk: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
       }),
     });
     expect(AccessHookResult.parse(await access.json())).toEqual({
-      deny: { Deals: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
+      deny: { DealDesk: { tools: { GetDeal: [{ version: "1.0.0" }] } } },
     });
   });
 
@@ -345,8 +344,8 @@ describe("stale rows that cannot compile reseed themselves (#106, route A)", () 
     const denied = await pre(instance.base, "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     const result = PreHookResult.parse(await denied.json());
     expect(result.code).toBe("CHECK_FAILED");
-    expect(result.error_message).toContain("Approvals_RequestApproval");
-    expect(result.error_message).not.toContain("Approvals.RequestApproval");
+    expect(result.error_message).toContain("DealDesk_RequestApproval");
+    expect(result.error_message).not.toContain("DealDesk.RequestApproval");
   });
 
   test("it is one loud line, naming what it replaced and what it left alone", () => {
@@ -392,7 +391,7 @@ describe("stale rows that cannot compile reseed themselves (#106, route A)", () 
     // sentence now names a tool the catalogue does not serve.
     staged.run(
       "UPDATE policy_rules SET reason = ? WHERE id = 'pre.approve-within-clearance'",
-      ["DENIED: over your limit. Call Approvals_EscalateIt with reason=<why>."],
+      ["DENIED: over your limit. Call DealDesk_EscalateIt with reason=<why>."],
     );
     staged.close();
 
@@ -432,7 +431,7 @@ describe("POST /admin/reset (#106)", () => {
     await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     instance.db.run(
       `INSERT INTO grants (id, subject_id, granted_by, request_id, toolkit, tool, issued_at, expires_at)
-       VALUES ('g1', ?, 'riley@x', 'r1', 'Deals', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
+       VALUES ('g1', ?, 'riley@x', 'r1', 'DealDesk', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
       [DANA],
     );
     const before = (await health(instance.base)).counts;
@@ -458,7 +457,7 @@ describe("POST /admin/reset (#106)", () => {
     await pre(instance.base, "GetDeal", { deal_id: "DL-2291" });
     instance.db.run(
       `INSERT INTO grants (id, subject_id, granted_by, request_id, toolkit, tool, issued_at, expires_at)
-       VALUES ('g1', ?, 'riley@x', 'r1', 'Deals', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
+       VALUES ('g1', ?, 'riley@x', 'r1', 'DealDesk', 'ApproveDiscount', '2026-01-01T00:00:00Z', '2030-01-01T00:00:00Z')`,
       [DANA],
     );
     expect((await health(instance.base)).counts.audit_log).toBeGreaterThan(0);
@@ -566,7 +565,7 @@ const preAs = (base: string, userId: string, tool: string, inputs: Record<string
     headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_${Math.random().toString(36).slice(2)}`,
-      tool: { name: tool, toolkit: "Deals", version: "1.0.0" },
+      tool: { name: tool, toolkit: "DealDesk", version: "1.0.0" },
       inputs,
       context: { authorization: [{}], user_id: userId },
     }),

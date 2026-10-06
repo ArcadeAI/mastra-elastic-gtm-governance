@@ -61,7 +61,7 @@ describe("the safe subset renders", () => {
     expect(render("it is *not* a denial")).toContain("<em>not</em>");
     expect(render("it is _not_ a denial")).toContain("<em>not</em>");
     expect(render("it is **not** a denial")).toContain("<strong>not</strong>");
-    expect(render("call `Deals_GetDeal` first")).toContain("Deals_GetDeal</code>");
+    expect(render("call `DealDesk_GetDeal` first")).toContain("DealDesk_GetDeal</code>");
   });
 
   test("a blank line starts a paragraph and a single newline does not", () => {
@@ -152,7 +152,7 @@ describe("nothing outside the subset renders", () => {
     // the brackets, and the two screens would describe different events.
     const reason = "DENIED: *check* the [ref evt_kbfcdksrpk] row before retrying.";
     const markup = renderToStaticMarkup(
-      <EventView event={{ kind: "denied", tool: "Deals_ApproveDiscount", reason, ref: "evt_kbfcdksrpk" }} />,
+      <EventView event={{ kind: "denied", tool: "DealDesk_ApproveDiscount", reason, ref: "evt_kbfcdksrpk" }} />,
     );
 
     expect(markup).toContain("[ref evt_kbfcdksrpk]");
@@ -167,13 +167,13 @@ describe("consecutive text events are one block", () => {
       transcript([
         { kind: "text", text: "Rea" },
         { kind: "text", text: "ding." },
-        { kind: "tool-call", tool: "Deals_GetDeal", inputs: {} },
+        { kind: "tool-call", tool: "DealDesk_GetDeal", inputs: {} },
         { kind: "text", text: "Don" },
         { kind: "text", text: "e." },
       ]),
     ).toEqual([
       { kind: "reply", text: "Reading." },
-      { kind: "event", event: { kind: "tool-call", tool: "Deals_GetDeal", inputs: {} } },
+      { kind: "event", event: { kind: "tool-call", tool: "DealDesk_GetDeal", inputs: {} } },
       { kind: "reply", text: "Done." },
     ]);
   });
@@ -204,7 +204,7 @@ describe("the authorization card is a name and a link", () => {
     <EventView
       event={{
         kind: "authorization",
-        tool: "Deals_GetDeal",
+        tool: "DealDesk_GetDeal",
         url: "https://cloud.arcade.dev/api/v1/oauth/flow/abc",
         instructions: LLM_INSTRUCTIONS,
       }}
@@ -212,7 +212,7 @@ describe("the authorization card is a name and a link", () => {
   );
 
   test("the tool is named and the link is the only link", () => {
-    expect(layer2).toContain("Deals_GetDeal");
+    expect(layer2).toContain("DealDesk_GetDeal");
     expect(layer2).toContain(`href="https://cloud.arcade.dev/api/v1/oauth/flow/abc"`);
     expect([...layer2.matchAll(/<a /g)]).toHaveLength(1);
   });

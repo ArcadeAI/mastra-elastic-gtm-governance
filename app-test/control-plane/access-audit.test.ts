@@ -44,7 +44,7 @@ const LOAN_TOOLS = { SearchDeals: V, GetDeal: V, ApproveDiscount: V, DenyDiscoun
 
 /** A fresh governance.db seeds nobody (#33); these suites act as the demo cast. */
 const governance = (): Database => {
-  const db = openGovernance(":memory:", { loanToolkit: "Deals", approvalsToolkit: "Approvals" });
+  const db = openGovernance(":memory:", { toolkit: "DealDesk" });
   seedDemoSubjects(db);
   return db;
 };
@@ -53,8 +53,8 @@ let n = 0;
 const contextFor = (db: Database): HandlerContext => ({
   now: () => "2026-01-01T00:00:00.000Z",
   newId: () => `evt_${String(++n).padStart(10, "0")}`,
-  approvals: createApprovalControl(db, { toolkit: "Approvals", grantTtlSeconds: 900 }),
-  configuredToolkits: new Set(["Deals", "Approvals"]),
+  approvals: createApprovalControl(db, { toolkit: "DealDesk", grantTtlSeconds: 900 }),
+  configuredToolkits: new Set(["DealDesk", "DealDesk"]),
 });
 
 const ctx = contextFor(governance());
@@ -68,7 +68,7 @@ const ready = (db: Database = governance()): CacheState => createPolicyCache(db)
  */
 function projectCatalogue(toolkits: number, toolsEach: number): Record<string, { tools: Record<string, typeof V> }> {
   const catalogue: Record<string, { tools: Record<string, typeof V> }> = {
-    Deals: { tools: LOAN_TOOLS },
+    DealDesk: { tools: LOAN_TOOLS },
   };
   for (let t = 0; t < toolkits; t += 1) {
     const tools: Record<string, typeof V> = {};
@@ -94,7 +94,7 @@ describe("one /access call, one row per governed tool plus one summary", () => {
     const { response } = handleAccess({ user_id: DANA, toolkits }, ready(), ctx);
 
     for (const name of Object.keys(toolkits)) {
-      if (name === "Deals") continue;
+      if (name === "DealDesk") continue;
       expect(Object.keys(response.deny?.[name]?.tools ?? {}).sort()).toEqual(
         Object.keys(toolkits[name]!.tools).sort(),
       );
@@ -109,7 +109,7 @@ describe("one /access call, one row per governed tool plus one summary", () => {
       ready(),
       ctx,
     );
-    const approve = events.find((e) => e.tool === "Deals.ApproveDiscount");
+    const approve = events.find((e) => e.tool === "DealDesk.ApproveDiscount");
     expect(approve).toMatchObject({
       decision: "deny",
       rule_id: "access.analysts-cannot-see-approve",
@@ -118,7 +118,7 @@ describe("one /access call, one row per governed tool plus one summary", () => {
     // And the allows are there too: a rule that matches nothing has to look
     // different from a rule that permits, which is the whole reason B was not
     // taken.
-    expect(events.filter((e) => e.tool.startsWith("Deals.") && e.decision === "allow")).toHaveLength(3);
+    expect(events.filter((e) => e.tool.startsWith("DealDesk.") && e.decision === "allow")).toHaveLength(3);
   });
 
   test("the summary row says how many it stands for, and what happened to them", () => {
@@ -134,11 +134,11 @@ describe("one /access call, one row per governed tool plus one summary", () => {
     expect(summary.reason).toContain("40 hidden, 0 allowed");
     // Named, but bounded: a hundred toolkit names is not a sentence anybody reads.
     expect(summary.reason).toContain("Stock0, Stock1, Stock2, Stock3");
-    expect(summary.reason).toContain("Deals");
+    expect(summary.reason).toContain("DealDesk");
   });
 
   test("a call about nothing but governed tools writes no summary row at all", () => {
-    const { events } = handleAccess({ user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } }, ready(), ctx);
+    const { events } = handleAccess({ user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }, ready(), ctx);
     expect(events.map((e) => e.tool)).not.toContain("*");
     expect(events).toHaveLength(4);
   });
@@ -182,7 +182,7 @@ describe("one /access call, one row per governed tool plus one summary", () => {
     // Four FAIL-CLOSED rows for Deals, one summary for the other 800 tools.
     expect(events).toHaveLength(5);
     for (const event of events.slice(0, 4)) {
-      expect(event.tool.startsWith("Deals.")).toBe(true);
+      expect(event.tool.startsWith("DealDesk.")).toBe(true);
       expect(event.reason).toContain("FAIL-CLOSED");
     }
     expect(events.at(-1)!.tool).toBe("*");

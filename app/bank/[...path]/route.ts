@@ -6,7 +6,7 @@
  * `/loans`: the service served `/loans`, `/loans/:deal_id`,
  * `/loans/:deal_id/approve`, `/loans/:deal_id/deny`, `/health` and
  * `/admin/reset` at its root, and `mountedFetch` hands the module that path.
- * This is what `tools/loan` calls.
+ * This is what `mcp/deal_desk/deals.py` calls.
  */
 import { serve } from "../../../lib/loans/instance.ts";
 

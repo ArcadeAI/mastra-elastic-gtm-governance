@@ -67,8 +67,7 @@ beforeAll(async () => {
   studioConfig = readIdentitySurface({
     ARCADE_API_URL: harness.arcade.url,
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: "Deals",
-    ARCADE_APPROVALS_TOOLKIT: "Approvals",
+    ARCADE_TOOLKIT: "DealDesk",
     ANTHROPIC_API_KEY: "anthropic-key-for-hop1-tests",
   });
   // Studio's two routes, on a loopback server of their own, as `mastra dev`
@@ -124,7 +123,7 @@ describe("hop 1 through a User Source gateway whose User Source is the app", () 
     // ...and lists tools through `gatewayToken()` with the bearer the gateway
     // bound to Charlie at the User Source.
     const tools = await studioTools(studioConfig, `http://localhost:${studio.port}`);
-    expect(Object.keys(tools)).toEqual(["Deals_GetDeal"]);
+    expect(Object.keys(tools)).toEqual(["DealDesk_GetDeal"]);
     expect(login.access_token).not.toBeNull();
     expect(harness.arcade.bearers.at(-1)).toBe(login.access_token!);
   });

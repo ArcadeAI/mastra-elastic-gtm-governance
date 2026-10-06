@@ -31,8 +31,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 250,
   grantTtlSeconds: 900,
@@ -76,7 +75,7 @@ const LOAN_TOOLS = { SearchDeals: V, GetDeal: V, ApproveDiscount: V, DenyDiscoun
 
 const preBody = (user_id: string, name: string, inputs: Record<string, unknown>, execution_id = "tc_1") => ({
   execution_id,
-  tool: { name, toolkit: "Deals", version: "1.0.0" },
+  tool: { name, toolkit: "DealDesk", version: "1.0.0" },
   inputs,
   context: { authorization: [{}], user_id },
 });
@@ -123,10 +122,10 @@ describe("routing", () => {
 describe("the hooks over HTTP", () => {
   test("/access hides ApproveDiscount from Bob and audits every governed decision", async () => {
     const before = auditCount(db);
-    const res = await post("/access", { user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } });
+    const res = await post("/access", { user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } });
     expect(res.status).toBe(200);
     const body = AccessHookResult.parse(await res.json());
-    expect(body).toEqual({ deny: { Deals: { tools: { ApproveDiscount: V } } } });
+    expect(body).toEqual({ deny: { DealDesk: { tools: { ApproveDiscount: V } } } });
     expect(auditCount(db) - before).toBe(4);
   });
 
@@ -135,7 +134,7 @@ describe("the hooks over HTTP", () => {
     expect(res.status).toBe(200);
     const body = PreHookResult.parse(await res.json());
     expect(body.code).toBe("CHECK_FAILED");
-    expect(body.error_message).toContain("Approvals_RequestApproval");
+    expect(body.error_message).toContain("DealDesk_RequestApproval");
     expect(body.error_message).toMatch(CORRELATION_TOKEN);
 
     const [row] = recent(db, 1);
@@ -144,8 +143,8 @@ describe("the hooks over HTTP", () => {
     // the tool the way every hook payload does, and the sentence handed to the
     // model names it the way MCP advertises it. #89 is the claim that these are
     // two different jobs and neither spelling does the other's.
-    expect(row!.tool).toBe("Deals.ApproveDiscount");
-    expect(body.error_message).toContain("Deals_ApproveDiscount");
+    expect(row!.tool).toBe("DealDesk.ApproveDiscount");
+    expect(body.error_message).toContain("DealDesk_ApproveDiscount");
     expect(body.error_message).toContain(row!.id);
   });
 
@@ -195,7 +194,7 @@ describe("the hooks over HTTP", () => {
   test("/post returns OK and records a pass-through", async () => {
     const res = await post("/post", {
       execution_id: "tc_post",
-      tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
       success: true,
       output: { x: 1 },
       context: { user_id: DANA },
@@ -238,14 +237,14 @@ describe("fails closed, and the failure is audited", () => {
     const before = auditCount(db);
     const res = await post("/access", {
       user_id: DANA,
-      toolkits: { Deals: { tools: LOAN_TOOLS }, Github: { tools: { CreateIssue: V, ListRepos: V } } },
+      toolkits: { DealDesk: { tools: LOAN_TOOLS }, Github: { tools: { CreateIssue: V, ListRepos: V } } },
     });
     expect(AccessHookResult.parse(await res.json()).deny).toHaveProperty("Github");
     const rows = recent(db, auditCount(db) - before);
     // One row per governed tool — the policy will not compile, so the governed
     // set is the configured one — and one summary row for Github's two (#107).
     expect(rows.map((r) => r.tool).sort()).toEqual(
-      ["*", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Deals.GetDeal", "Deals.SearchDeals"],
+      ["*", "DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.GetDeal", "DealDesk.SearchDeals"],
     );
     expect(rows.every((r) => r.decision === "deny" && r.rule_id === null)).toBe(true);
     // **Every** row, summary included. A listing refused because the control
@@ -286,12 +285,12 @@ describe("fails closed, and the failure is audited", () => {
     const read = await post("/pre", preBody(DANA, "GetDeal", { deal_id: "DL-2291" }));
     expect(PreHookResult.parse(await read.json()).code).toBe("CHECK_FAILED");
 
-    const access = await post("/access", { user_id: DANA, toolkits: { Deals: { tools: LOAN_TOOLS } } });
-    expect(AccessHookResult.parse(await access.json())).toEqual({ deny: { Deals: { tools: LOAN_TOOLS } } });
+    const access = await post("/access", { user_id: DANA, toolkits: { DealDesk: { tools: LOAN_TOOLS } } });
+    expect(AccessHookResult.parse(await access.json())).toEqual({ deny: { DealDesk: { tools: LOAN_TOOLS } } });
 
     const out = await post("/post", {
       execution_id: "tc_failed_post",
-      tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
       success: true,
       output: { x: 1 },
       context: { user_id: DANA },
@@ -334,7 +333,7 @@ describe("live policy edits", () => {
   test("disabling a rule takes effect within one poll interval", async () => {
     db.run("UPDATE policy_rules SET enabled = 0 WHERE id = 'access.analysts-cannot-see-approve'");
     await settle();
-    const res = await post("/access", { user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } });
+    const res = await post("/access", { user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } });
     expect(await res.json()).toEqual({ deny: {} });
     db.run("UPDATE policy_rules SET enabled = 1 WHERE id = 'access.analysts-cannot-see-approve'");
     await settle();
@@ -374,7 +373,7 @@ describe("the hot path never reads policy from the database", () => {
         const a = await fetch(`http://localhost:${srv.port}/access`, {
           method: "POST",
           headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
-          body: JSON.stringify({ user_id: SAM, toolkits: { Deals: { tools: LOAN_TOOLS } } }),
+          body: JSON.stringify({ user_id: SAM, toolkits: { DealDesk: { tools: LOAN_TOOLS } } }),
         });
         expect(a.status).toBe(200);
         const p = await fetch(`http://localhost:${srv.port}/pre`, {
@@ -443,12 +442,12 @@ describe("a cold cache fails closed", () => {
       const res = await fetch(`http://localhost:${srv.port}/access`, {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
-        body: JSON.stringify({ user_id: DANA, toolkits: { Deals: { tools: { GetDeal: V } } } }),
+        body: JSON.stringify({ user_id: DANA, toolkits: { DealDesk: { tools: { GetDeal: V } } } }),
       });
       expect(res.status).toBe(200);
-      expect(AccessHookResult.parse(await res.json())).toEqual({ deny: { Deals: { tools: { GetDeal: V } } } });
+      expect(AccessHookResult.parse(await res.json())).toEqual({ deny: { DealDesk: { tools: { GetDeal: V } } } });
       expect(isolated.current().status).toBe("cold");
-      expect(recent(real, 1)[0]).toMatchObject({ hook: "access", tool: "Deals.GetDeal", decision: "deny", rule_id: null });
+      expect(recent(real, 1)[0]).toMatchObject({ hook: "access", tool: "DealDesk.GetDeal", decision: "deny", rule_id: null });
       expect(recent(real, 1)[0]?.reason).toMatch(/has not loaded its policy yet/);
 
       const post = await fetch(`http://localhost:${srv.port}/post`, {
@@ -456,7 +455,7 @@ describe("a cold cache fails closed", () => {
         headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
         body: JSON.stringify({
           execution_id: "tc_cold_post",
-          tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+          tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
           success: true,
           output: { bank_account_number: "1234" },
           context: { user_id: DANA },
@@ -512,7 +511,7 @@ describe("the hook budget covers synchronous work", () => {
       // Exactly one row, the denial — the allow that was computed was discarded.
       const rows = recent(real, 5).filter((r) => r.execution_id === "tc_slow");
       expect(rows).toHaveLength(1);
-      expect(rows[0]).toMatchObject({ decision: "deny", rule_id: null, tool: "Deals.GetDeal" });
+      expect(rows[0]).toMatchObject({ decision: "deny", rule_id: null, tool: "DealDesk.GetDeal" });
       expect(rows[0]?.reason).toMatch(/exceeded the 20ms hook budget/);
     } finally {
       inner.stop();
@@ -525,7 +524,7 @@ describe("the hook budget covers synchronous work", () => {
 describe("latency", () => {
   /** A catalogue the size spike #2 measured: ~1.6 MB of toolkits, Deals among them. */
   function bigCatalogue(): { bytes: number; toolkits: Record<string, { tools: Record<string, { version: string }[]> }> } {
-    const toolkits: Record<string, { tools: Record<string, { version: string }[]> }> = { Deals: { tools: LOAN_TOOLS } };
+    const toolkits: Record<string, { tools: Record<string, { version: string }[]> }> = { DealDesk: { tools: LOAN_TOOLS } };
     let bytes = 0;
     for (let t = 0; bytes < 1_600_000; t++) {
       const tools: Record<string, { version: string }[]> = {};
@@ -551,7 +550,7 @@ describe("latency", () => {
 
     expect(res.status).toBe(200);
     const body = AccessHookResult.parse(await res.json());
-    expect(body.deny?.Deals?.tools).toEqual({ ApproveDiscount: V });
+    expect(body.deny?.DealDesk?.tools).toEqual({ ApproveDiscount: V });
     expect(Object.keys(body.deny ?? {}).length).toBe(Object.keys(toolkits).length);
     // Generous: CI machines are slow. Locally this is tens of milliseconds.
     expect(ms).toBeLessThan(2000);

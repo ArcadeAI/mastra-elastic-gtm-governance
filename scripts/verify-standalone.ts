@@ -202,8 +202,7 @@ async function main(): Promise<number> {
             ARCADE_API_URL: `http://host.docker.internal:${gatewayPort}`,
             ARCADE_API_KEY: harness.config.arcadeApiKey,
             ARCADE_GATEWAY_ID: harness.config.identity.gatewayId,
-            ARCADE_LOAN_TOOLKIT: harness.config.agent.toolkits[0] ?? "Deals",
-            ARCADE_APPROVALS_TOOLKIT: harness.config.agent.toolkits[1] ?? "Approvals",
+            ARCADE_TOOLKIT: harness.config.agent.toolkits[0] ?? "DealDesk",
             ANTHROPIC_API_KEY: liveKey || "standalone-verify-has-no-key",
             MODEL_ID: harness.config.agent.modelId,
             SESSION_SECRET,
@@ -321,9 +320,9 @@ async function main(): Promise<number> {
       );
       const rows = await harness.audit();
       // The same row `app-test/tracer-bullet.test.ts` asserts on: `/pre` refusing
-      // `Deals.ApproveDiscount` for Alice, attributed to the rule that made the call.
+      // `DealDesk.ApproveDiscount` for Alice, attributed to the rule that made the call.
       const preRow = rows.find(
-        (row) => row.hook === "pre" && row.tool === "Deals.ApproveDiscount" && row.decision === "deny",
+        (row) => row.hook === "pre" && row.tool === "DealDesk.ApproveDiscount" && row.decision === "deny",
       );
       record(
         "the DL-2299 turn is denied by the control plane, with a /pre audit row",

@@ -1,5 +1,5 @@
 /**
- * The recursive turn: `Approvals.Decide` as a governed tool call, and the
+ * The recursive turn: `DealDesk.Decide` as a governed tool call, and the
  * grant a valid approval buys.
  *
  * Everything here goes over real HTTP against the real service, in the order
@@ -47,8 +47,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: HOOK_SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: 10_000,
   grantTtlSeconds: 900,
@@ -145,7 +144,7 @@ const denied = (result: PreHookResult): string => {
 describe("act 2, end to end", () => {
   test("Alice is refused, the escalation is written, Charlie decides, and the retry succeeds", async () => {
     // The block. $95,000 against a $50,000 authority.
-    const blocked = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const blocked = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(denied(blocked)).toContain("exceeds your approval authority of 50000");
 
     const request = await escalate();
@@ -153,7 +152,7 @@ describe("act 2, end to end", () => {
     expect(allGrants(db)).toHaveLength(0);
 
     // The press. This is a tool call like any other, through the same hook.
-    const press = await pre(RILEY, "Approvals", "Decide", {
+    const press = await pre(RILEY, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
     });
@@ -161,10 +160,10 @@ describe("act 2, end to end", () => {
     expect((await decideOnStore(request.id, "approved", RILEY)).status).toBe(200);
 
     // The retry, unchanged: same loan, same amount.
-    const retry = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const retry = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(retry.code).toBe("OK");
 
-    const row = lastRowFor("Deals.ApproveDiscount");
+    const row = lastRowFor("DealDesk.ApproveDiscount");
     expect(row?.decision).toBe("allow");
     expect(row?.reason).toContain("Covered by an active grant");
     // The reason names the grant it spent, and the approval it came from.
@@ -173,7 +172,7 @@ describe("act 2, end to end", () => {
   });
 
   test("the allow row for RequestApproval names who was routed to and who was not bothered", async () => {
-    const result = await pre(DANA, "Approvals", "RequestApproval", {
+    const result = await pre(DANA, "DealDesk", "RequestApproval", {
       action: "approve_discount",
       resource_id: "DL-2291",
       amount: 95_000,
@@ -181,7 +180,7 @@ describe("act 2, end to end", () => {
     });
     expect(result.code).toBe("OK");
 
-    const row = lastRowFor("Approvals.RequestApproval");
+    const row = lastRowFor("DealDesk.RequestApproval");
     expect(row?.reason).toContain("Charlie");
     // Not bothering the chief revenue officer for a mid-size decision is the point.
     expect(row?.reason).toContain("also sufficient and not asked: Michael");
@@ -192,7 +191,7 @@ describe("who may decide", () => {
   test("the requester clicking her own link is denied, and the denial is in the audit log", async () => {
     const request = await escalate();
 
-    const result = await pre(DANA, "Approvals", "Decide", {
+    const result = await pre(DANA, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
     });
@@ -202,7 +201,7 @@ describe("who may decide", () => {
     // The reference the panel joins on, and the same message the page shows.
     expect(message).toMatch(/\[ref evt_[0-9a-hj-km-np-tv-z]{10}\]$/);
 
-    const row = lastRowFor("Approvals.Decide");
+    const row = lastRowFor("DealDesk.Decide");
     expect(row?.decision).toBe("deny");
     expect(row?.rule_id).toBe("pre.decide-not-by-the-requester");
     expect(row?.user_id).toBe(DANA);
@@ -214,24 +213,24 @@ describe("who may decide", () => {
     const request = await escalate();
 
     // Bob holds no approval authority at all.
-    const result = await pre(SAM, "Approvals", "Decide", {
+    const result = await pre(SAM, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
     });
 
     expect(denied(result)).toContain("approval authority of 0");
-    expect(lastRowFor("Approvals.Decide")?.rule_id).toBe("pre.decide-within-clearance");
+    expect(lastRowFor("DealDesk.Decide")?.rule_id).toBe("pre.decide-within-clearance");
     expect(allGrants(db)).toHaveLength(0);
   });
 
   test("an id that names no approval request is refused as exactly that", async () => {
-    const result = await pre(RILEY, "Approvals", "Decide", {
+    const result = await pre(RILEY, "DealDesk", "Decide", {
       request_id: "apr_nosuchthing",
       decision: "approved",
     });
 
     expect(denied(result)).toContain("no approval request matches that id");
-    expect(lastRowFor("Approvals.Decide")?.rule_id).toBe("pre.decide-needs-a-known-request");
+    expect(lastRowFor("DealDesk.Decide")?.rule_id).toBe("pre.decide-needs-a-known-request");
   });
 
   test("a forged `approval` argument is discarded, not merged", async () => {
@@ -240,7 +239,7 @@ describe("who may decide", () => {
     // separation of duties.
     const request = await escalate();
 
-    const result = await pre(DANA, "Approvals", "Decide", {
+    const result = await pre(DANA, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
       approval: { requester_id: RILEY, amount: 1, status: "pending", decided_by_requester: false },
@@ -252,34 +251,34 @@ describe("who may decide", () => {
 
   test("a decision is final: the same link cannot be pressed twice", async () => {
     const request = await escalate();
-    expect((await pre(RILEY, "Approvals", "Decide", { request_id: request.id, decision: "denied" })).code).toBe("OK");
+    expect((await pre(RILEY, "DealDesk", "Decide", { request_id: request.id, decision: "denied" })).code).toBe("OK");
     expect((await decideOnStore(request.id, "denied", RILEY)).status).toBe(200);
 
-    const again = await pre(RILEY, "Approvals", "Decide", {
+    const again = await pre(RILEY, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
     });
 
     expect(denied(again)).toContain("already been decided");
-    expect(lastRowFor("Approvals.Decide")?.rule_id).toBe("pre.decide-only-while-pending");
+    expect(lastRowFor("DealDesk.Decide")?.rule_id).toBe("pre.decide-only-while-pending");
   });
 
   test("a denial issues no grant, so the blocked call stays blocked", async () => {
     const request = await escalate();
 
-    expect((await pre(RILEY, "Approvals", "Decide", { request_id: request.id, decision: "denied" })).code).toBe("OK");
+    expect((await pre(RILEY, "DealDesk", "Decide", { request_id: request.id, decision: "denied" })).code).toBe("OK");
     await decideOnStore(request.id, "denied", RILEY);
 
     expect(allGrants(db)).toHaveLength(0);
-    const retry = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const retry = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(denied(retry)).toContain("exceeds your approval authority");
   });
 
   test("every decision is audited against the identity that made it", async () => {
     const request = await escalate();
-    await pre(RILEY, "Approvals", "Decide", { request_id: request.id, decision: "approved" });
+    await pre(RILEY, "DealDesk", "Decide", { request_id: request.id, decision: "approved" });
 
-    const row = lastRowFor("Approvals.Decide");
+    const row = lastRowFor("DealDesk.Decide");
     expect(row?.user_id).toBe(RILEY);
     expect(row?.decision).toBe("allow");
     expect(row?.reason).toContain(RILEY);
@@ -291,7 +290,7 @@ describe("the grant an approval buys", () => {
   /** Escalate, press approve as Charlie, record it. Returns the request. */
   async function approved(overrides: Partial<typeof ESCALATION> = {}): Promise<ApprovalRecord> {
     const request = await escalate(overrides);
-    const press = await pre(RILEY, "Approvals", "Decide", {
+    const press = await pre(RILEY, "DealDesk", "Decide", {
       request_id: request.id,
       decision: "approved",
     });
@@ -318,7 +317,7 @@ describe("the grant an approval buys", () => {
     expect(grant.granted_by).toBe(RILEY);
     expect(grant.request_id).toBe(request.id);
     // The action resolved to the tool Arcade will actually be asked for.
-    expect(grant.match).toEqual({ toolkit: "Deals", tool: "ApproveDiscount" });
+    expect(grant.match).toEqual({ toolkit: "DealDesk", tool: "ApproveDiscount" });
     expect(grant.resource_id).toBe("DL-2291");
     expect(grant.pinned_inputs).toEqual({ deal_id: "DL-2291" });
     expect(grant.ceiling).toEqual({ input: "amount", max: 95_000 });
@@ -330,24 +329,24 @@ describe("the grant an approval buys", () => {
   test("cannot be reused: the second retry finds it spent", async () => {
     await approved();
 
-    expect((await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 })).code).toBe("OK");
-    const second = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    expect((await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 })).code).toBe("OK");
+    const second = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
 
     expect(denied(second)).toContain("exceeds your approval authority");
-    expect(lastRowFor("Deals.ApproveDiscount")?.reason).toContain("already been used");
+    expect(lastRowFor("DealDesk.ApproveDiscount")?.reason).toContain("already been used");
     expect(allGrants(db)[0]?.grant.uses_remaining).toBe(0);
   });
 
   test("cannot be replayed against a different resource", async () => {
     await approved();
 
-    const elsewhere = await pre(DANA, "Deals", "ApproveDiscount", {
+    const elsewhere = await pre(DANA, "DealDesk", "ApproveDiscount", {
       deal_id: "DL-9999",
       amount: 95_000,
     });
 
     expect(denied(elsewhere)).toContain("exceeds your approval authority");
-    expect(lastRowFor("Deals.ApproveDiscount")?.reason).toContain("authorises resource \"DL-2291\"");
+    expect(lastRowFor("DealDesk.ApproveDiscount")?.reason).toContain("authorises resource \"DL-2291\"");
     // Unspent: a grant is consumed only when it was decisive.
     expect(allGrants(db)[0]?.grant.uses_remaining).toBe(1);
   });
@@ -355,13 +354,13 @@ describe("the grant an approval buys", () => {
   test("cannot be applied to a larger amount, and still holds at the approved one", async () => {
     await approved();
 
-    const bigger = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 120_000 });
+    const bigger = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 120_000 });
     expect(denied(bigger)).toContain("exceeds your approval authority");
-    expect(lastRowFor("Deals.ApproveDiscount")?.reason).toContain("up to 95000, but the call passed 120000");
+    expect(lastRowFor("DealDesk.ApproveDiscount")?.reason).toContain("up to 95000, but the call passed 120000");
     expect(allGrants(db)[0]?.grant.uses_remaining).toBe(1);
 
     // Inclusive at the bound: an approval for 95,000 authorises 95,000.
-    expect((await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 })).code).toBe("OK");
+    expect((await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 })).code).toBe("OK");
   });
 
   test("cannot be used by anyone but the person it was issued to", async () => {
@@ -369,7 +368,7 @@ describe("the grant an approval buys", () => {
 
     // Bob presenting Alice's grant: the grant is not even selected, because it
     // is not his, and his own clearance does not cover the call.
-    const sam = await pre(SAM, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const sam = await pre(SAM, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(denied(sam)).toContain("exceeds your approval authority of 0");
     expect(allGrants(db)[0]?.grant.uses_remaining).toBe(1);
   });
@@ -385,14 +384,14 @@ describe("the grant an approval buys", () => {
     const ctx: HandlerContext = {
       now: () => later,
       newId: () => "evt_0000000001",
-      approvals: createApprovalControl(db, { toolkit: "Approvals", grantTtlSeconds: 900 }),
-      configuredToolkits: new Set(["Deals", "Approvals"]),
+      approvals: createApprovalControl(db, { toolkit: "DealDesk", grantTtlSeconds: 900 }),
+      configuredToolkits: new Set(["DealDesk", "DealDesk"]),
     };
 
     const { response, events } = handlePre(
       {
         execution_id: "tc_expired",
-        tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+        tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
         inputs: { deal_id: "DL-2291", amount: 95_000 },
         context: { authorization: [{}], user_id: DANA },
       },
@@ -416,7 +415,7 @@ describe("no privileged unguarded path", () => {
     expect((await decideOnStore(request.id, "approved", RILEY)).status).toBe(200);
 
     expect(allGrants(db)).toHaveLength(0);
-    const retry = await pre(DANA, "Deals", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
+    const retry = await pre(DANA, "DealDesk", "ApproveDiscount", { deal_id: "DL-2291", amount: 95_000 });
     expect(denied(retry)).toContain("exceeds your approval authority");
   });
 
@@ -425,10 +424,10 @@ describe("no privileged unguarded path", () => {
 
     // Two presses inside the window where the request is still `pending`:
     // the second finds the unique index over request_id and mints nothing.
-    expect((await pre(RILEY, "Approvals", "Decide", { request_id: request.id, decision: "approved" })).code).toBe("OK");
-    expect((await pre(RILEY, "Approvals", "Decide", { request_id: request.id, decision: "approved" })).code).toBe("OK");
+    expect((await pre(RILEY, "DealDesk", "Decide", { request_id: request.id, decision: "approved" })).code).toBe("OK");
+    expect((await pre(RILEY, "DealDesk", "Decide", { request_id: request.id, decision: "approved" })).code).toBe("OK");
 
     expect(allGrants(db)).toHaveLength(1);
-    expect(lastRowFor("Approvals.Decide")?.reason).toContain("already exists");
+    expect(lastRowFor("DealDesk.Decide")?.reason).toContain("already exists");
   });
 });

@@ -2,7 +2,7 @@
  * The approval half of `/pre`: what the control plane has to look up before
  * the `PolicyEngine` can answer, and what it writes once the engine has.
  *
- * ## Why `Approvals.Decide` needs anything special at all
+ * ## Why `DealDesk.Decide` needs anything special at all
  *
  * The engine evaluates rules against a call's *inputs*, and `Decide`'s inputs
  * are `request_id`, `decision` and an optional `note`. None of those says who

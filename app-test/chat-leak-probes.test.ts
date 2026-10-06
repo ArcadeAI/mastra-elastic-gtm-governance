@@ -53,8 +53,8 @@ async function resultOnTheWire(result: unknown): Promise<{ wire: string; events:
     stream: async () => ({
       fullStream: new ReadableStream({
         start(controller) {
-          controller.enqueue({ type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: "DL-2291" } } });
-          controller.enqueue({ type: "tool-result", payload: { toolName: "Deals_GetDeal", result } });
+          controller.enqueue({ type: "tool-call", payload: { toolName: "DealDesk_GetDeal", args: { deal_id: "DL-2291" } } });
+          controller.enqueue({ type: "tool-result", payload: { toolName: "DealDesk_GetDeal", result } });
           controller.close();
         },
       }),

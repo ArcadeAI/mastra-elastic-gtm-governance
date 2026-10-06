@@ -63,8 +63,7 @@ async function bootApp(env: Record<string, string> = {}): Promise<App> {
         // A first boot seeds nobody (#33): the demo cast this file acts as goes
         // into both files first, the way `bun run users seed-demo` writes it.
         seedDemoGovernance(join(dir, "governance.db"), {
-          loanToolkit: env.ARCADE_LOAN_TOOLKIT ?? process.env.ARCADE_LOAN_TOOLKIT?.trim() ?? "Deals",
-          approvalsToolkit: env.ARCADE_APPROVALS_TOOLKIT ?? process.env.ARCADE_APPROVALS_TOOLKIT?.trim() ?? "Approvals",
+          toolkit: env.ARCADE_TOOLKIT ?? process.env.ARCADE_TOOLKIT?.trim() ?? "DealDesk",
         });
         await seedDemoIdentity(join(dir, "idp.db"));
         const distDir = `.next/cg-test-${port}`;
@@ -122,7 +121,7 @@ const hook = (app: App, path: string, body: unknown, token: string | null = HOOK
 
 const approveLoan = (amount: number, execution_id: string) => ({
   execution_id,
-  tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+  tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
   inputs: { deal_id: "DL-2299", amount },
   context: { authorization: [{}], user_id: ALICE },
 });
@@ -144,7 +143,7 @@ describe("the control plane, on the app's own port", () => {
     const body = (await refused.json()) as { code: string; error_message: string };
     expect(body.code).toBe("CHECK_FAILED");
     expect(body.error_message).toContain("exceeds your approval authority of 50000");
-    expect(body.error_message).toContain("call Approvals_RequestApproval");
+    expect(body.error_message).toContain("call DealDesk_RequestApproval");
     expect(body.error_message).toMatch(/\[ref evt_[0-9a-z]{10}\]$/);
 
     for (const amount of [50_000, 45_000]) {
@@ -156,7 +155,7 @@ describe("the control plane, on the app's own port", () => {
   test("routing the escalation names Charlie, and not Michael, on the audit row", async () => {
     const response = await hook(app!, "/hooks/pre", {
       execution_id: "tc_app_route",
-      tool: { name: "RequestApproval", toolkit: "Approvals", version: "1.0.0" },
+      tool: { name: "RequestApproval", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { action: "approve_discount", resource_id: "DL-2299", amount: 95_000, justification: "cash flow" },
       context: { authorization: [{}], user_id: ALICE },
     });
@@ -177,7 +176,7 @@ describe("the control plane, on the app's own port", () => {
       const loan = loanFixture("DL-2291");
       const response = await hook(app!, "/hooks/post", {
         execution_id: `tc_app_post_${name}`,
-        tool: { name, toolkit: "Deals", version: "1.0.0" },
+        tool: { name, toolkit: "DealDesk", version: "1.0.0" },
         inputs: { deal_id: "DL-2291" },
         success: true,
         output: loan,
@@ -203,7 +202,7 @@ describe("the control plane, on the app's own port", () => {
         hook: "pre",
         execution_id: "tc_app_sse",
         user_id: ALICE,
-        tool: "Deals.ApproveDiscount",
+        tool: "DealDesk.ApproveDiscount",
         decision: "deny",
         rule_id: "pre.approve-within-clearance",
       });

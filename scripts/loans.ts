@@ -3,7 +3,7 @@
  *
  * Not a service: the app serves `/bank/…` itself, in-process, since #5. This
  * runner exists for the test harnesses under `app-test/` and `test/`, for
- * `tools/loan`'s tests, and for anyone who wants the loan API on a socket
+ * `mcp/deal_desk/deals.py`'s tests, and for anyone who wants the loan API on a socket
  * without booting Next. It opens the deal book the way the app does and puts
  * the same request handler behind `Bun.serve`. There is one implementation of
  * every route, and this is the second way to reach it.

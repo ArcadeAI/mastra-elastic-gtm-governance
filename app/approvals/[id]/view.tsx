@@ -246,7 +246,7 @@ export function SignInToDecide({ signInUrl }: { signInUrl: string }) {
     <div style={{ ...styles.panel, marginTop: "2.5rem" }}>
       <p style={{ margin: "0 0 0.75rem", fontSize: "0.875rem", color: "var(--muted)" }}>
         This browser is not signed in, so there is nobody to decide as. Deciding calls{" "}
-        <code>Approvals.Decide</code> through Arcade as a named person, and the link itself
+        <code>DealDesk.Decide</code> through Arcade as a named person, and the link itself
         carries no authority — so it cannot tell us who you are. Signing in brings you back to
         this request.
       </p>
@@ -291,7 +291,7 @@ export function ApprovalPage({ request, opener, personas, controls }: ApprovalPa
             Signed in as <strong style={{ color: "var(--fg)" }}>{acting?.display_name ?? opener.email}</strong>
             {acting !== undefined && ` — ${acting.role}`}
             {acting !== undefined && <span style={{ color: "var(--muted)" }}> ({opener.email})</span>}. Pressing a
-            button below calls <code>Approvals.Decide</code> through Arcade as that person, so it passes
+            button below calls <code>DealDesk.Decide</code> through Arcade as that person, so it passes
             the same pre-execution hook as any other tool call. The link itself carries no authority —
             holding it is not permission, and it is not what named you either.
           </p>

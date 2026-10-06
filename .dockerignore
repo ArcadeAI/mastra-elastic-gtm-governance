@@ -28,5 +28,5 @@ build
 .orca/local/
 
 docs
-tools
+mcp
 .DS_Store

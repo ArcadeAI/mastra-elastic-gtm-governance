@@ -8,7 +8,7 @@
  *
  * ## Why it exists at all
  *
- * Pressing Approve calls `Approvals.Decide` **through Arcade**, as the clicking
+ * Pressing Approve calls `DealDesk.Decide` **through Arcade**, as the clicking
  * user. That is the point of the slice and it is not negotiable — there is no
  * privileged path in the app that records a decision without a hook. But
  * until #13 registers the gateway and the provider there is no Arcade to call,
@@ -28,7 +28,7 @@
  *   1. `POST /pre` on the real control plane, with the caller's `user_id`.
  *   2. On anything but `OK`, return a failed execution carrying the hook's own
  *      `error_message` and `CHECK_FAILED`. **It does not run the tool.**
- *   3. On `OK`, run the tool — which for `Approvals.Decide` is one HTTP call to
+ *   3. On `OK`, run the tool — which for `DealDesk.Decide` is one HTTP call to
  *      `POST /approvals/{id}/decision`, the same call the deployed Python
  *      worker makes, with `decided_by` taken from the identity the engine
  *      supplies and never from an argument.
@@ -147,10 +147,10 @@ export function createArcadeStandIn(options: ArcadeStandInOptions) {
         return failed(verdict.error_message ?? "denied by an extension policy", "CHECK_FAILED");
       }
 
-      // 3. The tool. `Approvals.Decide` is a stateless client of the store.
+      // 3. The tool. `DealDesk.Decide` is a stateless client of the store.
       if (name !== "Decide") {
         return failed(
-          `the stand-in only runs Approvals.Decide; "${toolName}" passed /pre but there is ` +
+          `the stand-in only runs DealDesk.Decide; "${toolName}" passed /pre but there is ` +
             `nothing here to execute it. The real toolkits ship with \`arcade deploy\`.`,
         );
       }

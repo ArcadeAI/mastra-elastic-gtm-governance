@@ -1,5 +1,5 @@
 /**
- * Reading `Approvals_RequestApproval`'s result, and closing the turn on it.
+ * Reading `DealDesk_RequestApproval`'s result, and closing the turn on it.
  *
  * Two consumers, which is why this is its own module rather than part of
  * either: `run.ts` reads the result to emit `waiting`, and `tools.ts` reads it
@@ -11,14 +11,14 @@
  *
  * `DESIGN.md` → The wait: the agent ends its turn on the escalation. Round 1 of
  * #110's review found that it did not — `run.ts` emitted `waiting` and carried
- * on reading, so a model that called `Deals_ApproveDiscount` straight after
- * `Approvals_RequestApproval` got that call executed, against a control plane
+ * on reading, so a model that called `DealDesk_ApproveDiscount` straight after
+ * `DealDesk_RequestApproval` got that call executed, against a control plane
  * that had no grant yet.
  *
  * The fix is in two places on purpose, because only one of them is a guarantee:
  *
  * 1. **The floor, here.** {@link closeTurnOnEscalation} wraps the turn's tools.
- *    The moment `Approvals_RequestApproval` *returns a request id*, the turn is
+ *    The moment `DealDesk_RequestApproval` *returns a request id*, the turn is
  *    shut, and every later `execute` in that turn throws without calling
  *    through. That is synchronous with the escalation's own execution, so there
  *    is no window: nothing reaches the gateway, `/pre` is never asked, and the
@@ -53,12 +53,12 @@ export interface ApprovalRequested {
 
 /**
  * The request id and the routed approver out of whatever
- * `Approvals_RequestApproval` returned, or `null` when it carried neither.
+ * `DealDesk_RequestApproval` returned, or `null` when it carried neither.
  *
  * Written the way `failureText` is, and for the same reason: an MCP tool result
  * reaches a consumer through two wrappers, and which one is on top has changed
  * with the transport. The tool's own return value is a flat object
- * (`tools/approvals/approvals/__init__.py`), but it arrives as `content: [{
+ * (`mcp/deal_desk/approvals.py`), but it arrives as `content: [{
  * type: "text", text: "<json>" }]` alongside `structuredContent`, and Mastra
  * may hand over either. So all three are looked at, in order, and a shape
  * carrying no `request_id` yields `null` rather than a `waiting` event with an
@@ -154,7 +154,7 @@ export interface TurnClosure {
 export function closeTurnOnEscalation(
   tools: Record<string, unknown>,
   options: {
-    /** The wire name, e.g. `Approvals_RequestApproval`. */
+    /** The wire name, e.g. `DealDesk_RequestApproval`. */
     escalationTool: string;
     /** Fired once, with the escalation's own result, when the turn shuts. */
     onClose?: (requested: ApprovalRequested) => void;

@@ -12,15 +12,15 @@
  * path cannot be both an HTML page and this JSON read, so the whole store
  * moved under one prefix rather than one endpoint moving alone.
  *
- * The contract is written out in Markdown in `tools/approvals/README.md`; this
- * is the service side of it, and `tools/approvals/tests/test_store_contract.py`
+ * The contract is written out in Markdown in `mcp/APPROVALS.md`; this
+ * is the service side of it, and `mcp/tests/approvals/test_store_contract.py`
  * is the executable spec both sides answer to.
  *
  * **This module authorizes nothing.** Every endpoint requires the shared
  * `APPROVALS_STORE_TOKEN`, which says the caller is the deployed toolkit or the
  * approval page rather than a stranger — and that is all it says. Whether the
  * person on the other end may *decide* is a `/pre` decision on
- * `Approvals.Decide`, settled before a decision request is ever sent. The read
+ * `DealDesk.Decide`, settled before a decision request is ever sent. The read
  * in particular has nowhere to put a viewer: no parameter, no header beyond the
  * bearer. That is structural rather than a promise, and it is what makes the
  * link safe to send in a conversation the requester can read.

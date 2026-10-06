@@ -1,0 +1,31 @@
+[project]
+name = "deal_desk"
+version = "1.0.0"
+description = "The deal desk in one MCP server: the Deals, Approvals and Elasticsearch toolkits, deployed together with one `arcade deploy` and still filed under their three names."
+requires-python = ">=3.11"
+dependencies = [
+    "arcade-mcp-server>=1.32.0,<2.0.0",
+    "httpx>=0.28.0,<1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "arcade-mcp[all]>=1.15.0,<2.0.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+]
+
+# Tells Arcade this package carries Arcade tools.
+[project.entry-points.arcade_toolkits]
+toolkit_name = "deal_desk"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["deal_desk"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -70,7 +70,7 @@ beforeAll(async () => {
     // Any non-empty value: the stand-in ignores it, and an empty one would
     // make `lib/arcade.ts` add its "the key is unset" hint to any failure.
     arcadeApiKey: "not-a-real-key",
-    approvalsToolkit: "Approvals",
+    toolkit: "DealDesk",
     // Nothing in these suites signs anyone in or runs the agent;
     // `identity-flow.test.ts` and `tracer-bullet.test.ts` build their own
     // configurations for those. Read from an empty environment rather than
@@ -217,7 +217,7 @@ describe("the stand-in a person runs", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        tool_name: "Deals.GetDeal",
+        tool_name: "DealDesk.GetDeal",
         input: { deal_id: "DL-2291" },
         user_id: RILEY,
       }),
@@ -225,7 +225,7 @@ describe("the stand-in a person runs", () => {
     const body = (await response.json()) as { success: boolean; output: { error: { message: string; code?: string } } };
 
     expect(body.success).toBe(false);
-    expect(body.output.error.message).toContain("only runs Approvals.Decide");
+    expect(body.output.error.message).toContain("only runs DealDesk.Decide");
     // Not CHECK_FAILED: nothing refused this, the fixture just has no tool.
     expect(body.output.error.code).toBeUndefined();
   });

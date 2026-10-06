@@ -46,7 +46,7 @@
  *
  * #94 split the first two off the front, and for the same reason one layer up.
  * `listToolsets()` does not throw when the gateway refuses the bearer — it logs
- * and resolves with `{}` — so a dead token and a mistyped `ARCADE_LOAN_TOOLKIT`
+ * and resolves with `{}` — so a dead token and a mistyped `ARCADE_TOOLKIT`
  * produced the same value and therefore the same message. Live, on 2026-09-14,
  * that message sent a person to check two environment variables that were
  * correct while the actual fix was one click on `/api/arcade/start`. So the
@@ -364,7 +364,7 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
     });
 
     // The bearer was accepted a moment ago, so a listing that never arrived is
-    // plumbing — and saying "check ARCADE_LOAN_TOOLKIT" about it would be the
+    // plumbing — and saying "check ARCADE_TOOLKIT" about it would be the
     // same wrong sentence #94 is about, one cause further along (#94).
     if (selected.error) {
       await client.disconnect().catch(() => undefined);
@@ -393,7 +393,7 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
         502,
         `The gateway advertised ${selected.advertised.length} tools and none of them belong to ` +
           `${config.agent.toolkits.map((name) => `"${name}"`).join(" or ")}, so this agent has ` +
-          `nothing to call. Check ARCADE_LOAN_TOOLKIT and ARCADE_APPROVALS_TOOLKIT against a real ` +
+          `nothing to call. Check ARCADE_TOOLKIT and ARCADE_TOOLKIT against a real ` +
           `tools/list.`,
         selected.dropped,
         resealed,
@@ -437,14 +437,14 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
     }
 
     step = PRE_STREAM.agent;
-    // `Approvals_RequestApproval` as MCP spells it, from the toolkit name this
+    // `DealDesk_RequestApproval` as MCP spells it, from the toolkit name this
     // deployment measured — not a literal, and not the second entry of the
-    // allow-list (`lib/config.ts` → `approvalsToolkit`).
-    const escalationTool = `${config.agent.approvalsToolkit}_RequestApproval`;
+    // allow-list (`lib/config.ts` → `toolkit`).
+    const escalationTool = `${config.agent.toolkit}_RequestApproval`;
     // The turn boundary, enforced where there is no gap: the moment the
     // escalation returns a request id, every other tool in this turn's set
     // stops calling through. Round 1 of #110's review found a model calling
-    // `Deals_ApproveDiscount` straight after the escalation and that call reaching
+    // `DealDesk_ApproveDiscount` straight after the escalation and that call reaching
     // the gateway; a consumer reading a stream is always a tick behind, so the
     // guarantee has to live in `execute`. See `escalation.ts`.
     const closure = closeTurnOnEscalation(selected.tools, {
@@ -465,7 +465,7 @@ export async function chat(request: Request, options: ChatOptions = {}): Promise
       // allow-list: a prompt describing an index the agent cannot reach would
       // be the model's problem to discover, one turn at a time.
       instructions: instructionsFor(
-        config.agent.elasticToolkit === "" ? null : { index: config.agent.elasticIndex },
+        config.agent.elasticEnabled ? { index: config.agent.elasticIndex } : null,
       ),
     }) as unknown as Streamable;
 

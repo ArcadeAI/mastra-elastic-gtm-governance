@@ -116,17 +116,17 @@ describe("the tool result on the stream is what the model received", () => {
 
   beforeAll(async () => {
     ({ events } = await turn(`Read loan ${OVER_LIMIT_LOAN}.`, [
-      { call: "Deals_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
+      { call: "DealDesk_GetDeal", input: { deal_id: OVER_LIMIT_LOAN } },
       { say: "Read." },
     ]));
   }, 30_000);
 
   test("the tool-result event deep-equals the tool result in the model's next prompt", () => {
     const results = of(events, "tool-result");
-    expect(results.map((event) => event.tool)).toEqual(["Deals_GetDeal"]);
+    expect(results.map((event) => event.tool)).toEqual(["DealDesk_GetDeal"]);
 
     const saw = toolResultsTheModelSaw(scripted);
-    expect(saw.map((part) => part.toolName)).toEqual(["Deals_GetDeal"]);
+    expect(saw.map((part) => part.toolName)).toEqual(["DealDesk_GetDeal"]);
     // The claim of AC5, as one assertion.
     expect(results[0]?.result).toEqual(saw[0]?.value);
     expect(results[0]?.withheld).toBeUndefined();
@@ -146,7 +146,7 @@ describe("the tool result on the stream is what the model received", () => {
 
   test("the arguments on the tool-call are the model's own", () => {
     expect(of(events, "tool-call")).toEqual([
-      { kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: OVER_LIMIT_LOAN } },
+      { kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: OVER_LIMIT_LOAN } },
     ]);
   });
 });
@@ -157,7 +157,7 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     // concrete: a call whose argument happens to carry it, which the loan
     // module will also echo back in its error. Neither may reach the page.
     const { events: turned, bearer } = await turn("Read it.", (bearer) => [
-      { call: "Deals_GetDeal", input: { deal_id: `DL-${bearer}` } },
+      { call: "DealDesk_GetDeal", input: { deal_id: `DL-${bearer}` } },
       { say: "That loan does not exist." },
     ]);
 
@@ -197,8 +197,8 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
       stream: async () => ({
         fullStream: new ReadableStream({
           start(controller) {
-            controller.enqueue({ type: "tool-call", payload: { toolName: "Deals_GetDeal", args: { deal_id: bearer } } });
-            controller.enqueue({ type: "tool-result", payload: { toolName: "Deals_GetDeal", result: leaky } });
+            controller.enqueue({ type: "tool-call", payload: { toolName: "DealDesk_GetDeal", args: { deal_id: bearer } } });
+            controller.enqueue({ type: "tool-result", payload: { toolName: "DealDesk_GetDeal", result: leaky } });
             controller.close();
           },
         }),
@@ -223,7 +223,7 @@ describe("nothing leaks: secrets never reach a rendered argument or result", () 
     expect(result?.withheld).toBe(5);
     expect(of(events, "tool-call")[0]).toEqual({
       kind: "tool-call",
-      tool: "Deals_GetDeal",
+      tool: "DealDesk_GetDeal",
       inputs: { deal_id: WITHHELD },
       withheld: 1,
     });

@@ -228,7 +228,7 @@ async function auditRows(): Promise<number> {
 }
 
 /**
- * A port nothing is listening on, obtained the way `tools/loan`'s
+ * A port nothing is listening on, obtained the way `mcp/deal_desk/deals.py`'s
  * `conftest._free_port` does: bind `:0`, read back what the OS gave, release
  * it. This worktree owns a block of ten ports and the reviewer's owns another,
  * so no number here may be written down.

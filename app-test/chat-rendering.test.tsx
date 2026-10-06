@@ -248,16 +248,16 @@ describe("a streamed reply is one message, not one message per chunk", () => {
     const container = await turn([
       ...deltas("Rea"),
       ...deltas("ding it now."),
-      { kind: "tool-call", tool: "Deals_GetDeal", inputs: { deal_id: "DL-2291" } },
-      { kind: "tool-result", tool: "Deals_GetDeal", result: { deal_id: "DL-2291", amount: 95000 } },
+      { kind: "tool-call", tool: "DealDesk_GetDeal", inputs: { deal_id: "DL-2291" } },
+      { kind: "tool-result", tool: "DealDesk_GetDeal", result: { deal_id: "DL-2291", amount: 95000 } },
       ...deltas("It is for $95,000."),
       { kind: "done", calls: 1 },
     ]);
 
     expect(replies(container)).toEqual(["Reading it now.", "It is for $95,000."]);
     const markup = container.innerHTML;
-    expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("Deals_GetDeal"));
-    expect(markup.indexOf("Deals_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
+    expect(markup.indexOf("Reading it now.")).toBeLessThan(markup.indexOf("DealDesk_GetDeal"));
+    expect(markup.indexOf("DealDesk_GetDeal")).toBeLessThan(markup.indexOf("It is for $95,000."));
   });
 });
 

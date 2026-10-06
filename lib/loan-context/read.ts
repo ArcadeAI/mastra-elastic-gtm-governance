@@ -11,7 +11,7 @@
  * `lib/loan-context/loans.ts` states the new reasoning in full; the short form
  * is that the thesis is about the agent's path, the bank's own screen for an
  * authenticated human is not that path, and routing it through the gateway cost
- * two `Deals_GetDeal` calls on every page load — tool calls on the panel before
+ * two `DealDesk_GetDeal` calls on every page load — tool calls on the panel before
  * the presenter had spoken, and cards that never moved when the agent approved
  * something.
  *
@@ -31,7 +31,7 @@
  * Since #5 the deal book is a module of this app (`lib/loans/`), and this file
  * reads it without leaving the process: no loopback HTTP to `/bank/…`, no MCP,
  * no gateway. It hands the module's own request handler a `Request` carrying
- * the person's bearer, so the read goes through exactly the path `tools/loan`'s
+ * the person's bearer, so the read goes through exactly the path `mcp/deal_desk/deals.py`'s
  * calls go through — the same route table, the same actor derivation, the same
  * 401 for a bearer the provider refuses. What it skips is the socket, not the
  * rule. It never opens `loans.db` and never imports the module's database

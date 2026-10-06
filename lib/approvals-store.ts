@@ -4,12 +4,12 @@
  * The approval page is built on `GET /approvals/{id}` and nothing else: the
  * link in the Slack message carries an opaque id, with no token, no signature
  * and no query string, so that response has to be enough to render the whole
- * page. It is — see the record shape in `tools/approvals/README.md`.
+ * page. It is — see the record shape in `mcp/APPROVALS.md`.
  *
  * **A 200 here is not authorization.** The requester can read the DM she sent,
  * so she can open the link too, and this endpoint answers her exactly as it
  * answers the approver. Whether the person looking may *decide* is settled
- * when the button is pressed, by a `/pre` decision on `Approvals.Decide`.
+ * when the button is pressed, by a `/pre` decision on `DealDesk.Decide`.
  * Nothing in this module should ever grow a "may this viewer see it" branch;
  * that question has an answer, and it is not here.
  */

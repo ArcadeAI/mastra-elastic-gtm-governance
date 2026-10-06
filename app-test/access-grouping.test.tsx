@@ -13,7 +13,7 @@
  * 2. The panel in **fixture mode**, end to end — the real route handler over a
  *    real socket, read by the real subscriber, into the real timeline, into
  *    the real view — replaying the shape measured at the #13 sitting: three
- *    `access` rows for one `Deals.GetDeal`, two for one `Deals.ApproveDiscount`.
+ *    `access` rows for one `DealDesk.GetDeal`, two for one `DealDesk.ApproveDiscount`.
  */
 import { afterEach, describe, expect, test } from "bun:test";
 import type { GovernanceEvent, HookPoint } from "@cg/policy-schema";
@@ -46,7 +46,7 @@ function access(
     execution_id: "",
     hook: overrides.hook ?? "access",
     user_id: overrides.user_id ?? "alice@bank.example",
-    tool: overrides.tool ?? "Deals.GetDeal",
+    tool: overrides.tool ?? "DealDesk.GetDeal",
     decision: overrides.decision ?? "allow",
     rule_id: null,
   });
@@ -83,8 +83,8 @@ describe("adjacent access decisions about the same call are one row", () => {
 
     expect(rows).toHaveLength(2);
     expect(rows.map((row) => `${row.event.tool}×${row.events.length}`)).toEqual([
-      "Deals.ApproveDiscount×2",
-      "Deals.GetDeal×3",
+      "DealDesk.ApproveDiscount×2",
+      "DealDesk.GetDeal×3",
     ]);
   });
 });
@@ -116,7 +116,7 @@ describe("nothing is dropped and nothing is reordered", () => {
     const rows = groupAccessEvents(
       newestFirst([
         access("evt_1", 0),
-        access("evt_2", 20, { tool: "Deals.SearchDeals" }),
+        access("evt_2", 20, { tool: "DealDesk.SearchDeals" }),
         access("evt_3", 40),
       ]),
     );
@@ -128,7 +128,7 @@ describe("nothing is dropped and nothing is reordered", () => {
 describe("what splits a row", () => {
   test("a different tool", () => {
     const rows = groupAccessEvents(
-      newestFirst([access("evt_1", 0), access("evt_2", 20, { tool: "Deals.ApproveDiscount" })]),
+      newestFirst([access("evt_1", 0), access("evt_2", 20, { tool: "DealDesk.ApproveDiscount" })]),
     );
 
     expect(rows).toHaveLength(2);
@@ -252,8 +252,8 @@ describe("the access lane draws one card per run of decisions", () => {
   });
 
   test("both tools are still named — grouping joins, it does not hide", () => {
-    expect(markup).toContain("Deals.GetDeal");
-    expect(markup).toContain("Deals.ApproveDiscount");
+    expect(markup).toContain("DealDesk.GetDeal");
+    expect(markup).toContain("DealDesk.ApproveDiscount");
   });
 
   test("expanding a row lists the individual event ids", () => {

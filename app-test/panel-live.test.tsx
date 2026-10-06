@@ -85,7 +85,7 @@ function sessionFor(email: string): Session {
 }
 
 /**
- * Two real governed `Deals_GetDeal` calls, on one real MCP session.
+ * Two real governed `DealDesk_GetDeal` calls, on one real MCP session.
  *
  * The same path the chat takes: `sessionSurface` lists the persona's tools
  * through `/access` and runs the call the listing produced, so every row this
@@ -95,8 +95,8 @@ async function readTwoLoans(email: string): Promise<void> {
   const { inside } = await sessionSurface(
     sessionFor(email),
     async (listing) => {
-      const tool = listing.tools["Deals_GetDeal"] as { execute: (input: unknown) => Promise<unknown> } | undefined;
-      if (tool === undefined) throw new Error("the gateway advertised no Deals_GetDeal");
+      const tool = listing.tools["DealDesk_GetDeal"] as { execute: (input: unknown) => Promise<unknown> } | undefined;
+      if (tool === undefined) throw new Error("the gateway advertised no DealDesk_GetDeal");
       for (const loanId of ["DL-2291", "DL-2299"]) await tool.execute({ deal_id: loanId });
       return true;
     },
@@ -114,7 +114,7 @@ async function until(predicate: () => boolean, what: string, timeoutMs = 8_000):
 }
 
 describe("the hydrated live panel", () => {
-  test("shows both Deals_GetDeal reads made before hydration", async () => {
+  test("shows both DealDesk_GetDeal reads made before hydration", async () => {
     const before = await harness.audit();
     const beforeIds = new Set(before.map((row) => String(row.id)));
     await readTwoLoans(MORGAN);
@@ -125,7 +125,7 @@ describe("the hydrated live panel", () => {
         (row) =>
           !beforeIds.has(String(row.id)) &&
           row.user_id === MORGAN &&
-          row.tool === "Deals.GetDeal" &&
+          row.tool === "DealDesk.GetDeal" &&
           (row.hook === "pre" || row.hook === "post"),
       )
       .map((row) => String(row.id));
@@ -149,7 +149,7 @@ describe("the hydrated live panel", () => {
       );
 
       const cards = expectedIds.map((id) => container.querySelector(`[data-event-id="${id}"]`));
-      expect(cards.every((card) => card?.querySelector(".cg-tool")?.textContent === "Deals.GetDeal")).toBe(true);
+      expect(cards.every((card) => card?.querySelector(".cg-tool")?.textContent === "DealDesk.GetDeal")).toBe(true);
     } finally {
       root.unmount();
       container.remove();
@@ -203,7 +203,7 @@ describe("the hydrated live panel", () => {
       expect(card.getAttribute("data-listing")).toBe("true");
       expect(card.querySelector(".cg-tool")?.textContent).toBe("tools/list");
       for (const id of ids) expect(card.textContent).toContain(id);
-      expect(card.textContent).toContain("Deals.ApproveDiscount");
+      expect(card.textContent).toContain("DealDesk.ApproveDiscount");
       expect(card.textContent).toContain("access.analysts-cannot-see-approve");
     } finally {
       root.unmount();

@@ -267,7 +267,7 @@ function fromRow(row: AuditRow): GovernanceEvent {
 export interface AuditFilter {
   /** Case-insensitive exact match on the acting persona. */
   readonly user_id?: string;
-  /** Exact match on the stored `Toolkit.Tool`, e.g. `Deals.GetDeal`. */
+  /** Exact match on the stored `Toolkit.Tool`, e.g. `DealDesk.GetDeal`. */
   readonly tool?: string;
   readonly hook?: string;
   readonly decision?: string;

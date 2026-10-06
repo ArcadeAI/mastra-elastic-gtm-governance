@@ -28,11 +28,11 @@ const clearanceRule = (toolkit: string, tool: string, input: string) =>
     priority: 100,
   });
 
-const policyOf = (catalogue: ToolCatalogue, rules = [clearanceRule("Deals", "ApproveDiscount", "amount")]) =>
+const policyOf = (catalogue: ToolCatalogue, rules = [clearanceRule("DealDesk", "ApproveDiscount", "amount")]) =>
   compilePolicy({ catalogue, rules });
 
 const LOAN: ToolCatalogue = {
-  Deals: {
+  DealDesk: {
     ApproveDiscount: ["deal_id", "amount"],
     DenyDiscount: ["deal_id", "reason"],
     SearchDeals: ["status?"],
@@ -53,7 +53,7 @@ describe("naming the tool", () => {
     expect(resolved).toEqual({
       outcome: "resolved",
       binding: {
-        toolkit: "Deals",
+        toolkit: "DealDesk",
         tool: "ApproveDiscount",
         resourceInput: "deal_id",
         amountInput: "amount",
@@ -102,8 +102,8 @@ describe("naming the bounded input", () => {
 
   test("refuses when two rules bound two different inputs of the same tool", () => {
     const resolved = resolveAction("approve_discount", LOAN, policyOf(LOAN, [
-      clearanceRule("Deals", "ApproveDiscount", "amount"),
-      clearanceRule("Deals", "ApproveDiscount", "deal_id"),
+      clearanceRule("DealDesk", "ApproveDiscount", "amount"),
+      clearanceRule("DealDesk", "ApproveDiscount", "deal_id"),
     ]));
     expect(resolved).toHaveProperty("problem", expect.stringContaining("2 inputs bounded by clearance"));
   });

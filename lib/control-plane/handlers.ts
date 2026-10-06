@@ -424,7 +424,7 @@ function settleDecision(
  * Who this escalation will reach, worked out by the control plane rather than
  * read back from the tool.
  *
- * `routeApproval` is the same deterministic rule `tools/approvals` runs (both
+ * `routeApproval` is the same deterministic rule `mcp/deal_desk/approvals.py` runs (both
  * checked against `approver-routing-cases.json`), so saying it here costs one
  * pure call and gives the panel the routing beat — including who was
  * *deliberately not* asked, which is the part the demo is about.
@@ -552,7 +552,7 @@ export function handlePost(
  * it — which is also the line a presenter reads off the panel.
  *
  * Each rule appears once, named by id, followed by the sentence its author
- * wrote and the paths it acted on. Two rules commonly fire on one `Deals.GetDeal`
+ * wrote and the paths it acted on. Two rules commonly fire on one `DealDesk.GetDeal`
  * (act 3's fields and act 4's sweep) and the audience has to be able to tell
  * which did what, so neither is folded into the other.
  *

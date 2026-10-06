@@ -14,7 +14,7 @@
  * the browser reads it — over HTTP, filtering on the event name — and the
  * `event: approval` frame it delivers is what triggers the resume.
  *
- * The one thing not exercised offline is Slack: `Approvals_RequestApproval`
+ * The one thing not exercised offline is Slack: `DealDesk_RequestApproval`
  * routes and records for real and then says, in its own result, that no message
  * was sent. Live Slack needs a credential no test holds.
  *
@@ -30,7 +30,7 @@
  * The criterion this file exists for is *"the retry passes the pre-hook because
  * a valid grant exists — verified in the audit log, not inferred"*. So the
  * retry's own audit row is read back over `GET /audit` and checked to be an
- * `allow` on `Deals.ApproveDiscount` **carrying the rule id that would have denied
+ * `allow` on `DealDesk.ApproveDiscount` **carrying the rule id that would have denied
  * it** and naming the grant it consumed. An absent error would prove nothing:
  * a policy that had simply stopped matching would look identical.
  */
@@ -243,7 +243,7 @@ const store = (method: string, path: string, body?: unknown) =>
  * Every `/pre` audit row for one tool, oldest first.
  *
  * The hook is part of the filter and not an afterthought: `/access` writes one
- * row per tool on every `tools/list`, so `Deals.ApproveDiscount` has an `allow` row
+ * row per tool on every `tools/list`, so `DealDesk.ApproveDiscount` has an `allow` row
  * from act 1's layer before any call is ever made. Reading those as decisions
  * about a call is how "the retry was allowed" would come out true for the wrong
  * reason.
@@ -302,7 +302,7 @@ describe("act 2, end to end", () => {
     const watcher = watchForNotice(request.id);
     await watcher.ready;
 
-    // Charlie presses Approve. The page calls `Approvals.Decide` through Arcade
+    // Charlie presses Approve. The page calls `DealDesk.Decide` through Arcade
     // as the clicking user; here the gateway stand-in is that path, so the
     // call is governed at `/pre` exactly as it is in production.
     const decide = await post(
@@ -420,7 +420,7 @@ describe("act 2, end to end", () => {
   });
 
   test("the retry passes /pre because a grant exists — read off the audit log", async () => {
-    const rows = await preRowsFor("Deals.ApproveDiscount");
+    const rows = await preRowsFor("DealDesk.ApproveDiscount");
     // Two calls on this loan: the one that was refused, and the retry.
     expect(rows.length).toBeGreaterThanOrEqual(2);
 
@@ -466,7 +466,7 @@ describe("act 2, end to end", () => {
     expect(denial).toBeDefined();
     expect(denial?.reason).toContain("exceeds your approval authority of 50000");
 
-    const rows = await preRowsFor("Deals.ApproveDiscount");
+    const rows = await preRowsFor("DealDesk.ApproveDiscount");
     const last = rows.at(-1);
     expect(last?.decision).toBe("deny");
     expect(last?.rule_id).toBe("pre.approve-within-clearance");
@@ -504,7 +504,7 @@ describe("a model that tries a governed call straight after the escalation", () 
   let gatewayCallsBefore: number;
 
   beforeAll(async () => {
-    preRowsBefore = (await preRowsFor("Deals.ApproveDiscount")).length;
+    preRowsBefore = (await preRowsFor("DealDesk.ApproveDiscount")).length;
     gatewayCallsBefore = harness.calls.filter((call) => call.tool === APPROVE_LOAN).length;
 
     result = await post(
@@ -541,7 +541,7 @@ describe("a model that tries a governed call straight after the escalation", () 
   test("the model did ask for it — this is not a test of a model that behaved", () => {
     if (LIVE_KEY) return;
     // Two of the three scripted turns were consumed: the escalation, and then
-    // the `Deals_ApproveDiscount` the script asks for straight after it. So the
+    // the `DealDesk_ApproveDiscount` the script asks for straight after it. So the
     // adversarial call really was requested, and every assertion below is
     // about a call that was asked for and did not happen — not about a model
     // that politely stopped. The third turn is never reached: the loop ends
@@ -553,7 +553,7 @@ describe("a model that tries a governed call straight after the escalation", () 
     // The criterion, read off the control plane's own log rather than off the
     // events we chose to emit. Emitting nothing while the call still executed
     // would be the worst version of this bug: invisible, and a real write.
-    const rows = await preRowsFor("Deals.ApproveDiscount");
+    const rows = await preRowsFor("DealDesk.ApproveDiscount");
     expect(rows).toHaveLength(preRowsBefore);
 
     // And it never reached the gateway either, which is one layer earlier than

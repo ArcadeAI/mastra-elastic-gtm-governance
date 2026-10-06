@@ -72,8 +72,7 @@ beforeEach(() => {
     ARCADE_API_KEY: "gateway-refresh-suite-arcade-key",
     ARCADE_CLOUD_URL: arcade.url,
     ARCADE_GATEWAY_ID: GATEWAY_ID,
-    ARCADE_LOAN_TOOLKIT: "Deals",
-    ARCADE_APPROVALS_TOOLKIT: "Approvals",
+    ARCADE_TOOLKIT: "DealDesk",
     ANTHROPIC_API_KEY: "gateway-refresh-suite-anthropic-key",
     SESSION_SECRET,
     APP_PUBLIC_HOST: new URL(WEB_URL).host,
@@ -215,7 +214,7 @@ async function ask(jar: Jar, script: readonly Turn[]): Promise<Answer> {
 
 /** One tool call and a sentence: a turn that used the gateway rather than one that skipped it. */
 const A_TURN: readonly Turn[] = [
-  { call: "Deals_GetDeal", input: { deal_id: "DL-2291" } },
+  { call: "DealDesk_GetDeal", input: { deal_id: "DL-2291" } },
   { say: "DL-2291 is pending." },
 ];
 
@@ -450,7 +449,7 @@ describe("the tool list on the page recovers the same way", () => {
     const listed = await sessionTools(session, { config, timeoutMs: 10_000 });
 
     expect(listed.ok).toBe(true);
-    if (listed.ok) expect(listed.tools.map((tool) => tool.name)).toEqual(["Deals_GetDeal"]);
+    if (listed.ok) expect(listed.tools.map((tool) => tool.name)).toEqual(["DealDesk_GetDeal"]);
     expect(arcade.refreshes).toBe(1);
   });
 

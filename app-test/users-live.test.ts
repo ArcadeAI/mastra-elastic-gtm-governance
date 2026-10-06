@@ -58,7 +58,7 @@ const approve = (userId: string, amount: number) =>
     headers: { "content-type": "application/json", authorization: `Bearer ${HOOK_SECRET}` },
     body: JSON.stringify({
       execution_id: `tc_users_${crypto.randomUUID()}`,
-      tool: { name: "ApproveDiscount", toolkit: "Deals", version: "1.0.0" },
+      tool: { name: "ApproveDiscount", toolkit: "DealDesk", version: "1.0.0" },
       inputs: { deal_id: "DL-2299", amount },
       context: { authorization: [{}], user_id: userId },
     }),

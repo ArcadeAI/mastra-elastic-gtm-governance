@@ -44,8 +44,7 @@ const config: HooksConfig = {
   dbPath: ":memory:",
   signingSecret: SECRET,
   approvalsStoreToken: STORE_TOKEN,
-  loanToolkit: "Deals",
-  approvalsToolkit: "Approvals",
+  toolkit: "DealDesk",
   deadlineMs: 2500,
   policyPollMs: POLL_MS,
   grantTtlSeconds: 900,
@@ -89,7 +88,7 @@ async function postHook(
   user_id: string,
   output: unknown,
   name = "GetDeal",
-  toolkit = "Deals",
+  toolkit = "DealDesk",
 ): Promise<{ code: string; output?: Record<string, unknown> }> {
   const response = await fetch(`${base}/post`, {
     method: "POST",
@@ -125,11 +124,14 @@ async function auditRows(): Promise<Array<Record<string, unknown>>> {
 
 describe("the seeded rules, read back out of governance.db", () => {
   test("there are two over the deal book, and they are conditioned on different things", () => {
-    // Four since the Elastic module; the index's pair is measured in elastic-post.test.ts.
-    const rules = readOutputRules(db).filter((rule) => rule.match.toolkit === "Deals");
+    // Four on the one toolkit since the Elastic module: the deal book's pair
+    // first, then the index's, which elastic-post.test.ts measures.
+    const rules = readOutputRules(db).filter((rule) => rule.match.toolkit === "DealDesk");
     expect(rules.map((rule) => rule.id)).toEqual([
       "post.redact-customer-identifiers",
       "post.strip-injected-instructions",
+      "post.redact-identifiers-in-search-results",
+      "post.strip-injected-instructions-from-search-results",
     ]);
 
     const [fields, patterns] = rules;
@@ -214,7 +216,7 @@ describe("Alice reads DL-2291", () => {
 
     expect(row).toBeDefined();
     expect(row?.user_id).toBe(DANA);
-    expect(row?.tool).toBe("Deals.GetDeal");
+    expect(row?.tool).toBe("DealDesk.GetDeal");
     expect(row?.redactions).toEqual([
       { path: "$.bank_account_number", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" },
       { path: "$.tax_id", rule_id: "post.redact-customer-identifiers", pattern_id: null, kind: "mask" },
@@ -320,9 +322,10 @@ describe("the rest of the deal book", () => {
   });
 
   test("a tool no rule names is passed through untouched", async () => {
-    // `Deals.SearchDeals` until #4, when both rules came to name every Deals
-    // tool; the unnamed tool is now one from the other toolkit.
-    const { code, output } = await postHook(DANA, [LOAN], "RequestApproval", "Approvals");
+    // Two rules name every tool of the one toolkit (`"*"`), so the unnamed tool
+    // is one from another toolkit on the same gateway. It was
+    // `DealDesk.RequestApproval` while approvals were a toolkit of their own.
+    const { code, output } = await postHook(DANA, [LOAN], "SendMessage", "Slack");
     expect(code).toBe("OK");
     expect(output).toBeUndefined();
   });
@@ -417,7 +420,7 @@ describe("a rule edited live, as a presenter would", () => {
         headers: { "content-type": "application/json", authorization: `Bearer ${SECRET}` },
         body: JSON.stringify({
           execution_id: "tc_post_broken",
-          tool: { name: "GetDeal", toolkit: "Deals", version: "1.0.0" },
+          tool: { name: "GetDeal", toolkit: "DealDesk", version: "1.0.0" },
           success: true,
           output: LOAN,
           context: { user_id: DANA },
@@ -429,7 +432,7 @@ describe("a rule edited live, as a presenter would", () => {
       // the model may read.
       expect(body.code).toBe("CHECK_FAILED");
       expect(body.override).toBeUndefined();
-      expect(body.error_message).toContain("cannot release the output of Deals.GetDeal");
+      expect(body.error_message).toContain("cannot release the output of DealDesk.GetDeal");
     } finally {
       db.run("UPDATE output_rules SET patterns = ? WHERE id = 'post.strip-injected-instructions'", [
         JSON.stringify([

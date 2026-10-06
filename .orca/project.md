@@ -66,7 +66,7 @@ Desktop on this machine.**
   | root `test/` | not a workspace; `bun test ./test/` |
   | `docs/spikes/evidence` | not a workspace |
 
-  Beyond these: `tools/loan` and `tools/approvals` under `uv`, plus
+  Beyond these: `mcp/deal_desk/deals.py` and `mcp/deal_desk/approvals.py` under `uv`, plus
   `bun run typecheck` and `bun run build`. The three live-model tests skip
   without `ANTHROPIC_API_KEY`; report them as unverified, never as passes.
   **A non-zero `error` count is a failure, even beside `0 fail`.** A test file
@@ -128,7 +128,7 @@ Desktop on this machine.**
   `bash scripts/orca-setup.sh`, which is idempotent and keeps its block, or
   `bun run dev` falls back to port 3000. Never hard-code 3000, 4111, 8081, 8082
   or 8083, and never pick a port at random — bind `:0` and read it back, as
-  `tools/loan/tests/conftest.py::_free_port` does. Mastra's own 4111 is only the
+  `mcp/tests/deals/conftest.py::_free_port` does. Mastra's own 4111 is only the
   default for a checkout outside Orca.
   Claims live in `~/.cache/mastra-contextual-governance/portblocks/`, a directory
   name shared with the stage demo's worktrees (finding on #9). The hook reaps a
@@ -147,7 +147,7 @@ a row. Every one is a path that is only exercised where nobody looks. Weight
 your attention accordingly.
 
 - **A rule that is under-scoped, not misspelled.** #184: both output rules
-  matched `{ toolkit: "$LOAN", tool: "GetLoan" }` while `ApproveLoan` and
+  matched `{ toolkit: "$TOOLKIT", tool: "GetLoan" }` while `ApproveLoan` and
   `DenyLoan` returned the same `SELECT *` record, so every approve and deny
   leaked the data the rules exist to protect. **Ask of every slice: which paths
   return this data, and is the control on all of them?** `SearchLoans` is the
@@ -232,7 +232,7 @@ Gate through the human regardless of slice:
   `lib/identity/`. The Loan toolkit's provider id is `app-identity`.
 - `packages/governance-core`, `packages/policy-schema` — policy types and
   evaluation shared by the hooks.
-- `tools/loan`, `tools/approvals` — the Arcade toolkits, Python, `uv`.
+- `mcp/deal_desk/deals.py`, `mcp/deal_desk/approvals.py` — the Arcade toolkits, Python, `uv`.
 - `test/` — root-level reset tests. `docs/spikes/evidence` — spike evidence
   tests. Neither is a workspace.
 - `scripts/orca-setup.sh`, `scripts/orca-archive.sh` — the port-block hooks.

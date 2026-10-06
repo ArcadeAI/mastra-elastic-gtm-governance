@@ -132,7 +132,7 @@ export function bootControlPlane(options: BootOptions = {}): BootedControlPlane 
   log(
     `${where} — ${config.dbPath}: ${tally.subjects} subjects, ` +
       `${tally.policy_rules} rules, ${tally.audit_log} audit rows; ` +
-      `toolkits ${config.loanToolkit}, ${config.approvalsToolkit}, ${config.elasticToolkit ?? "Elasticsearch"}; ` +
+      `toolkit ${config.toolkit}; ` +
       `streaming on ${EVENTS_PATH}`,
   );
   if (state.status === "failed") log(`STARTED FAIL-CLOSED: ${state.error}`);

@@ -15,7 +15,7 @@ from the index. Then edit one rule on stage — `bun run users set-clearance`, o
 ## Fork it
 
 `docs/DOMAIN-SWAP.md` is the walk from this deal desk to your own system of record. Replace
-`lib/loans`, `tools/loan` and the seed fixtures; keep `packages/` and the control plane;
+`lib/loans`, `mcp/deal_desk/deals.py` and the seed fixtures; keep `packages/` and the control plane;
 keep the test that fails if the business system learns the word "policy".
 
 ## The tags, for later

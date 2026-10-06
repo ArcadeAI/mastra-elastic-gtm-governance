@@ -59,7 +59,7 @@ export type DecideOutcome =
 
 /** The name the tool is executed under. `arcade-mcp` PascalCases both halves. */
 export function decideToolName(config: WebConfig): string {
-  return `${config.approvalsToolkit}.Decide`;
+  return `${config.toolkit}.Decide`;
 }
 
 export async function decideThroughArcade(

@@ -475,7 +475,7 @@ class StandIn {
       }
       const tools: string[] = body.tool_filter?.allowed_tools ?? [];
       const hooksOn = [...this.plugins.values()].some((each) => each.status === "active");
-      const hidden = tools.find((tool) => /^(Deals|Approvals)\./.test(tool));
+      const hidden = tools.find((tool) => /^DealDesk\./.test(tool));
       if (this.activeHooksHideTools && hooksOn && hidden) {
         return Response.json({ name: "malformed_request", message: `tool ${hidden} not found` }, { status: 400 });
       }
@@ -546,7 +546,7 @@ function dashboardGateway(overrides: Json = {}): Json {
     auth_type: "user_source",
     user_source_id: USER_SOURCE,
     tool_filter: {
-      allowed_tools: ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"],
+      allowed_tools: ["DealDesk.SearchDeals", "DealDesk.GetDeal", "DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.RequestApproval", "DealDesk.Decide"],
     },
     ...overrides,
   };
@@ -627,7 +627,7 @@ const projects = new Map<string, Project>();
 
 /**
  * A fresh project: `.env.example` copied to `.env`, `ARCADE_API_KEY` filled,
- * `.env` gitignored, the two toolkit directories `arcade deploy` runs in, and a
+ * `.env` gitignored, the one toolkit directory `arcade deploy` runs in, and a
  * `HOME` whose Arcade CLI is logged in with the stand-in's project active.
  * `cli: null` is a CLI that was never logged in.
  */
@@ -637,11 +637,9 @@ function project(
   cli: { orgId: string; projectId: string } | null = { orgId: ORG, projectId: PROJECT },
 ): string {
   const dir = join(scratch, name);
-  // Each toolkit names its server the way this template's do: `[project] name`.
-  for (const toolkit of ["loan", "approvals"]) {
-    mkdirSync(join(dir, "tools", toolkit), { recursive: true });
-    writeFileSync(join(dir, "tools", toolkit, "pyproject.toml"), `[project]\nname = "${toolkit}"\nversion = "1.0.0"\n`);
-  }
+  // The one server directory, named the way this template's is: `[project] name`.
+  mkdirSync(join(dir, "mcp"), { recursive: true });
+  writeFileSync(join(dir, "mcp", "pyproject.toml"), `[project]\nname = "deal_desk"\nversion = "1.0.0"\n`);
   git(dir, "init", "-q");
   writeFileSync(join(dir, ".gitignore"), ".env\n*.db\n*.db-*\n");
   copyFileSync(join(ROOT, ".env.example"), join(dir, ".env.example"));
@@ -752,8 +750,7 @@ const FIRST_RUN = [
   `POST ${SCOPED}/plugins`,
   `GET ${SCOPED}/plugins/{id}`,
   `GET ${SCOPED}/hooks?plugin_id={id}`,
-  `GET ${SCOPED}/workers/loan`,
-  `GET ${SCOPED}/workers/approvals`,
+  `GET ${SCOPED}/workers/deal_desk`,
   GATEWAY_CHECK,
 ];
 /** A rerun's, once everything the first run did is there. */
@@ -765,13 +762,12 @@ const RERUN = [
   "PUT /v1/admin/settings/session_verification",
   "GET /v1/admin/settings/session_verification",
   `GET ${SCOPED}/hooks?plugin_id={id}`,
-  `GET ${SCOPED}/workers/loan`,
-  `GET ${SCOPED}/workers/approvals`,
+  `GET ${SCOPED}/workers/deal_desk`,
   GATEWAY_CHECK,
 ];
 /** What the second run adds once the gateway is there (#48): the hooks turned on, and read back. */
 const TURN_ON = [`PATCH ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/plugins/{id}`, `GET ${SCOPED}/hooks?plugin_id={id}`];
-const DEPLOYS = ["tools/loan|deploy", "tools/approvals|deploy"];
+const DEPLOYS = ["mcp|deploy"];
 /** The Coordinator's User Source route under the stand-in's project (#52), as a sequence names it. */
 const USER_SOURCES = `/v1/orgs/${ORG}/projects/${PROJECT}/user_sources`;
 /** The first page of the list, which is all of it while a project has fewer than a hundred. */
@@ -853,7 +849,7 @@ function formOrder(stdout: string): string[] {
   );
 }
 
-test("a first run registers every API-able piece with the hooks disabled, deploys both toolkits, makes no gateway, and prints both forms", async () => {
+test("a first run registers every API-able piece with the hooks disabled, deploys the toolkits, makes no gateway, and prints both forms", async () => {
   const mine = "the-developer-chose-this-session-secret-0123456789";
   const dir = project("full", (env) => env.replace(/^SESSION_SECRET=$/m, `SESSION_SECRET=${mine}`));
   const run = await setupArcade(dir);
@@ -895,11 +891,10 @@ test("a first run registers every API-able piece with the hooks disabled, deploy
   expect(run.stdout).toContain(`hooks: Arcade doesn't echo webhook_config.health_check_path back; it was sent as ${ORIGIN}/hooks/health and can't be verified`);
   expect(`${run.stdout}${run.stderr}`).not.toContain(env.ARCADE_HOOK_SIGNING_SECRET!);
 
-  // The deploys: both toolkits, in order, streamed, after the hooks.
+  // The deploy: one directory, streamed, after the hooks.
   expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
-  expect(run.stdout).toContain("arcade deploy   (in tools/loan):\nfake arcade: deploy (in ");
-  expect(run.stdout.indexOf("arcade deploy   (in tools/loan):")).toBeGreaterThan(run.stdout.indexOf("hooks: created"));
-  expect(run.stdout.indexOf("arcade deploy   (in tools/approvals):")).toBeGreaterThan(run.stdout.indexOf("arcade deploy   (in tools/loan):"));
+  expect(run.stdout).toContain("arcade deploy   (in mcp):\nfake arcade: deploy (in ");
+  expect(run.stdout.indexOf("arcade deploy   (in mcp):")).toBeGreaterThan(run.stdout.indexOf("hooks: created"));
 
   // The tool secrets, in the CLI's body shape, and the verifier as read back.
   for (const request of arcade.requests.filter((each) => each.path.startsWith("/v1/admin/secrets/"))) {
@@ -969,9 +964,9 @@ function gatewayFormIsComplete(stdout: string): void {
   expect(start, "no gateway form").toBeGreaterThan(-1);
   const form = stdout.slice(start, stdout.indexOf("└─", start));
   expect(form).toMatch(/│ {2}Slug +deal-desk-template-test +← \.env's ARCADE_GATEWAY_ID$/m);
-  expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    Deals: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount\n│                    Approvals: RequestApproval, Decide\n");
+  expect(form).toContain("│  Allowed Tools     these six, and no others:\n│                    DealDesk: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount\n│                    DealDesk: RequestApproval, Decide\n");
   expect(form).toContain("Non-Arcade Users → User Source\n│                    → Deals Approval Limits (the User Source above). Never Arcade Headers.");
-  expect(form).toContain("lists the Deals and Approvals tools only while the hooks are disabled");
+  expect(form).toContain("lists the DealDesk tools only while the hooks are disabled");
 }
 
 /**
@@ -1118,11 +1113,11 @@ test("--dry-run from a fresh project prints the requests a real run makes, in or
   const gateway = bodyAfter(run.stdout, `  POST ${arcade.url}${SCOPED}/gateways\n`);
   expect(gateway.auth_type).toBe("user_source");
   expect(gateway.user_source_id).toBe("<the User Source's id>");
-  expect(gateway.tool_filter.allowed_tools).toEqual(["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"]);
+  expect(gateway.tool_filter.allowed_tools).toEqual(["DealDesk.SearchDeals", "DealDesk.GetDeal", "DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.RequestApproval", "DealDesk.Decide"]);
   expect(bodyAfter(run.stdout, `  PATCH ${arcade.url}${SCOPED}/plugins/<plugin_id>\n`).status).toBe("active");
   expect(run.stdout).toContain("falls back to the dashboard forms (#48): the\n    gateway deal-desk-template-test is only looked for, the hooks stay disabled");
   expect(run.stdout).toContain(
-    "Deploys, after the hooks and before the gateway check, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in tools/loan)\n  arcade deploy   (in tools/approvals)",
+    "Deploys, after the hooks and before the gateway check, each stopping the run if it fails, unless Arcade already runs it:\n  arcade deploy   (in mcp)",
   );
   expect(run.stdout).not.toContain("POST " + arcade.url + "/v1/admin/secrets");
   expect(run.stdout).toMatch(/would fill .*\bBETTER_AUTH_SECRET\b/);
@@ -1204,7 +1199,7 @@ test("a gateway under another slug does not turn the hooks on", async () => {
 
 test("rerunning the first run after it failed never turns the hooks on ahead of the gateway form", async () => {
   const dir = project("first-run-again");
-  const failed = await setupArcade(dir, { failDeployIn: "tools/approvals" });
+  const failed = await setupArcade(dir, { failDeployIn: "mcp" });
   expect(failed.code).toBe(1);
   hooksAreRegistered(dir, "inactive");
   const again = await setupArcade(dir);
@@ -1248,7 +1243,7 @@ test("hooks already on with no gateway are left on, and the run says the gateway
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   expect(sequence(arcade.requests)).toEqual(RERUN);
   expect(run.stdout).toContain(
-    "hooks: already on, so the dashboard's gateway form will not list the Deals and Approvals tools. Disable loan-approval-limits-hooks in the dashboard before you fill it in",
+    "hooks: already on, so the dashboard's gateway form will not list the DealDesk tools. Disable loan-approval-limits-hooks in the dashboard before you fill it in",
   );
   hooksAreRegistered(dir, "active");
 }, 90_000);
@@ -1279,10 +1274,10 @@ test("a gateway that does not authenticate through the User Source is refused, a
 test("a gateway whose tool list is not the six turns the hooks on anyway, with the differences as warnings", async () => {
   const dir = project("gateway-tools-differ");
   expect((await setupArcade(dir)).code).toBe(0);
-  dashboardGateway({ tool_filter: { allowed_tools: ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Approvals.RequestApproval", "Approvals.Decide", "Gmail.SendEmail"] } });
+  dashboardGateway({ tool_filter: { allowed_tools: ["DealDesk.SearchDeals", "DealDesk.GetDeal", "DealDesk.ApproveDiscount", "DealDesk.RequestApproval", "DealDesk.Decide", "Gmail.SendEmail"] } });
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools is missing Deals.DenyDiscount");
+  expect(run.stdout).toContain("  warning       tool_filter.allowed_tools is missing DealDesk.DenyDiscount");
   expect(run.stdout).toContain("  warning       tool_filter.allowed_tools also has Gmail.SendEmail, which this app does not use");
   expect(run.stdout).toContain("the hooks are turned on anyway. To fix the tool list, disable loan-approval-limits-hooks in the dashboard first");
   hooksAreRegistered(dir, "active");
@@ -1461,7 +1456,7 @@ test("hooks that differ are updated, because they are not the access model, and 
   expect(run.stdout).toContain("hooks: loan-approval-limits-hooks is registered and differs from what this app needs, so it is updated:");
   expect(run.stdout).toContain(`webhook_config.endpoints.post.url: Arcade has "https://old-host.example/hooks/post", this app needs "${ORIGIN}/hooks/post"`);
   expect(run.stdout).toContain('tool.pre.failure_mode: Arcade has "fail_open", this app needs "fail_closed"');
-  expect(sequence(arcade.requests).slice(-7, -3)).toEqual([
+  expect(sequence(arcade.requests).slice(-6, -2)).toEqual([
     `GET ${SCOPED}/hooks?plugin_id={id}`,
     `PATCH ${SCOPED}/plugins/{id}`,
     `GET ${SCOPED}/plugins/{id}`,
@@ -1606,12 +1601,12 @@ test("a key Arcade does not accept is stopped by the same check", async () => {
 test("a deploy that fails stops the run there: after the hooks, and before the gateway check", async () => {
   const dir = project("deploy-fails");
   dashboardGateway();
-  const run = await setupArcade(dir, { failDeployIn: "tools/approvals" });
+  const run = await setupArcade(dir, { failDeployIn: "mcp" });
   expect(run.code).toBe(1);
   expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
   expect(run.stdout).toContain("fake arcade: deploy (in");
   expect(run.stderr).toContain("fake arcade: deploy failed");
-  expect(run.stderr).toContain("arcade deploy in tools/approvals exited 3; its output is above, and nothing after it ran.");
+  expect(run.stderr).toContain("arcade deploy in mcp exited 3; its output is above, and nothing after it ran.");
   expect(run.stderr).toContain("or pass --skip-deploy");
   // The hooks were registered first, disabled, and the gateway never asked for, though it is there.
   hooksAreRegistered(dir, "inactive");
@@ -1625,7 +1620,7 @@ test("--skip-deploy runs no deploy, and the steps left say to deploy before the 
   expect(projects.get(dir)!.deploys()).toEqual([]);
   expect(run.stdout).toContain("Deploys: skipped (--skip-deploy).");
   const steps = thenList(run.stdout);
-  expect(steps).toContain("3. Deploy both toolkits (their secrets are set above): arcade deploy, in tools/loan and in tools/approvals.");
+  expect(steps).toContain("3. Deploy the toolkits (their secrets are set above): arcade deploy, in mcp.");
   const form = steps.search(/fill in the gateway form/i);
   expect(form).toBeGreaterThan(-1);
   expect(steps.indexOf("arcade deploy")).toBeLessThan(form);
@@ -1805,8 +1800,7 @@ test("from the live project's state after run 3, the dry run tells the truth, th
     at("PUT /v1/admin/secrets/APPROVALS_STORE_TOKEN → 200"),
     at(`custom verifier: ${ORIGIN}/api/arcade/verify (read back)`),
     at("hooks: created loan-approval-limits-hooks"),
-    at("arcade deploy   (in tools/loan):"),
-    at("arcade deploy   (in tools/approvals):"),
+    at("arcade deploy   (in mcp):"),
     at("gateway: there is no deal-desk-template-test in this project yet"),
     at("┌─ Arcade dashboard → your project → User Sources"),
     at("┌─ Arcade dashboard → your project → MCP Gateways"),
@@ -2018,11 +2012,11 @@ test("arcade deploy is given no stdin, so its logs prompt never waits for a key"
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   const log = join(scratch, "deploy-no-stdin.arcade.log.stdin");
   const seen = readFileSync(log, "utf8").trim().split("\n").map((line) => line.split("|")[1]);
-  // Both deploys, and neither had the pipe setup-arcade itself was given.
-  expect(seen).toEqual(["stdin=none", "stdin=none"]);
+  // The one deploy, without the pipe setup-arcade itself was given.
+  expect(seen).toEqual(["stdin=none"]);
   // And the CLI's own line about the secrets is called out as expected, next to the deploys.
   expect(run.stdout).toContain(`Secret 'APP_PUBLIC_HOST' not found in environment, skipping upload". That is expected:`);
-  expect(run.stdout.indexOf("That is expected:")).toBeLessThan(run.stdout.indexOf("arcade deploy   (in tools/loan):"));
+  expect(run.stdout.indexOf("That is expected:")).toBeLessThan(run.stdout.indexOf("arcade deploy   (in mcp):"));
 }, 60_000);
 
 // --- The provider's callback follows the provider (#30, run 4) ----------------
@@ -2071,32 +2065,30 @@ test("a provider recreated with a new callback: the rerun replaces it in .env an
  * skips it. Arcade's answer has no version to compare, so --redeploy is the
  * way to ship a changed toolkit.
  */
-test("a toolkit Arcade already runs is skipped, and one it does not is deployed", async () => {
+test("a server Arcade already runs is skipped, after one lookup under its own name", async () => {
   const dir = project("deploy-skip");
-  arcade.workers.add("loan");
+  arcade.workers.add("deal_desk");
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
-  expect(run.stdout).toContain("  tools/loan: already deployed on Arcade, skipped (pass --redeploy after changing it)");
-  expect(run.stdout).not.toContain("arcade deploy   (in tools/loan):");
-  // approvals answered 404, so it was deployed.
-  expect(projects.get(dir)!.deploys()).toEqual(["tools/approvals|deploy"]);
-  expect(sequence(arcade.requests).filter((each) => each.includes("/workers/"))).toEqual([`GET ${SCOPED}/workers/loan`, `GET ${SCOPED}/workers/approvals`]);
+  expect(run.stdout).toContain("  mcp: already deployed on Arcade, skipped (pass --redeploy after changing it)");
+  expect(run.stdout).not.toContain("arcade deploy   (in mcp):");
+  expect(projects.get(dir)!.deploys()).toEqual([]);
+  expect(sequence(arcade.requests).filter((each) => each.includes("/workers/"))).toEqual([`GET ${SCOPED}/workers/deal_desk`]);
 }, 60_000);
 
-test("a second run with both toolkits on Arcade deploys nothing, and the hooks are still turned on after", async () => {
+test("a second run with the server on Arcade deploys nothing, and the hooks are still turned on after", async () => {
   const dir = project("deploy-skip-both");
   expect((await setupArcade(dir)).code).toBe(0);
-  arcade.workers.add("loan");
-  arcade.workers.add("approvals");
+  arcade.workers.add("deal_desk");
   dashboardGateway();
   const run = await setupArcade(dir);
   expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
   expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
-  expect(run.stdout).toContain("  tools/approvals: already deployed on Arcade, skipped (pass --redeploy after changing it)");
+  expect(run.stdout).toContain("  mcp: already deployed on Arcade, skipped (pass --redeploy after changing it)");
   hooksAreRegistered(dir, "active");
 }, 60_000);
 
-test("--redeploy deploys both whatever Arcade runs, and asks it nothing", async () => {
+test("--redeploy deploys whatever Arcade runs, and asks it nothing", async () => {
   const dir = project("deploy-redeploy");
   arcade.workers.add("loan");
   arcade.workers.add("approvals");
@@ -2114,14 +2106,14 @@ test("a worker lookup that fails for another reason stops the run with Arcade's 
   arcade.workerLookup = { status: 500, body: { name: "internal", message: "the engine is having a moment" } };
   const run = await setupArcade(dir);
   expect(run.code).toBe(1);
-  expect(run.stderr).toContain(`checking whether tools/loan is deployed failed: GET ${SCOPED}/workers/loan answered 500`);
+  expect(run.stderr).toContain(`checking whether mcp is deployed failed: GET ${SCOPED}/workers/deal_desk answered 500`);
   expect(run.stderr).toContain("Arcade says: the engine is having a moment");
   expect(projects.get(dir)!.deploys()).toEqual([]);
 }, 60_000);
 
 // --- One click, through the Coordinator API (#52) -----------------------------
 
-const SIX_TOOLS = ["Deals.SearchDeals", "Deals.GetDeal", "Deals.ApproveDiscount", "Deals.DenyDiscount", "Approvals.RequestApproval", "Approvals.Decide"];
+const SIX_TOOLS = ["DealDesk.SearchDeals", "DealDesk.GetDeal", "DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.RequestApproval", "DealDesk.Decide"];
 /** Enter, once, at the pause: what a developer does after restarting `bun run dev`. */
 const ENTER: RunOptions = { tty: true, input: "\n" };
 
@@ -2227,7 +2219,7 @@ test("one run, one click: the User Source is created through the Coordinator, th
   );
   expect(run.stdout).toContain(`the app answers for ${ORIGIN} through the tunnel, and Arcade can use it`);
   expect(run.stdout).toContain(`user source: created Deals Approval Limits (${source.id}), issuer ${ORIGIN}, client ${source.client_id}, status active (read back)`);
-  expect(run.stdout).toContain(`gateway: created deal-desk-template-test, through the User Source ${source.id}, with the six tools of Deals and Approvals (read back)`);
+  expect(run.stdout).toContain(`gateway: created deal-desk-template-test, through the User Source ${source.id}, with the six DealDesk tools (read back)`);
   expect(run.stdout).toContain(`hooks: ${ORIGIN}/hooks/access, /hooks/pre and /hooks/post, fail closed, status active (read back)`);
   expect(run.stdout).toContain("hooks: on. Arcade now calls /hooks/access, /hooks/pre and /hooks/post for every tool call through deal-desk-template-test");
   expect(formOrder(run.stdout)).toEqual([]);
@@ -2687,7 +2679,7 @@ test("the order does not depend on active hooks hiding tools: a fresh run passes
   // Under the worst case, the create after the hooks is refused, and the run says what is left.
   const refused = await setupArcade(dir, ENTER);
   expect(refused.code).toBe(1);
-  expect(refused.stderr).toContain("Arcade says: tool Deals.SearchDeals not found");
+  expect(refused.stderr).toContain("Arcade says: tool DealDesk.SearchDeals not found");
   expect(refused.stdout).toContain("and the gateway is not, so the hooks\nare left on.");
   expect(arcade.gateways.size).toBe(0);
 

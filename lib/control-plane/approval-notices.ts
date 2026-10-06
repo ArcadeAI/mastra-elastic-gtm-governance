@@ -11,7 +11,7 @@
  * a hook decision and carries no `execution_id`. #19's driver ruling settled
  * this explicitly — no `GovernanceEvent` on the store writes — and routing and
  * outcome still reach the panel the honest way, through the real `/pre` rows on
- * `Approvals.RequestApproval` and `Approvals.Decide`. So this rides the socket
+ * `DealDesk.RequestApproval` and `DealDesk.Decide`. So this rides the socket
  * under a **different SSE event name** and is written to nothing.
  *
  * **It carries no `id:` line.** `Last-Event-ID` on this endpoint is defined
