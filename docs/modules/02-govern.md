@@ -8,9 +8,16 @@ catches all four while the model never gets a vote.
 
 ## What you build
 
-1. Add the rest of the cast: `bun run users seed-demo`, or one at a time — Bob the SDR with
-   no clearance, Charlie the VP Sales at $250,000, Michael the CRO at $5,000,000. Charlie's
-   email has to be the one his Slack account uses.
+1. Add the rest of the cast: Bob the SDR with no clearance, Charlie the VP Sales at $250,000,
+   Michael the CRO at $5,000,000:
+
+       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com
+
+   Charlie's email is the one thing that has to be real: the escalation finds the approver in
+   Slack by it. In the room, everyone's Charlie is the host's address, so every DM lands with
+   the host and every request is posted in `#deal-desk-approvals`. Approving is still yours:
+   Charlie signs in on *your* app, with the password the seed printed, in a second browser
+   profile. Nobody else's Charlie is involved.
 2. Confirm the hooks are on: `/hooks/health` reports `status: healthy` and `setup-arcade`
    printed *hooks: … status active (read back)*. Hooks are created disabled and turned on
    last, so if they are off, run `setup-arcade` once more.
@@ -19,8 +26,9 @@ catches all four while the model never gets a vote.
      tool list. Nothing was refused; the tool was never offered.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
      work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
-     calls it, Charlie gets a Slack DM from Alice's own account, Alice's turn ends. Charlie
-     approves; Alice's retry passes on a single-use grant.
+     calls it, Charlie gets a Slack DM from Alice's own account and the request appears in
+     `#deal-desk-approvals` with the link and no buttons, Alice's turn ends. Charlie approves
+     on the signed-in page; Alice's retry passes on a single-use grant.
    - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both
      come back `[REDACTED]`. As Charlie they come through.
    - **Act 4.** Any read of DL-2291 strips the pasted instruction from `crm_notes` before the
