@@ -44,6 +44,10 @@ const REPO = join(import.meta.dir, "..", "..");
 /** Where the app's shipped source is. Tests and docs are not in the app. */
 const SHIPPED = [
   "lib/**/*.{ts,tsx}",
+  "auth/**/*.{ts,tsx}",
+  "api/**/*.{ts,tsx}",
+  "gate/service/**/*.{ts,tsx}",
+  "elastic/**/*.ts",
   "app/**/*.{ts,tsx}",
   "components/**/*.{ts,tsx}",
   "src/**/*.{ts,tsx}",
@@ -208,9 +212,9 @@ describe("the rule catches what it is for", () => {
   test("another module importing the provider's issuance", () => {
     expect(
       mintingOffences([
-        { path: "lib/agent/mint.ts", text: `import { createAuth } from "./provider/auth.ts";\n` },
+        { path: "lib/agent/mint.ts", text: `import { createAuth } from "../../auth/provider/auth.ts";\n` },
       ]),
-    ).toEqual(["lib/agent/mint.ts imports ../identity/provider/auth.ts: the provider's internals are not importable"]);
+    ).toEqual(["lib/agent/mint.ts imports ../../auth/provider/auth.ts: the provider's internals are not importable"]);
   });
 
   test("another module importing the signing keys straight from Better Auth", () => {
@@ -227,8 +231,8 @@ describe("the rule catches what it is for", () => {
 
   test("the door, opened from somewhere that is not a mount", () => {
     expect(
-      mintingOffences([{ path: "lib/agent/sneak.ts", text: `import { identityFetch } from "./provider/instance.ts";\n` }]),
-    ).toEqual(["lib/agent/sneak.ts imports ../identity/provider/instance.ts: only the identity routes, /health and instrumentation.ts mount the provider"]);
+      mintingOffences([{ path: "lib/agent/sneak.ts", text: `import { identityFetch } from "../../auth/provider/instance.ts";\n` }]),
+    ).toEqual(["lib/agent/sneak.ts imports ../../auth/provider/instance.ts: only the identity routes, /health and instrumentation.ts mount the provider"]);
   });
 
   test("its secret, its database and its key table", () => {
