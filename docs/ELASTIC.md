@@ -81,13 +81,31 @@ scanned.
 
 ## Setup
 
-### 1. An Elasticsearch deployment
+### 1. An Elasticsearch Serverless project
 
-Elastic Cloud (hosted) or an Elasticsearch Serverless project. Note the **Elasticsearch
-endpoint** (not the Kibana URL). ELSER is preconfigured on both as
-`.elser-2-elasticsearch`, which is what `ELASTIC_INFERENCE_ID` defaults to;
-`Elasticsearch_ListInferenceEndpoints` through the gateway tells you what a deployment
-actually has if it differs.
+The workshop runs on **Elasticsearch Serverless** only. [Sign up for Elastic Cloud](https://ela.st/arcade) and
+create a Serverless project (the
+Elasticsearch / search use case) and note the **Elasticsearch endpoint** (not the Kibana
+URL).
+
+Leave `ELASTIC_INFERENCE_ID` blank. The seed then maps `crm_notes_semantic` as a
+`semantic_text` field with no `inference_id`, and Serverless fills in its default:
+**`.jina-embeddings-v5-text-small`**, a dense, multilingual embedding model hosted on the
+Elastic Inference Service (EIS). There is no model to deploy, no ML node to warm up and
+no third-party embedding key. ELSER is still on Serverless as `.elser-2-elastic` if you
+want to pin it; `Elasticsearch_ListInferenceEndpoints` through the gateway lists what the
+project has.
+
+#### What Serverless does not have
+
+Elastic manages the cluster, so the cluster-level APIs are not available: every
+`_cluster/*` and `_nodes/*` call, most `_cat/*` calls (`_cat/indices` and `_cat/aliases`
+remain), index stats, snapshots, open/close and force merge. Three of the toolkit's 26
+tools call those and will answer with Elasticsearch's own "not available when running in
+serverless mode" error: **`GetClusterHealth`**, **`GetShards`** and **`GetIndexStats`**.
+None of the module's prompts need them. Everything the module uses (search, semantic and
+hybrid search, aggregations, ES|QL, index create/delete, bulk writes, refresh, mappings
+and inference endpoints) is available.
 
 Mint an API key scoped to the workshop index. In Kibana Dev Tools:
 
@@ -98,31 +116,45 @@ POST /_security/api_key
   "role_descriptors": {
     "deal-files": {
       "indices": [{ "names": ["deal-files*"], "privileges": ["manage", "read", "write", "view_index_metadata"] }],
-      "cluster": ["monitor", "manage_inference"]
+      "cluster": ["manage_inference"]
     }
   }
 }
 ```
 
-`manage` on the index is what `CreateIndex` and `DeleteIndex` need; `monitor` is
-`GetClusterHealth`; `manage_inference` lets `ListInferenceEndpoints` answer. Index-level
+`manage` on the index is what `CreateIndex` and `DeleteIndex` need; `manage_inference`
+lets `ListInferenceEndpoints` answer. There is no `monitor`: its only use here was
+`GetClusterHealth`, which Serverless does not serve. Index-level
 privileges are the real boundary. The hooks sit on top of them, not in place of them.
 
 ### 2. The toolkit on your gateway
 
-Add the **Elasticsearch** toolkit to your Arcade project in the dashboard and set its two
-secrets there:
+The toolkit is in this repo, at `tools/elasticsearch`: an `arcade-mcp` server like
+`tools/loan` and `tools/approvals`, calling the Elasticsearch REST API. It is not in
+Arcade's catalog, and `setup-arcade` does not deploy it, so deploy it yourself, once:
+
+    cd tools/elasticsearch && arcade deploy
+
+That is a third deployment in the project, after `deals` and `approvals`; a plan that
+allows two refuses it with "Deployment limit reached".
+
+Then, in the Arcade dashboard, with **the same project selected** as the one `arcade
+whoami` shows (a new account also has a "Default project", and secrets saved there are
+invisible to this one), add its two secrets:
 
 | Secret | Value |
 |---|---|
-| `ELASTICSEARCH_URL` | the endpoint from step 1, with `:443` |
+| `ELASTICSEARCH_URL` | the Serverless project's Elasticsearch endpoint, with `:443` |
 | `ELASTICSEARCH_API_KEY` | the `encoded` value the key request returned |
 
 Then put it on the gateway. `bun run setup-arcade` does this when
-`ARCADE_ELASTIC_TOOLKIT` is set in `.env` (step 3): the gateway's tool filter carries the
-26 `Elasticsearch.*` tools alongside the six loan and approvals tools, and the read-back
-check names any that are missing. If you made the gateway in the dashboard instead, add
-the toolkit there; the printed gateway form lists it.
+`ARCADE_ELASTIC_TOOLKIT` is set in `.env` (step 3) **and it creates the gateway**: the tool
+filter carries the 26 `Elasticsearch.*` tools alongside the six loan and approvals tools.
+A gateway that already exists is never edited, only checked, and the read-back names
+the missing tools as a warning. If you ran modules 1 and 2 first, either add the 26
+tools to that gateway in the dashboard, or blank `ARCADE_GATEWAY_ID` in `.env` and run
+`bun run setup-arcade <APP_PUBLIC_HOST> --gateway <a-new-slug>`, which creates a second
+gateway with all 32; restart `bun run dev` and authorize the new gateway once.
 
 The toolkit files itself as `Elasticsearch` — the `MCPApp` name PascalCased is itself —
 and every wire name is `Elasticsearch_<Tool>`. A name that differs is a name to put in
@@ -149,7 +181,7 @@ Runs as the chief revenue officer, `ELASTIC_SEED_USER` in `.env`: the email you 
 role `cro`, and says what it did:
 
     seed:elastic: Elasticsearch.* via https://api.arcade.dev as michael@bank.example, index "deal-files"
-      created "deal-files" with crm_notes_semantic on .elser-2-elasticsearch
+      created "deal-files" with crm_notes_semantic on the project's default inference endpoint
       wrote 8 documents, 0 failed
       8 documents in "deal-files" — done
 
@@ -229,6 +261,6 @@ in place.
 - The prompts above, against the real model. The hooks are measured
   (`app-test/control-plane/elastic-post.test.ts`); which tool Claude reaches for on each prompt
   is not.
-- Whether `.elser-2-elasticsearch` is warm on a fresh Serverless project at the moment
-  the seed runs. The toolkit reports a cold endpoint by name rather than failing
-  silently; if it does, wait and rerun.
+- How the default `.jina-embeddings-v5-text-small` endpoint ranks the semantic prompts
+  above compared with ELSER, against which they were first written. Rehearse both and
+  replace the expected hits below with what you saw.
