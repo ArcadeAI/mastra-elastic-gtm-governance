@@ -28,11 +28,13 @@ through the same three hooks a write does.
 
    > Total discount requested by status.
 
-   > Show me the ten most recent requests.
+   > Use ES|QL to show me the ten most recent requests.
 
    Keyword search finds the word; semantic search on `crm_notes_semantic` (Jina embeddings) finds the meaning;
-   ES|QL answers the aggregate; and the bare "ten most recent" is refused at `/hooks/pre`
-   until the model adds a `KEEP`, which it does on the retry.
+   ES|QL answers the aggregate; and an ES|QL query with no `KEEP` clause is refused at
+   `/hooks/pre` until the model adds one, which it does on the retry. (A model that writes
+   the `KEEP` first time, as it often does once it knows the fields, is never refused: the
+   rule checked and had nothing to object to.)
 
 ## What to look at
 
