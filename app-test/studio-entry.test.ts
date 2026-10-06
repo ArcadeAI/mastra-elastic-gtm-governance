@@ -195,11 +195,11 @@ describe("one agent, two entries", () => {
     // pass for agreement.
     expect(fromChat!.system).toEqual([INSTRUCTIONS]);
     expect(fromChat!.tools.map((tool) => tool.name)).toEqual([
-      "DealDesk_Decide",
-      "DealDesk_RequestApproval",
       "DealDesk_ApproveDiscount",
+      "DealDesk_Decide",
       "DealDesk_DenyDiscount",
       "DealDesk_GetDeal",
+      "DealDesk_RequestApproval",
       "DealDesk_SearchDeals",
     ]);
     expect(fromStudio).toEqual(fromChat!);
@@ -253,7 +253,7 @@ describe("one token seam", () => {
         else if (/\.(ts|tsx)$/.test(name)) found.set(relative(REPO, path), readFileSync(path, "utf8"));
       }
     };
-    for (const dir of ["app", "components", "lib", "scripts", "src"]) walk(join(REPO, dir));
+    for (const dir of ["app", "components", "lib", "auth", "api", "gate/service", "scripts", "src"]) walk(join(REPO, dir));
     return found;
   }
 
@@ -264,7 +264,7 @@ describe("one token seam", () => {
   test("only gatewayToken reaches the functions behind it", () => {
     const users = [...sources()].filter(([, text]) => BEHIND_THE_SEAM.test(text)).map(([path]) => path).sort();
     // The seam and the module that defines what it wraps, and nothing else.
-    expect(users).toEqual(["lib/agent/gateway-token.ts", "auth/handlers.ts"]);
+    expect(users).toEqual(["auth/handlers.ts", "lib/agent/gateway-token.ts"]);
   });
 
   test("no module outside the identity module reads a stored gateway bearer", () => {

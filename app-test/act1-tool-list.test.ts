@@ -301,11 +301,11 @@ describe("who the /access frame names", () => {
     // tools the way every hook payload does — the underscore belongs in the one
     // place a rule addresses the model, and nowhere else.
     expect(rows.map((row) => row.tool).sort()).toEqual([
-      "DealDesk.Decide",
-      "DealDesk.RequestApproval",
       "DealDesk.ApproveDiscount",
+      "DealDesk.Decide",
       "DealDesk.DenyDiscount",
       "DealDesk.GetDeal",
+      "DealDesk.RequestApproval",
       "DealDesk.SearchDeals",
     ]);
 

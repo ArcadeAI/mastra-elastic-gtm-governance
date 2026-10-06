@@ -431,7 +431,7 @@ describe("a validated grant lifts the denial it was issued for", () => {
     rules: [
       aPolicyRule({
         reason:
-          "Blocked. To proceed, call DealDesk_RequestApproval with " +
+          "Blocked. To proceed, call Approvals_RequestApproval with " +
           "resource_id={{inputs.widget_id}}, quantity={{inputs.quantity}} and " +
           "justification=<why>, then retry this call unchanged.",
       }),

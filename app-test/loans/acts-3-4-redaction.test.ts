@@ -165,6 +165,6 @@ describe("acts 3 and 4", () => {
         catalogue: CATALOGUE,
         rules: [anOutputRule({ ...rule, match: { toolkit: TOOLKIT, tool: "get_deal" } })],
       }),
-    ).toThrow(/tool "Deals.get_deal", which that toolkit does not serve/);
+    ).toThrow(/tool "DealDesk.get_deal", which that toolkit does not serve/);
   });
 });

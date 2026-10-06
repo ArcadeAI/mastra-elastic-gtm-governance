@@ -410,7 +410,7 @@ function matchedArguments(
  * audit row and this rule's own `match` call it. Remediation text is the one
  * place where the difference is load-bearing, because it is the one place a
  * rule *addresses the model*. Measured on #14 against live Claude Sonnet 5 at
- * temperature 0: told to call `DealDesk.RequestApproval`, a name absent from
+ * temperature 0: told to call `Approvals.RequestApproval`, a name absent from
  * its toolset, the model refused the instruction outright in 2 of 5 runs — on
  * the correct reasoning that text arriving in a tool result and naming an
  * unlisted tool is exactly what act 4's injection looks like. So a dot-spelled

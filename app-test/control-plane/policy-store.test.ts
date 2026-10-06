@@ -118,7 +118,7 @@ describe("the seed", () => {
     expect([...new Set(data.policy_rules.map((r) => r.match.toolkit))]).toEqual(["LoanBook"]);
     expect([...new Set(data.output_rules.map((r) => r.match.toolkit))]).toEqual(["LoanBook"]);
     const esql = data.policy_rules.find((r) => r.id === "pre.esql-must-keep-named-columns");
-    expect(esql?.reason).toContain("LoanBook_RunEsqlQuery");
+    expect(esql?.reason).toContain("LoanBook_ElasticRunEsqlQuery");
     const escalation = data.policy_rules.find((r) => r.hook === "pre");
     // The remediation sentence is addressed to the model, so it carries the
     // wire spelling — and it carries the *configured* toolkit name in it, which

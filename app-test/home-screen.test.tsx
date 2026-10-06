@@ -471,7 +471,7 @@ describe("what the split took with it", () => {
     expect(existsSync(join(WEB, "components/shell/SplitScreen.tsx"))).toBe(false);
     expect(existsSync(join(WEB, "components/shell/shell.css"))).toBe(false);
 
-    for (const directory of ["lib", "app", "components", "app-test"]) {
+    for (const directory of ["lib", "auth", "api", "gate/service", "app", "components", "app-test"]) {
       for (const path of walk(join(WEB, directory))) {
         const source = readFileSync(path, "utf8");
         expect({ path, imports: /from\s+"[^"]*(SplitScreen|shell\/shell\.css)/.test(source) }).toEqual({
@@ -991,7 +991,7 @@ describe("the fork seam", () => {
    */
   test("nothing is left of the Continue refresh boundary", () => {
     expect(existsSync(join(WEB, "components/shell/HomeRefreshBoundary.tsx"))).toBe(false);
-    for (const directory of ["lib", "app", "components"]) {
+    for (const directory of ["lib", "auth", "api", "gate/service", "app", "components"]) {
       for (const path of walk(join(WEB, directory))) {
         const source = withoutComments(readFileSync(path, "utf8"));
         expect({ path, refreshes: source.includes("HomeRefresh") }).toEqual({ path, refreshes: false });
@@ -1022,7 +1022,7 @@ describe("the fork seam", () => {
     // `loans.db` in its answer, to say it was not touched.)
     const opening: string[] = [];
     const locating: string[] = [];
-    for (const directory of ["lib", "app", "components"]) {
+    for (const directory of ["lib", "auth", "api", "gate/service", "app", "components"]) {
       for (const path of walk(join(WEB, directory))) {
         const source = withoutComments(readFileSync(path, "utf8"));
         const relative = path.slice(WEB.length + 1);
@@ -1052,10 +1052,10 @@ describe("the fork seam", () => {
     const source = withoutComments(readFileSync(join(WEB, "lib/loan-context/read.ts"), "utf8"));
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1]);
 
-    expect(imports).toContain("../loans/instance.ts");
-    expect(imports.filter((path) => path?.startsWith("../loans/"))).toEqual([
-      "../loans/instance.ts",
-      "../loans/server.ts",
+    expect(imports).toContain("../../api/instance.ts");
+    expect(imports.filter((path) => path?.startsWith("../../api/"))).toEqual([
+      "../../api/instance.ts",
+      "../../api/server.ts",
     ]);
     expect(source).toContain("import type { LoanModule }");
   });
@@ -1071,7 +1071,7 @@ describe("the fork seam", () => {
    * `app-test/server-side-readers.test.ts`.
    */
   test("nothing this service serves reads the deal book over the network", () => {
-    const reaching = ["lib", "app", "components"]
+    const reaching = ["lib", "auth", "api", "gate/service", "app", "components"]
       .flatMap((directory) => walk(join(WEB, directory)))
       .filter((path) => withoutComments(readFileSync(path, "utf8")).includes("APP_PUBLIC_HOST"))
       .map((path) => path.slice(WEB.length + 1));
@@ -1089,12 +1089,12 @@ describe("the fork seam", () => {
     // #30: `next dev`'s `allowedDevOrigins`, which lists the host's name so a
     // page served on it can load the dev resources. It fetches nothing either.
     expect(reaching.sort()).toEqual([
+      "auth/provider/config.ts",
       "components/identity/OriginBanner.tsx",
-      "lib/config.ts",
       "gate/service/config.ts",
+      "lib/config.ts",
       "lib/dev-origins.ts",
       "lib/governance/stream-url.ts",
-      "auth/provider/config.ts",
       "lib/origin.ts",
     ]);
   });

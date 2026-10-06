@@ -176,7 +176,7 @@ describe("the tools the agent reaches", () => {
     // Both toolkits, not just `Deals` — round 1 of #88's review found the chat
     // handler passing one, which dropped `Approvals_*` and left the pre-hook's
     // own remediation instruction naming a tool the model could not see (#89).
-    expect(harness.config.agent.toolkits).toEqual(["DealDesk", "DealDesk"]);
+    expect(harness.config.agent.toolkits).toEqual(["DealDesk"]);
     // Six, which is what a live `tools/list` carries once the two built-ins are
     // taken off the eight it answers with (#82). `DealDesk_RequestApproval` is
     // the one that matters: the pre-hook's denial tells the model to call it by

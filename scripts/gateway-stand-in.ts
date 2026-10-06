@@ -616,13 +616,12 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
             : base(options.webPublicHost ?? "localhost:3000"),
         });
 
-  // Both project toolkits, because a live gateway advertises both and the
-  // agent's allow-list is keyed on both (DESIGN.md → Tool surface). Grouped by
-  // toolkit rather than flattened, because `/access` speaks toolkit-and-tool
-  // and the request below has to carry every one of them.
+  // One toolkit since the one-deploy change: the deal tools and the approvals
+  // tools are advertised under the same name, as the one server files them.
+  // Grouped by toolkit rather than flattened, because `/access` speaks
+  // toolkit-and-tool and the request below has to carry every one of them.
   const byToolkit: Record<string, ToolSpec[]> = {
-    [toolkit]: loanTools(toolkit),
-    [toolkit]: approvalsTools(toolkit, approvalsStore),
+    [toolkit]: [...loanTools(toolkit), ...approvalsTools(toolkit, approvalsStore)],
   };
   const tools = Object.values(byToolkit).flat();
   const byName = new Map(tools.map((tool) => [tool.name, tool]));
