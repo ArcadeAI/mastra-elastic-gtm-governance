@@ -82,8 +82,8 @@ import type { Database } from "bun:sqlite";
 import { userInfo } from "node:os";
 import { parseArgs } from "node:util";
 
-import { readConfig } from "../lib/control-plane/config.ts";
-import { loadSeed, openGovernance } from "../lib/control-plane/policy-store.ts";
+import { readConfig } from "../gate/service/config.ts";
+import { loadSeed, openGovernance } from "../gate/service/policy-store.ts";
 import {
   addSubject,
   hiddenFrom,
@@ -97,7 +97,7 @@ import {
   subjectId,
   type NewSubject,
   type SubjectChange,
-} from "../lib/control-plane/subjects.ts";
+} from "../gate/service/subjects.ts";
 import { openPeopleStore, type People } from "./identity/people.ts";
 
 /** Where a requester is invited. One constant, so the wording has one place to be corrected. */

@@ -18,12 +18,12 @@ import type { Database } from "bun:sqlite";
 import { createEventBus, type EventBus } from "@cg/governance-core";
 import { GovernanceEvent } from "@cg/policy-schema";
 
-import { newEventId, record } from "../../lib/control-plane/audit-log.ts";
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { GOVERNANCE_EVENT_NAME, handleEvents, STREAM_BACKLOG_LIMIT } from "../../lib/control-plane/events.ts";
-import { createPolicyCache, type PolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import { newEventId, record } from "../../gate/service/audit-log.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { GOVERNANCE_EVENT_NAME, handleEvents, STREAM_BACKLOG_LIMIT } from "../../gate/service/events.ts";
+import { createPolicyCache, type PolicyCache } from "../../gate/service/policy-cache.ts";
+import { openGovernance } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
 // The reader lives beside this file since #20 needed it for the second event
 // name on the same socket. Same parser, same contract, one copy.
 import { openEventStream as open, type Frame, type Reader } from "./sse-reader.ts";

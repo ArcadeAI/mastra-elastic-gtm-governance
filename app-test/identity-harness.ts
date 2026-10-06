@@ -14,9 +14,9 @@
  *   the issue asked for that specifically. Until #6 this was `apps/idp` in a
  *   subprocess on a port of its own.
  * - **The web UI's handlers are real, behind a real server.** `Bun.serve` on
- *   `:0`, routing to the same `lib/identity/handlers.ts` functions `app/api/**`
+ *   `:0`, routing to the same `auth/handlers.ts` functions `app/api/**`
  *   calls, and reaching the provider in-process as they do in the app
- *   (`lib/identity/link.ts`). Nothing is mocked: the suite drives them with a
+ *   (`auth/link.ts`). Nothing is mocked: the suite drives them with a
  *   cookie jar over HTTP and asserts on the `Set-Cookie` headers a browser
  *   would actually get.
  * - **Arcade Cloud is a stand-in, and only Arcade Cloud.** It speaks the MCP
@@ -43,15 +43,15 @@ import {
   signinCallback,
   signout,
   verify,
-} from "../lib/identity/handlers.ts";
+} from "../auth/handlers.ts";
 import { childEnv } from "./child-env.ts";
 import { freePort, spawnChild } from "./child.ts";
 import { DEMO_CAST, seedDemoIdentity } from "./demo-cast.ts";
-import { forgetGatewayClients } from "../lib/identity/gateway.ts";
-import { linkIdentity } from "../lib/identity/link.ts";
-import { readConfig as readIdpConfig } from "../lib/identity/provider/config.ts";
-import { isIdentityPath, openIdentityProvider } from "../lib/identity/provider/server.ts";
-import { nonce, pkce } from "../lib/identity/oidc.ts";
+import { forgetGatewayClients } from "../auth/gateway.ts";
+import { linkIdentity } from "../auth/link.ts";
+import { readConfig as readIdpConfig } from "../auth/provider/config.ts";
+import { isIdentityPath, openIdentityProvider } from "../auth/provider/server.ts";
+import { nonce, pkce } from "../auth/oidc.ts";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 

@@ -21,11 +21,11 @@
  * nothing can reach exits 78 (sysexits' EX_CONFIG) before the database is
  * opened and before the port is bound, the way `cg-loan-app` always did.
  */
-import { openLoanBook } from "../lib/loans/db.ts";
-import { loanModuleConfig } from "../lib/loans/instance.ts";
-import { orExitConfig } from "../lib/loans/public-host.ts";
-import { createLoanModule, MOUNT, mountedFetch, SERVICE } from "../lib/loans/server.ts";
-import { RESET_PATH } from "../lib/loans/reset.ts";
+import { openLoanBook } from "../api/db.ts";
+import { loanModuleConfig } from "../api/instance.ts";
+import { orExitConfig } from "../api/public-host.ts";
+import { createLoanModule, MOUNT, mountedFetch, SERVICE } from "../api/server.ts";
+import { RESET_PATH } from "../api/reset.ts";
 
 const { dbPath, resetToken, idpHost } = orExitConfig(SERVICE, () => loanModuleConfig());
 

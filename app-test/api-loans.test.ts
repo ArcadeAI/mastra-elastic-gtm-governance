@@ -16,7 +16,7 @@
  * writes down the `Authorization` header on every request and forwards it
  * unchanged. That is how the claim **"the read is made with the persona's
  * bearer, not a shared secret"** is measured rather than asserted — the
- * recorded bearer is the one `lib/loans/actor.ts` presented to decide who the
+ * recorded bearer is the one `api/actor.ts` presented to decide who the
  * caller is, and presented again it has to name the person who signed in.
  * Until #5 the proxy sat between the route and `apps/loan-app`, and recorded
  * the same bearer one hop earlier.
@@ -33,15 +33,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { GET } from "../app/api/loans/route.ts";
-import type { HooksConfig } from "../lib/control-plane/config.ts";
-import { fixtureDigest } from "../lib/control-plane/fixture-drift.ts";
-import { createPolicyCache } from "../lib/control-plane/policy-cache.ts";
-import { loadSeed, openGovernance } from "../lib/control-plane/policy-store.ts";
-import { createServer } from "../lib/control-plane/server.ts";
-import { closeLoanModule, serve as serveBank } from "../lib/loans/instance.ts";
-import { chunk, chunkName, joinChunks, openSealed, seal } from "../lib/identity/seal.ts";
+import type { HooksConfig } from "../gate/service/config.ts";
+import { fixtureDigest } from "../gate/service/fixture-drift.ts";
+import { createPolicyCache } from "../gate/service/policy-cache.ts";
+import { loadSeed, openGovernance } from "../gate/service/policy-store.ts";
+import { createServer } from "../gate/service/server.ts";
+import { closeLoanModule, serve as serveBank } from "../api/instance.ts";
+import { chunk, chunkName, joinChunks, openSealed, seal } from "../auth/seal.ts";
 import { DEMO_LOAN_IDS } from "../lib/loan-context/loans.ts";
-import { SESSION_COOKIE, type Session } from "../lib/identity/session.ts";
+import { SESSION_COOKIE, type Session } from "../auth/session.ts";
 import {
   Browser,
   PEOPLE,
@@ -329,7 +329,7 @@ describe("who the read is made as", () => {
     const authorization = [...bearers][0] as string;
     expect(authorization.startsWith("Bearer ")).toBe(true);
 
-    // `lib/loans/actor.ts` decides who a caller is by asking exactly
+    // `api/actor.ts` decides who a caller is by asking exactly
     // this. Asking it the same way is what turns "the persona's bearer" from a
     // claim about our code into a measurement of the IdP's answer.
     const userinfo = await fetch(`${identity.idpUrl}/oauth2/userinfo`, {

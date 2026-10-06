@@ -60,7 +60,7 @@ export const LOANS_ROUTE = "/api/loans";
 /**
  * One application, as the bank's own screens are allowed to see it.
  *
- * An **allow-list**, not a filter. The loan module (`lib/loans/`) returns
+ * An **allow-list**, not a filter. The loan module (`api/`) returns
  * `bank_account_number`, `tax_id` and `crm_notes` on its detail route —
  * a deal desk holds them and ours does too — and the projection
  * in `read.ts` builds this object field by field rather than deleting three
@@ -92,7 +92,7 @@ export interface LoanCard {
    * through the control plane's roster.
    *
    * `null` otherwise, and the card falls back to the address. A label that can
-   * be wrong is worse than a label that is missing (`lib/identity/roster.ts`),
+   * be wrong is worse than a label that is missing (`auth/roster.ts`),
    * and the address is the join key in any case.
    */
   decided_by_name: string | null;

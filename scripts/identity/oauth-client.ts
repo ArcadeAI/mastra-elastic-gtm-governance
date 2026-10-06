@@ -24,16 +24,16 @@
  * root, `IDP_DB_PATH` unset), with the app's `APP_PUBLIC_HOST` and
  * `BETTER_AUTH_SECRET` in the environment — `bun run` loads `.env.local`.
  */
-import { createAuth, JWKS_PATH, signingKeysOpen, staleSigningKey } from "../../lib/identity/provider/auth.ts";
+import { createAuth, JWKS_PATH, signingKeysOpen, staleSigningKey } from "../../auth/provider/auth.ts";
 import {
   ensureOAuthClients,
   type OAuthClientCredentials,
   REQUIRE_PKCE,
   rotateOAuthClientSecret,
   TOKEN_ENDPOINT_AUTH_METHOD,
-} from "../../lib/identity/provider/client.ts";
-import { readConfig } from "../../lib/identity/provider/config.ts";
-import { openPeople } from "../../lib/identity/provider/db.ts";
+} from "../../auth/provider/client.ts";
+import { readConfig } from "../../auth/provider/config.ts";
+import { openPeople } from "../../auth/provider/db.ts";
 
 const config = readConfig();
 const db = await openPeople(config.dbPath);

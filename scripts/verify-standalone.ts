@@ -55,7 +55,7 @@ import {
 } from "../app-test/agent-harness.ts";
 import { retryOnPortRace } from "../app-test/child.ts";
 import { decodeEvents, type ChatEvent } from "../lib/agent/events.ts";
-import { writeSession, type Session } from "../lib/identity/session.ts";
+import { writeSession, type Session } from "../auth/session.ts";
 
 /**
  * `--image <tag>` drives an image that already exists instead of building one.

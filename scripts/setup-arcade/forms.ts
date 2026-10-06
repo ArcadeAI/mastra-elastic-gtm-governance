@@ -101,7 +101,7 @@ export function gatewayForm({ slug, toolkit, elastic = false, userSourceId }: Ga
     `│  Allowed Tools     these ${elastic ? "32" : "six"}, and no others:`,
     `│                    ${toolkit}: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount`,
     `│                    ${toolkit}: RequestApproval, Decide`,
-    ...(elastic ? [`│                    ${toolkit}: the 26 Elasticsearch tools (docs/ELASTIC.md)`] : []),
+    ...(elastic ? [`│                    ${toolkit}: the 26 Elasticsearch tools (elastic/README.md)`] : []),
     "│  Authentication    Who are the users of this Gateway? → Non-Arcade Users → User Source",
     `│                    → Deals Approval Limits ${through}. Never Arcade Headers.`,
     "│",

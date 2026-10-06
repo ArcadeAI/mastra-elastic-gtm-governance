@@ -41,8 +41,8 @@ import { anthropicModel } from "../lib/agent/agent.ts";
 import { chat, CHAT_PATH } from "../lib/agent/handlers.ts";
 import { decodeEvents, replyText, type ChatEvent } from "../lib/agent/events.ts";
 import { liveModelKey, promptText, scriptedModel, type Turn } from "./model.ts";
-import { writeSession, type Session } from "../lib/identity/session.ts";
-import loans from "../lib/loans/fixtures/loans.json" with { type: "json" };
+import { writeSession, type Session } from "../auth/session.ts";
+import loans from "../api/fixtures/loans.json" with { type: "json" };
 
 const LIVE_KEY = liveModelKey();
 const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;

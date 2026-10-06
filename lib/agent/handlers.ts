@@ -2,7 +2,7 @@
  * `POST /api/chat` — one turn of the agent, streamed.
  *
  * A plain `(Request) => Promise<Response>`, for the same reason every identity
- * route is one (`lib/identity/cookies.ts`): the suite mounts this exact
+ * route is one (`auth/cookies.ts`): the suite mounts this exact
  * function behind a real `Bun.serve` and drives it over HTTP with a cookie jar,
  * against a real control plane and a real deal book. `app/api/chat/route.ts` is
  * a one-line adapter onto it.
@@ -91,12 +91,12 @@ import { planResume, readResumeRequest, type ResumeRequest } from "./resume.ts";
 import { anthropicModel, buildAgent, instructionsFor } from "./agent.ts";
 import { CHAT_PATH, encodeEvent, NDJSON, type ChatEvent } from "./events.ts";
 import { serverFault } from "./fault.ts";
-import { CHAT_PAGE, GATEWAY_START_PATH, sessionSecrets, SIGNIN_PATH } from "../identity/handlers.ts";
+import { CHAT_PAGE, GATEWAY_START_PATH, sessionSecrets, SIGNIN_PATH } from "../../auth/handlers.ts";
 import { gatewayToken } from "./gateway-token.ts";
-import { mcpUrl, probeGatewayToken } from "../identity/gateway.ts";
+import { mcpUrl, probeGatewayToken } from "../../auth/gateway.ts";
 import { gatewayClient, governedToolset } from "./tools.ts";
 import { createNativeElicitationBridge } from "./native-elicitation.ts";
-import { gatewayTokenRejected, readSession, writeSession, type Session } from "../identity/session.ts";
+import { gatewayTokenRejected, readSession, writeSession, type Session } from "../../auth/session.ts";
 import { runTurn, type Streamable } from "./run.ts";
 import { environmentSecrets, secretValues, type WithheldSet } from "./withhold.ts";
 import { secretFingerprints } from "../secret-fingerprints.ts";

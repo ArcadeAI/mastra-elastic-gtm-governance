@@ -21,8 +21,8 @@ Layers 1, 3 and 4 are HTTP endpoints this app serves under `/hooks`, and Arcade 
 
 Two claims are enforced by tests rather than asserted:
 
-- **The business system does not know it is governed.** `app-test/loans/knows-nothing-about-governance.test.ts` fails if governance vocabulary (`policy`, `role`, `limit`, `redact`, `authority`, `approver`, `permission`) appears in `lib/loans/`, or if it imports a `@cg/*` package. The pull to add "just one guard" there is real, and that test is the thing that says no.
-- **`packages/governance-core` depends on no app.** `packages/governance-core/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package or imports from one.
+- **The business system does not know it is governed.** `app-test/loans/knows-nothing-about-governance.test.ts` fails if governance vocabulary (`policy`, `role`, `limit`, `redact`, `authority`, `approver`, `permission`) appears in `api/`, or if it imports a `@cg/*` package. The pull to add "just one guard" there is real, and that test is the thing that says no.
+- **`gate/engine` depends on no app.** `gate/engine/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package or imports from one.
 
 A control that silently does nothing is worse than no control. Every identifier in the policy is measured off a real deployment rather than derived, and every `/hooks/post` pattern is proved to fire against a corpus.
 
@@ -48,25 +48,29 @@ One TypeScript app at the repo root (Next.js plus `src/mastra`, running on Bun) 
 src/mastra/index.ts        The Mastra entry. Registers the loan-operations agent, the same one the chat runs.
 lib/agent/                 The agent: instructions, the governed toolset, Studio's own gateway authorization
                            and thread memory (memory.db).
-lib/control-plane/         /hooks/access, /hooks/pre, /hooks/post: the policy engine, audit log and event
-                           stream. Owns governance.db. The policy fixture is fixtures/governance.json.
-lib/loans/                 The bank's system of record, a plain HTTP API under /bank. Owns loans.db.
-                           No MCP, no Arcade, no governance.
-lib/identity/              Sign-in, sessions and the custom verifier. lib/identity/provider/ is the app's
-                           own OAuth 2.1 provider (Better Auth). Owns idp.db.
+gate/service/              /hooks/access, /hooks/pre, /hooks/post: the policy engine, audit log and event
+                           stream. Owns governance.db. The policies are gate/policies/governance.json.
+                           `bun run gate` starts it (with the rest of the app) and prints the rules.
+api/                       The loan REST API, the bank's system of record, served under /bank.
+                           Owns loans.db. No MCP, no Arcade, no governance.
+auth/                      Sign-in, sessions and the custom verifier. auth/provider/ is the app's
+                           own OAuth 2.1 provider (Better Auth). Owns idp.db. auth/PROVIDERS.md is
+                           what to put in the Arcade dashboard.
 app/                       The pages: the bank at /, the loan board at /loans, the panel at /panel,
                            approval pages at /approvals/<id>, readiness at /health.
 
-mcp            One arcade-mcp server, one `arcade deploy`, three toolkits:  → arcade deploy
-  loan/                      Deals: SearchDeals, GetDeal, ApproveDiscount, DenyDiscount.
+mcp/                       One arcade-mcp server, one toolkit (DealDesk), one `arcade deploy`:
+  deal_desk/deals.py         SearchDeals, GetDeal, ApproveDiscount, DenyDiscount.
                              A stateless client of /bank, via APP_PUBLIC_HOST.
-  approvals/                 Approvals: RequestApproval, Decide.
-  elasticsearch_toolkit/     Elasticsearch: 26 search, aggregate, ES|QL and index tools.
+  deal_desk/approvals.py     RequestApproval, Decide (+ approvals_*.py helpers).
+  deal_desk/elasticsearch.py 26 search, aggregate, ES|QL and index tools.
 
-packages/governance-core   Hook framework, policy engine, audit, event bus. No loan references.
-packages/policy-schema     Shared zod types for policy, events and hook payloads.
+elastic/                   The Elastic module: elastic/README.md and elastic/seed.ts.
+
+gate/engine                Hook framework, policy engine, audit, event bus. No loan references.
+gate/schema                Shared zod types for policy, events and hook payloads.
 ```
 
-`lib/loans/` is not an MCP server on purpose. Banks have APIs, not MCP servers, and keeping the tool layer in `mcp/deal_desk/deals.py` means pointing a thin toolkit at an API you already have. The toolkits are Python because `arcade-mcp`, the tool-authoring framework, is Python-only. Nothing else in the repo is Python.
+`api/` is not an MCP server on purpose. Banks have APIs, not MCP servers, and keeping the tool layer in `mcp/deal_desk/deals.py` means pointing a thin toolkit at an API you already have. The toolkits are Python because `arcade-mcp`, the tool-authoring framework, is Python-only. Nothing else in the repo is Python.
 
 The toolkits have their own READMEs: [`mcp/deal_desk/deals.py`](../mcp/DEALS.md) and [`mcp/deal_desk/approvals.py`](../mcp/APPROVALS.md).

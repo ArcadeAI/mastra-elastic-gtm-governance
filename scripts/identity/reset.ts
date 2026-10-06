@@ -3,7 +3,7 @@
  * dropped, so everybody is signed out, and every account is kept with the
  * password it already had (#33). **The OAuth client is not touched**, so the
  * credentials registered in the Arcade dashboard keep working. See
- * `lib/identity/provider/reset.ts` for why that is asserted rather than assumed.
+ * `auth/provider/reset.ts` for why that is asserted rather than assumed.
  *
  *   bun run identity:reset
  *
@@ -12,10 +12,10 @@
  * when there is no shell — and the only one that reaches the running image
  * rather than whichever instance a shell attached to.
  */
-import { createAuth } from "../../lib/identity/provider/auth.ts";
-import { readConfig } from "../../lib/identity/provider/config.ts";
-import { openPeople } from "../../lib/identity/provider/db.ts";
-import { OAuthClientRotatedError, resetSummary, runIdpReset } from "../../lib/identity/provider/reset.ts";
+import { createAuth } from "../../auth/provider/auth.ts";
+import { readConfig } from "../../auth/provider/config.ts";
+import { openPeople } from "../../auth/provider/db.ts";
+import { OAuthClientRotatedError, resetSummary, runIdpReset } from "../../auth/provider/reset.ts";
 
 const config = readConfig();
 const db = await openPeople(config.dbPath);

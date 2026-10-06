@@ -18,7 +18,7 @@
  * ## What a holder is
  *
  * Whatever keeps a hop-1 grant between turns. The chat route's holder is this
- * browser's sealed session (`lib/identity/session.ts`). Studio's is the Studio
+ * browser's sealed session (`auth/session.ts`). Studio's is the Studio
  * process's own grant (`lib/agent/studio.ts`), because Studio has no browser
  * session to read: it is a separate Node process with its own origin. Either
  * way it is the same `GatewayToken` record, refreshed by the same code, and it
@@ -26,8 +26,8 @@
  * changed.
  */
 import type { IdentitySurface } from "../config.ts";
-import { liveGatewayToken, refreshedGatewayToken } from "../identity/handlers.ts";
-import type { GatewayToken, Session } from "../identity/session.ts";
+import { liveGatewayToken, refreshedGatewayToken } from "../../auth/handlers.ts";
+import type { GatewayToken, Session } from "../../auth/session.ts";
 
 /** The part of a holder this function reads and writes. A `Session` is one. */
 export interface GatewayHolder {

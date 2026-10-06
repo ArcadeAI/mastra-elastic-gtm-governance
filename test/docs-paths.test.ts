@@ -22,7 +22,7 @@ const EXT = /\.(ts|tsx|js|mjs|json|md|py|toml|yaml|yml|sh|css|db|lock|txt|png|ht
 /** The app's own URL prefixes: a token starting with one is a route, not a file. */
 const ROUTE = /^\/(hooks|bank|identity|api|approvals|admin|health|events|access|pre|post|panel|loans|chat|oauth2|v1|arcade|audit|\.well-known)\b/;
 /** The repo's top-level entries, so a bare `lib/...` is read as a repo path. */
-const TOP = new Set(["app", "app-test", "components", "lib", "packages", "public", "scripts", "src", "test", "tools", "docs", ".github", ".env.example", "Dockerfile", ".dockerignore", "package.json", "DESIGN.md", "README.md", "tsconfig.json", "next.config.ts", "instrumentation.ts"]);
+const TOP = new Set(["app", "app-test", "components", "lib", "api", "auth", "gate", "mcp", "elastic", "public", "scripts", "src", "test", "docs", ".github", ".env.example", "Dockerfile", ".dockerignore", "package.json", "DESIGN.md", "README.md", "tsconfig.json", "next.config.ts", "instrumentation.ts"]);
 
 const TRACKED = Bun.spawnSync(["git", "ls-files"], { cwd: REPO }).stdout.toString().split("\n");
 
@@ -103,9 +103,9 @@ describe("the docs that ship name only paths that exist", () => {
 describe("the check bites", () => {
   test("a missing file, a stale link and an apps/ path, planted in a real doc", () => {
     const doc = "docs/DOMAIN-SWAP.md";
-    const planted = `${readFileSync(join(REPO, doc), "utf8")}\nSee \`lib/loans/no-such-file.ts\` and [the old one](../apps/loan-app/README.md).\n`;
+    const planted = `${readFileSync(join(REPO, doc), "utf8")}\nSee \`api/no-such-file.ts\` and [the old one](../apps/loan-app/README.md).\n`;
     const found = check(doc, planted);
-    expect(found.missing.map((each) => each.split(": ")[1])).toEqual(["lib/loans/no-such-file.ts", "../apps/loan-app/README.md"]);
+    expect(found.missing.map((each) => each.split(": ")[1])).toEqual(["api/no-such-file.ts", "../apps/loan-app/README.md"]);
     expect(found.apps).toHaveLength(1);
   });
 
@@ -117,7 +117,7 @@ describe("the check bites", () => {
     expect(skipReason("/hooks/pre", false)).toBe("route");
     expect(skipReason("tools/<yours>/server.py", false)).toBe("placeholder");
     expect(skipReason("governance.db", false)).toBe("runtime database");
-    for (const path of ["lib/control-plane/index.ts", "app/bank/[...path]/route.ts", "../README.md", "hooks/pre.ts"]) {
+    for (const path of ["gate/service/index.ts", "app/bank/[...path]/route.ts", "../README.md", "hooks/pre.ts"]) {
       expect(skipReason(path, false)).toBeNull();
     }
     // A link is always a file, even one that reads like a route.

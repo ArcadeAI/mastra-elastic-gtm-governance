@@ -16,8 +16,8 @@ import { ApprovalPage, Outcome, RequestDetails, UnknownRequest } from "../app/ap
 import { fetchApproval, fetchRoster } from "../lib/approvals-store.ts";
 import { submitDecision, type DecideResult } from "../lib/decide.ts";
 import { readOpener, signInToDecideUrl, type Opener } from "../lib/approvals/opener.ts";
-import { chunk, chunkName, seal } from "../lib/identity/seal.ts";
-import { SESSION_COOKIE, type Session } from "../lib/identity/session.ts";
+import { chunk, chunkName, seal } from "../auth/seal.ts";
+import { SESSION_COOKIE, type Session } from "../auth/session.ts";
 import { DANA, MORGAN, RILEY, SAM, SESSION_SECRET, startHarness, type Harness } from "./harness.ts";
 
 let harness: Harness;

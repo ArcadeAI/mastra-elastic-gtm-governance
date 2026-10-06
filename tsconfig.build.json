@@ -11,12 +11,12 @@
   // TS2307. Leaving the tests out restores Next 15's scope for the build: the
   // app's `app-test/`, and since #3 put the app at the root, the repo's own
   // `test/` too, which imported from `apps/idp` for the same kind of reason
-  // until #6 folded it into `lib/identity/provider`.
+  // until #6 folded it into `auth/provider`.
   // `exclude` replaces tsconfig.json's rather than adding to it, so the
   // workspaces and the directories outside the app are repeated here, and so is
   // `scripts/reset.ts`: it is the repo's rather than the app's, a CLI that
   // talks to the app over HTTP, and building it would put a file in the build's scope that the app
   // never had in it before #3.
   "extends": "./tsconfig.json",
-  "exclude": ["node_modules", "apps", "packages", "docs", "tools", "app-test", "test", "scripts/reset.ts"]
+  "exclude": ["node_modules", "apps", "gate/engine", "gate/schema", "docs", "mcp", "app-test", "test", "scripts/reset.ts"]
 }

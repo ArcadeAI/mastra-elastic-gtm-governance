@@ -3,7 +3,7 @@
  * reaching it (`app/health/route.ts`), before that file changes the
  * environment.
  *
- * The provider is one per process (`lib/identity/provider/instance.ts`), and
+ * The provider is one per process (`auth/provider/instance.ts`), and
  * `bun test` runs every file in one process, so whichever test reaches it
  * first decides its configuration for the rest of the run. Opening it here, on
  * a scratch file outside the repo, means no test writes an `idp.db` into it, and a test that sets
@@ -22,7 +22,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { identityProviderFailure } from "../lib/identity/provider/instance.ts";
+import { identityProviderFailure } from "../auth/provider/instance.ts";
 import { seedDemoIdentity } from "./demo-cast.ts";
 
 export async function openTestIdentity(): Promise<void> {

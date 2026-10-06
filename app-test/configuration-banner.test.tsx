@@ -43,7 +43,7 @@ import {
 } from "../lib/config.ts";
 import { ConfigurationBanner } from "../components/identity/ConfigurationBanner.tsx";
 import { SessionChrome } from "../components/identity/SessionChrome.tsx";
-import { SIGNIN_PATH } from "../lib/identity/handlers.ts";
+import { SIGNIN_PATH } from "../auth/handlers.ts";
 
 /** `openssl rand -hex 32`, written out so this suite's green is not a sample. */
 const GOOD_SECRET = "3f9a1c7e5b2d84069a1fe73c05b8d42e6c917ab3fd50e28c47196baf3d0c5e81";

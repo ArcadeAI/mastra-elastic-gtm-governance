@@ -33,7 +33,7 @@
  */
 import { fetchApproval } from "../approvals-store.ts";
 import { readIdentitySurface, readWebConfig, type IdentitySurface } from "../config.ts";
-import { readSession } from "../identity/session.ts";
+import { readSession } from "../../auth/session.ts";
 
 export const APPROVAL_STATUS_PREFIX = "/api/approvals";
 

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { readConfig } from "../../lib/control-plane/config.ts";
-import { counts, loadSeed, openGovernance } from "../../lib/control-plane/policy-store.ts";
+import { readConfig } from "../../gate/service/config.ts";
+import { counts, loadSeed, openGovernance } from "../../gate/service/policy-store.ts";
 
 /**
  * The `PERSONA_*_EMAIL` contract is gone (#33). Until then these four role

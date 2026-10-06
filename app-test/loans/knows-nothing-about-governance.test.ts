@@ -1,7 +1,7 @@
 /**
  * The defining constraint of the loan module, enforced rather than asserted.
  *
- * `lib/loans/` is the system being governed. It was `apps/loan-app`, its own
+ * `api/` is the system being governed. It was `apps/loan-app`, its own
  * service, until #5 folded it into the app; the boundary moved with it and
  * still covers every file in the module. If a check ever appears in
  * here, the demo stops proving anything: the whole claim is that the controls
@@ -9,7 +9,7 @@
  * The pull to add "just one guard" here is real, so this test is the thing
  * that says no.
  *
- * Sibling of `packages/governance-core/test/no-app-dependencies.test.ts`,
+ * Sibling of `gate/engine/test/no-app-dependencies.test.ts`,
  * which enforces the boundary from the other side.
  */
 import { describe, expect, test } from "bun:test";
@@ -18,11 +18,11 @@ import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 /**
- * The whole module: every `.ts` under `lib/loans/`, at any depth. Not a list
+ * The whole module: every `.ts` under `api/`, at any depth. Not a list
  * of files, so a file added to the module is scanned without anybody
  * remembering to add it.
  */
-const SRC = join(import.meta.dir, "..", "..", "lib", "loans");
+const SRC = join(import.meta.dir, "..", "..", "api");
 
 /**
  * Comments are stripped before matching, because a comment's job here is
@@ -88,7 +88,7 @@ describe("the loan module knows nothing about governance", () => {
    * Added on #5, when the module moved. A boundary test that scans nothing
    * passes, and so does one whose glob was quietly narrowed to the files that
    * happen to be clean. So the scan is compared with the module's files as the
-   * filesystem lists them — every `.ts` under `lib/loans/`, dependencies aside
+   * filesystem lists them — every `.ts` under `api/`, dependencies aside
    * — and it has to be the same set, and not empty.
    */
   test("scans every source file in the module", async () => {
@@ -113,7 +113,7 @@ describe("the loan module knows nothing about governance", () => {
   test("declares itself the governed app, so the boundary is enforced from both sides", async () => {
     const manifest = await Bun.file(join(SRC, "package.json")).json();
 
-    // `packages/policy-schema` sweeps every workspace and requires it to
+    // `gate/schema` sweeps every workspace and requires it to
     // declare `@cg/policy-schema`; this flag is how it knows to exempt this
     // one. Without it the sweep puts the governance vocabulary back inside the
     // business system, and the two tests contradict each other. #33.

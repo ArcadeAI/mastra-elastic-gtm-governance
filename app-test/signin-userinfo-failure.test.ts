@@ -15,16 +15,16 @@
  * the three different ways, and assert on what the page *says*.
  *
  * Since #6 the handler reaches the provider in-process, through
- * `lib/identity/link.ts`, never over the network, so the stand-in is linked
+ * `auth/link.ts`, never over the network, so the stand-in is linked
  * there rather than served on a port: the handler's requests to it are the
  * same `Request`s it would send the app's own Better Auth.
  */
 import { afterAll, afterEach, describe, expect, test } from "bun:test";
 
 import { readIdentitySurface } from "../lib/config.ts";
-import { signinCallback } from "../lib/identity/handlers.ts";
-import { linkIdentity } from "../lib/identity/link.ts";
-import { SIGNIN_COOKIE, writeLeg, type SigninLeg } from "../lib/identity/session.ts";
+import { signinCallback } from "../auth/handlers.ts";
+import { linkIdentity } from "../auth/link.ts";
+import { SIGNIN_COOKIE, writeLeg, type SigninLeg } from "../auth/session.ts";
 
 const SESSION_SECRET = "userinfo-failure-suite-secret-0123456789";
 const STATE = "state-from-this-browser";

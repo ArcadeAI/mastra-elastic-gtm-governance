@@ -61,7 +61,7 @@ IDP_SCOPES = ["openid", "email"]
 APP_HOST_SECRET = "APP_PUBLIC_HOST"
 
 # Where the loan API sits on that host. Since #5 the loan API is a module of
-# the app (`lib/loans/`), served under `/bank` because the app's board page is
+# the app (`api/`), served under `/bank` because the app's board page is
 # `/loans`: GET /bank/loans, GET /bank/loans/{id}, POST /bank/loans/{id}/approve
 # and POST /bank/loans/{id}/deny. The secret still names the host alone.
 API_BASE_PATH = "/bank"

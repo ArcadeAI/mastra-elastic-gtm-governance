@@ -2,7 +2,7 @@
 
 The deal tools — `search_deals`, `get_deal`, `approve_discount`, `deny_discount` — as a
 Python `arcade-mcp` toolkit. Each tool is a stateless client of the app's loan
-module ([`lib/loans/`](../../lib/loans)), the bank's system of record, over
+module ([`api/`](../../api)), the bank's system of record, over
 HTTP under `/bank` (#5; it was `apps/loan-app`, a service of its own). Nothing here
 holds state, and nothing here decides anything.
 
@@ -13,7 +13,7 @@ that basis; the wording is the asset.
 ## Identity, not authority
 
 Every tool requires OAuth against our own identity provider, the app's identity
-module (`lib/identity/provider/`, `apps/idp` until #6), registered in Arcade under
+module (`auth/provider/`, `apps/idp` until #6), registered in Arcade under
 the provider id `app-identity` (`IDP_PROVIDER_ID`; `cg-idp` until #6). The id is
 fixed: `OAuth2(id=...)` is read at import, so register the provider under
 exactly this string. The tool forwards the
@@ -23,7 +23,7 @@ No tool takes an actor as an argument — the test suite asserts that.
 The auth requirement is a credential check, not the governance gate. Arcade
 evaluates it *before* the `/pre` hook, so a refusal there fires no hook, writes
 no audit row and shows nothing on the panel. Limits, roles and separation of
-duties stay in the control plane (`lib/control-plane/`).
+duties stay in the control plane (`gate/service/`).
 
 ## Configuration
 

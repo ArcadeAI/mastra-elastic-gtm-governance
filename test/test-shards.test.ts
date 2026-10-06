@@ -44,8 +44,8 @@ describe("the split", () => {
     expect(FILES).toContain("test/readme.test.ts");
     expect(FILES).toContain("app-test/frame.test.ts");
     expect(FILES).toContain("app-test/control-plane/handlers.test.ts");
-    expect(FILES).toContain("packages/governance-core/test/policy-engine.test.ts");
-    expect(FILES).toContain("packages/policy-schema/test/generator.test.ts");
+    expect(FILES).toContain("gate/engine/test/policy-engine.test.ts");
+    expect(FILES).toContain("gate/schema/test/generator.test.ts");
     expect(FILES.some((file) => file.includes("node_modules"))).toBe(false);
   });
 

@@ -23,11 +23,11 @@ import { Chat } from "../../components/chat/Chat.tsx";
 import { configurationProblems, readIdentitySurface } from "../../lib/config.ts";
 import { ConfigurationBanner } from "../../components/identity/ConfigurationBanner.tsx";
 import { PersonaToolList } from "../../components/identity/PersonaToolList.tsx";
-import { lookupPerson } from "../../lib/identity/roster.ts";
+import { lookupPerson } from "../../auth/roster.ts";
 import { approvalStreamUrl } from "../../lib/governance/stream-url.ts";
 import { sessionTools } from "../../lib/agent/tool-list.ts";
-import { readSessionFromCookies } from "../../lib/identity/session.ts";
-import { SIGNIN_PATH, GATEWAY_START_PATH } from "../../lib/identity/handlers.ts";
+import { readSessionFromCookies } from "../../auth/session.ts";
+import { SIGNIN_PATH, GATEWAY_START_PATH } from "../../auth/handlers.ts";
 
 /** Reads a session cookie; a prerender of "who is signed in" is wrong or empty. */
 export const dynamic = "force-dynamic";

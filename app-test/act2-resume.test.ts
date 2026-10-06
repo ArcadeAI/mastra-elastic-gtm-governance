@@ -54,7 +54,7 @@ import { approvalStatus } from "../lib/agent/approval-status.ts";
 import { chat, CHAT_PATH } from "../lib/agent/handlers.ts";
 import { decodeEvents, replyText, type ChatEvent } from "../lib/agent/events.ts";
 import { liveModelKey, promptText, scriptedModel, type Turn } from "./model.ts";
-import { writeSession, type Session } from "../lib/identity/session.ts";
+import { writeSession, type Session } from "../auth/session.ts";
 
 const LIVE_KEY = liveModelKey();
 const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;

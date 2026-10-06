@@ -53,10 +53,10 @@
 import type { MCPClient } from "@mastra/mcp";
 
 import { readIdentitySurface, type IdentitySurface } from "../config.ts";
-import { GATEWAY_START_PATH } from "../identity/handlers.ts";
+import { GATEWAY_START_PATH } from "../../auth/handlers.ts";
 import { gatewayToken } from "./gateway-token.ts";
-import { mcpUrl, probeGatewayToken } from "../identity/gateway.ts";
-import type { Session } from "../identity/session.ts";
+import { mcpUrl, probeGatewayToken } from "../../auth/gateway.ts";
+import type { Session } from "../../auth/session.ts";
 import type { NativeElicitationBridge } from "./native-elicitation.ts";
 import { gatewayClient, selectGoverned, SERVER_KEY, GATEWAY_BUILTINS } from "./tools.ts";
 

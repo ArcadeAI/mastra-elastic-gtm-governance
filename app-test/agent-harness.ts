@@ -53,7 +53,7 @@ export const APPROVALS_TOOLKIT = TOOLKIT;
  *
  * `scripts/dev-idp.ts` answers `/oauth2/userinfo` for these, so a
  * token of this shape is how a test gets a bearer the deal book will derive an
- * actor from — the real code path in `lib/loans/actor.ts`, with a
+ * actor from — the real code path in `api/actor.ts`, with a
  * fixture issuer behind it. Named here rather than spelled at each call site
  * since #157, when the browser regression started needing one too.
  */

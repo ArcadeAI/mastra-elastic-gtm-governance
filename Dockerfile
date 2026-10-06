@@ -17,9 +17,9 @@ COPY package.json bun.lock tsconfig.base.json ./
 # The loan module (#5) and the identity provider (#6) are workspace members
 # for their manifests' `cg.governed` and `cg.external` flags, and the
 # provider's declares Better Auth; their source arrives with `lib` below.
-COPY lib/loans/package.json ./lib/loans/
-COPY lib/identity/provider/package.json ./lib/identity/provider/
-COPY packages ./packages
+COPY api/package.json ./api/
+COPY auth/provider/package.json ./auth/provider/
+COPY gate ./gate
 
 RUN bun install --frozen-lockfile
 
@@ -29,6 +29,8 @@ COPY next.config.ts instrumentation.ts tsconfig.json tsconfig.build.json ./
 COPY app ./app
 COPY components ./components
 COPY lib ./lib
+COPY api ./api
+COPY auth ./auth
 COPY public ./public
 
 ENV NEXT_TELEMETRY_DISABLED=1

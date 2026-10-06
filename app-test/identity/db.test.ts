@@ -10,10 +10,10 @@ import { dirname, join } from "node:path";
 
 import { hashPassword } from "better-auth/crypto";
 
-import { createAuth, hashClientSecret } from "../../lib/identity/provider/auth.ts";
-import { ensureOAuthClient } from "../../lib/identity/provider/client.ts";
-import type { PersonSeed } from "../../lib/identity/provider/db.ts";
-import { countPeople, listPeople, openPeople, resetPeople, seed } from "../../lib/identity/provider/db.ts";
+import { createAuth, hashClientSecret } from "../../auth/provider/auth.ts";
+import { ensureOAuthClient } from "../../auth/provider/client.ts";
+import type { PersonSeed } from "../../auth/provider/db.ts";
+import { countPeople, listPeople, openPeople, resetPeople, seed } from "../../auth/provider/db.ts";
 import { DEMO_PEOPLE } from "../demo-cast.ts";
 
 const SECRET = "test-secret-".padEnd(48, "x");
@@ -65,8 +65,8 @@ afterEach(() => {
  */
 describe("nobody is shipped (#33)", () => {
   test("there is no people fixture, and the module reads no persona variable and no password", () => {
-    expect(existsSync(join(REPO, "lib/identity/provider/fixtures/people.json"))).toBe(false);
-    const source = readFileSync(join(REPO, "lib/identity/provider/db.ts"), "utf8");
+    expect(existsSync(join(REPO, "auth/provider/fixtures/people.json"))).toBe(false);
+    const source = readFileSync(join(REPO, "auth/provider/db.ts"), "utf8");
     expect(source).not.toMatch(/people\.json|PERSONA_|process\.env|megaforce/);
   });
 
@@ -385,7 +385,7 @@ describe("an open while the last connection closes", () => {
     const dir = dirname(path);
     const opener = `
       import { existsSync, writeFileSync } from "node:fs";
-      import { openPeople } from ${JSON.stringify(join(REPO, "lib/identity/provider/db.ts"))};
+      import { openPeople } from ${JSON.stringify(join(REPO, "auth/provider/db.ts"))};
       const [path, ready, closed] = process.argv.slice(1);
       let busy = 0, opened = 0, after = 0;
       writeFileSync(ready, "");

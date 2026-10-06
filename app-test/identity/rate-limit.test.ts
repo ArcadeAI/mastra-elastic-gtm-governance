@@ -26,7 +26,7 @@ import { join } from "node:path";
 
 import { serveOnFreePort } from "../cdp.ts";
 import { spawnChild } from "../child.ts";
-import { authOptions, RATE_LIMIT, SIGN_IN_PATH } from "../../lib/identity/provider/auth.ts";
+import { authOptions, RATE_LIMIT, SIGN_IN_PATH } from "../../auth/provider/auth.ts";
 
 const ROOT = join(import.meta.dir, "..", "..");
 const dir = mkdtempSync(join(tmpdir(), "cg-idp-rate-limit-"));

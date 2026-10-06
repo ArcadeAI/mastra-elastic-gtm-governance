@@ -45,8 +45,8 @@ import { resolveChrome } from "../app-test/chrome.ts";
 import { scriptedModel, type Turn } from "../app-test/model.ts";
 import { chat, CHAT_PATH } from "../lib/agent/handlers.ts";
 import { decodeEvents } from "../lib/agent/events.ts";
-import { chunk, chunkName, seal } from "../lib/identity/seal.ts";
-import { SESSION_COOKIE, writeSession, type Session } from "../lib/identity/session.ts";
+import { chunk, chunkName, seal } from "../auth/seal.ts";
+import { SESSION_COOKIE, writeSession, type Session } from "../auth/session.ts";
 
 function flag(name: string, fallback?: string): string {
   const index = process.argv.indexOf(`--${name}`);

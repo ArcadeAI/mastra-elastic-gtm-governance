@@ -3,7 +3,7 @@
 `MCPApp(name="deal_desk")` is what `arcade deploy` reads off `initialize` and files the
 deployment as, and `deal_desk` PascalCased — `DealDesk` — is the toolkit name Arcade
 prefixes every tool with: `DealDesk_SearchDeals`, `DealDesk_RequestApproval`,
-`DealDesk_SemanticSearch`. `ARCADE_TOOLKIT` in `.env` and the `$TOOLKIT` placeholder in
+`DealDesk_ElasticSemanticSearch`. `ARCADE_TOOLKIT` in `.env` and the `$TOOLKIT` placeholder in
 `governance.json` both mean this name, so a rule keyed on `DealDesk.ApproveDiscount`
 matches the call the gateway makes.
 

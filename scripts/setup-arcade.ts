@@ -107,8 +107,10 @@ import {
   ArcadeAdmin,
   ArcadeError,
   arcadeMessage,
+  elasticToolsToAdd,
   gatewayBody,
   gatewayCheck,
+  gatewayToolsPatch,
   gatewayDifferences,
   type GatewaySpec,
   healthCheckUrl,
@@ -340,7 +342,7 @@ if (scope !== null) {
   out(`  coordinator   ${coordinatorBase.url ?? `none: ${"why" in coordinatorBase ? coordinatorBase.why : "unknown"}`}`);
 }
 const toolkit = effective("ARCADE_TOOLKIT") || "DealDesk";
-// The Elastic module (docs/ELASTIC.md). Off: the gateway carries the six deal
+// The Elastic module (elastic/README.md). Off: the gateway carries the six deal
 // and approvals tools and nothing else. On: the 26 Elasticsearch tools too.
 // They are deployed either way; this only decides what the gateway lists.
 const elastic = elasticOn(effective("ELASTIC_MODULE"));
@@ -892,6 +894,46 @@ if (scope === null) {
   }
 }
 
+/**
+ * A gateway that exists, brought up to the Elastic module: when the 26 tools are
+ * all it lacks (`elasticToolsToAdd`), they are added by `PATCH` and read back.
+ * That is module 3 on the gateway modules 1 and 2 made, which otherwise needed a
+ * second gateway or the dashboard with the hooks off. Its authentication is never
+ * touched, and nothing is removed. Answers the tool list's differences left to
+ * warn about: none once the tools are added, the same ones as before when there
+ * was nothing to add or Arcade refused. (JD Armada's, PR #2.)
+ */
+async function addElasticTools(scope: ProjectScope | null, gateway: unknown): Promise<string[]> {
+  const before = gatewayCheck(gateway, toolkit, elastic).tools;
+  const add = elasticToolsToAdd(gateway, toolkit, elastic);
+  const id = objectField(gateway, "id");
+  if (scope === null || add.length === 0 || typeof id !== "string" || id === "") return before;
+  const path = projectPath(scope, `/gateways/${encodeURIComponent(id)}`);
+  const manually =
+    `add them in the dashboard (disable ${HOOKS_NAME} first, or the gateway form does not list the ${toolkit} tools), ` +
+    `or blank ARCADE_GATEWAY_ID in .env and run this with --gateway <a-new-slug> for a second gateway with all of them`;
+  const patched = await admin.request("PATCH", path, gatewayToolsPatch(gateway, add));
+  if (patched.status < 200 || patched.status >= 300) {
+    const error = new ArcadeError("PATCH", path, patched.status, JSON.stringify(patched.json));
+    const said = arcadeMessage(error);
+    out(`  warning       adding the ${add.length} Elasticsearch tools to ${slug} failed: ${error.message}${said ? ` (Arcade says: ${said})` : ""}`);
+    out(`  warning       ${manually}`);
+    return before;
+  }
+  const read = await admin.request("GET", path);
+  if (read.status !== 200) {
+    out(`  warning       the Elasticsearch tools were sent to ${slug}, and reading it back failed: ${new ArcadeError("GET", path, read.status, JSON.stringify(read.json)).message}. Run this again to check.`);
+    return before;
+  }
+  const after = gatewayCheck(read.json, toolkit, elastic);
+  if (elasticToolsToAdd(read.json, toolkit, elastic).length > 0) {
+    out(`  warning       ${slug} was updated, and Arcade reads back without all the Elasticsearch tools; ${manually}`);
+    return after.tools;
+  }
+  out(`  gateway: added the ${add.length} Elasticsearch tools to ${slug}, keeping its other tools and its User Source (read back)`);
+  return after.tools;
+}
+
 // --- 7. The deploys (#30) ---------------------------------------------------
 
 if (skipDeploy) {
@@ -990,8 +1032,9 @@ async function dashboardFlow(scope: ProjectScope, hooks: { id: string; status: H
       );
     }
     out(`  gateway: found ${slug}, through a User Source`);
-    for (const line of check.tools) out(`  warning       ${line}`);
-    if (check.tools.length > 0) {
+    const toolWarnings = await addElasticTools(scope, gateway);
+    for (const line of toolWarnings) out(`  warning       ${line}`);
+    if (toolWarnings.length > 0) {
       out(
         `  warning       the hooks are turned on anyway. To fix the tool list, disable ${HOOKS_NAME} in the dashboard first: ` +
           `while it is on, the gateway form does not list the ${toolkit} tools. Then run this again.`,
@@ -1249,7 +1292,7 @@ async function oneClick(scope: ProjectScope, hooks: { id: string; status: HooksS
       );
     }
     out(`  gateway: found ${slug}, through the User Source ${source.id}`);
-    for (const line of check.tools) out(`  warning       ${line}`);
+    for (const line of await addElasticTools(scope, existing)) out(`  warning       ${line}`);
   } else {
     const path = projectPath(scope, "/gateways");
     const created = await admin.request("POST", path, gatewayBody(spec));

@@ -10,14 +10,14 @@
  *
  *  1. **Nothing outside the identity module imports Better Auth.** No
  *     `better-auth` and no `@better-auth/*` in shipped source anywhere but
- *     `lib/identity/`. Better Auth is where the signing keys (the JWT plugin,
+ *     `auth/`. Better Auth is where the signing keys (the JWT plugin,
  *     the `jwks` table) and the issuance (the OAuth provider plugin) live, so
  *     a module importing it could build its own instance over `idp.db` and
  *     sign whatever it liked.
  *  2. **Nothing outside the provider imports its internals.** The files that
  *     hold the keys and issue tokens — `auth.ts`, `client.ts`, `server.ts`,
  *     `db.ts`, `reset.ts`, `replay-tolerance.ts` and the rest — are imported
- *     only from inside `lib/identity/provider/`. From outside, the one door is
+ *     only from inside `auth/provider/`. From outside, the one door is
  *     `instance.ts`, which hands a request to the provider and gives nothing
  *     back but the answer, and only the identity routes, the app's `/health`
  *     and `instrumentation.ts` may open it.
@@ -25,9 +25,9 @@
  *     `BETTER_AUTH_SECRET` encrypts the signing key at rest and `IDP_DB_PATH`
  *     locates it; the `jwks` table holds it.
  *
- * The web sign-in (`lib/identity/handlers.ts`, `oidc.ts`) is part of the
+ * The web sign-in (`auth/handlers.ts`, `oidc.ts`) is part of the
  * identity module and still does not reach round the door: it reaches the
- * provider through `lib/identity/link.ts`, which the provider registers itself
+ * provider through `auth/link.ts`, which the provider registers itself
  * with, as an HTTP client would.
  *
  * Shipped source only. The module's own tests and the harnesses drive the
@@ -47,17 +47,17 @@ const SHIPPED = [
   "app/**/*.{ts,tsx}",
   "components/**/*.{ts,tsx}",
   "src/**/*.{ts,tsx}",
-  "packages/*/src/**/*.{ts,tsx}",
+  "gate/*/src/**/*.{ts,tsx}",
   "scripts/**/*.ts",
   "instrumentation.ts",
 ];
 
 /** The identity module. Everything under it may use Better Auth. */
-const IDENTITY_MODULE = "lib/identity/";
+const IDENTITY_MODULE = "auth/";
 /** The provider: the part that holds the keys and issues tokens. */
-const PROVIDER = "lib/identity/provider/";
+const PROVIDER = "auth/provider/";
 /** Its one door. */
-const DOOR = "lib/identity/provider/instance.ts";
+const DOOR = "auth/provider/instance.ts";
 
 /**
  * Who may open the door: the routes the provider is mounted on, the app's
@@ -122,7 +122,7 @@ export function mintingOffences(files: SourceFile[]): string[] {
       const to = target(path, specifier);
       // 1. Better Auth is the identity module's alone.
       if (/^(better-auth|@better-auth\/)/.test(to) && !path.startsWith(IDENTITY_MODULE) && !isTool(path)) {
-        offences.push(`${path} imports ${specifier}: only lib/identity/ may import Better Auth`);
+        offences.push(`${path} imports ${specifier}: only auth/ may import Better Auth`);
       }
       // 2. The provider's internals are the provider's; the door is for the mount.
       if (to.startsWith(PROVIDER) && !path.startsWith(PROVIDER) && !isTool(path)) {
@@ -167,7 +167,7 @@ describe("only the identity module mints tokens", () => {
     // Vacuous if the scan found nothing, or found the app without its
     // identity module: the move is exactly when a path goes stale.
     const paths = files.map((file) => file.path);
-    for (const expected of ["lib/identity/provider/auth.ts", DOOR, "app/oauth2/[...path]/route.ts", "lib/agent/gateway-token.ts"]) {
+    for (const expected of ["auth/provider/auth.ts", DOOR, "app/oauth2/[...path]/route.ts", "lib/agent/gateway-token.ts"]) {
       expect(paths).toContain(expected);
     }
     expect(mintingOffences(files)).toEqual([]);
@@ -196,7 +196,7 @@ describe("only the identity module mints tokens", () => {
     // The JWT plugin (signing keys) and the OAuth provider plugin (issuance)
     // are built in `auth.ts`. If nothing imported Better Auth, rule 1 would
     // be true of an app that had no provider at all.
-    expect(importing).toContain("lib/identity/provider/auth.ts");
+    expect(importing).toContain("auth/provider/auth.ts");
     for (const path of importing) expect(path.startsWith(IDENTITY_MODULE) || isTool(path)).toBe(true);
   });
 });
@@ -208,15 +208,15 @@ describe("the rule catches what it is for", () => {
   test("another module importing the provider's issuance", () => {
     expect(
       mintingOffences([
-        { path: "lib/agent/mint.ts", text: `import { createAuth } from "../identity/provider/auth.ts";\n` },
+        { path: "lib/agent/mint.ts", text: `import { createAuth } from "./provider/auth.ts";\n` },
       ]),
     ).toEqual(["lib/agent/mint.ts imports ../identity/provider/auth.ts: the provider's internals are not importable"]);
   });
 
   test("another module importing the signing keys straight from Better Auth", () => {
     expect(
-      mintingOffences([{ path: "lib/control-plane/keys.ts", text: `import { jwt } from "better-auth/plugins/jwt";\n` }]),
-    ).toEqual(["lib/control-plane/keys.ts imports better-auth/plugins/jwt: only lib/identity/ may import Better Auth"]);
+      mintingOffences([{ path: "gate/service/keys.ts", text: `import { jwt } from "better-auth/plugins/jwt";\n` }]),
+    ).toEqual(["gate/service/keys.ts imports better-auth/plugins/jwt: only auth/ may import Better Auth"]);
   });
 
   test("a dynamic import is an import", () => {
@@ -227,31 +227,31 @@ describe("the rule catches what it is for", () => {
 
   test("the door, opened from somewhere that is not a mount", () => {
     expect(
-      mintingOffences([{ path: "lib/agent/sneak.ts", text: `import { identityFetch } from "../identity/provider/instance.ts";\n` }]),
+      mintingOffences([{ path: "lib/agent/sneak.ts", text: `import { identityFetch } from "./provider/instance.ts";\n` }]),
     ).toEqual(["lib/agent/sneak.ts imports ../identity/provider/instance.ts: only the identity routes, /health and instrumentation.ts mount the provider"]);
   });
 
   test("its secret, its database and its key table", () => {
     const offences = mintingOffences([
-      { path: "lib/loans/secret.ts", text: `const key = process.env.BETTER_AUTH_SECRET;\n` },
-      { path: "lib/loans/path.ts", text: `const file = process.env.IDP_DB_PATH;\n` },
-      { path: "lib/loans/keys.ts", text: `db.query('select * from "jwks"');\n` },
+      { path: "api/secret.ts", text: `const key = process.env.BETTER_AUTH_SECRET;\n` },
+      { path: "api/path.ts", text: `const file = process.env.IDP_DB_PATH;\n` },
+      { path: "api/keys.ts", text: `db.query('select * from "jwks"');\n` },
     ]);
     expect(offences).toHaveLength(3);
   });
 
   test("a comment is not an import", () => {
     expect(
-      mintingOffences([{ path: "lib/agent/doc.ts", text: `// import { jwt } from "better-auth/plugins/jwt";\n/** better-auth is lib/identity's */\n` }]),
+      mintingOffences([{ path: "lib/agent/doc.ts", text: `// import { jwt } from "better-auth/plugins/jwt";\n/** better-auth is auth's */\n` }]),
     ).toEqual([]);
   });
 
   test("the identity module itself is allowed what it is for", () => {
     expect(
       mintingOffences([
-        { path: "lib/identity/provider/auth.ts", text: `import { betterAuth } from "better-auth";\n` },
+        { path: "auth/provider/auth.ts", text: `import { betterAuth } from "better-auth";\n` },
         { path: DOOR, text: `import { openIdentityProvider } from "./server.ts";\n` },
-        { path: "app/login/route.ts", text: `import { serve } from "../../lib/identity/provider/instance.ts";\n` },
+        { path: "app/login/route.ts", text: `import { serve } from "../../auth/provider/instance.ts";\n` },
       ]),
     ).toEqual([]);
   });

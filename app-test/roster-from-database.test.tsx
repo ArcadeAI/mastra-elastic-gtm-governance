@@ -23,13 +23,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { PersonaToolList } from "../components/identity/PersonaToolList.tsx";
 import type { SessionTools } from "../lib/agent/tool-list.ts";
-import type { HooksConfig } from "../lib/control-plane/config.ts";
-import { fixtureDigest } from "../lib/control-plane/fixture-drift.ts";
-import { createPolicyCache } from "../lib/control-plane/policy-cache.ts";
-import { loadSeed, openGovernance, seed as seedInto } from "../lib/control-plane/policy-store.ts";
-import { createServer } from "../lib/control-plane/server.ts";
-import { lookupPerson, type PersonLookup } from "../lib/identity/roster.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { HooksConfig } from "../gate/service/config.ts";
+import { fixtureDigest } from "../gate/service/fixture-drift.ts";
+import { createPolicyCache } from "../gate/service/policy-cache.ts";
+import { loadSeed, openGovernance, seed as seedInto } from "../gate/service/policy-store.ts";
+import { createServer } from "../gate/service/server.ts";
+import { lookupPerson, type PersonLookup } from "../auth/roster.ts";
+import type { Session } from "../auth/session.ts";
 import { readLoanBook } from "../lib/loan-context/read.ts";
 
 const STORE_TOKEN = "roster-test-store-token";
@@ -63,7 +63,7 @@ afterEach(() => {
   for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
-/** The control plane, booted the way `lib/control-plane/index.ts` boots it, over a fresh disk. */
+/** The control plane, booted the way `gate/service/index.ts` boots it, over a fresh disk. */
 function bootPlane(options: { start?: boolean } = {}): Plane {
   const dir = mkdtempSync(join(tmpdir(), "cg-32-roster-"));
   dirs.push(dir);

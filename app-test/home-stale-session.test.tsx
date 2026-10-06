@@ -46,7 +46,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { BankPane } from "../components/bank/BankPane.tsx";
 import { readLoanBook } from "../lib/loan-context/read.ts";
 import type { LoanBookState } from "../lib/loan-context/loans.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { Session } from "../auth/session.ts";
 
 const BOB = "bob@megaforce.tech";
 
@@ -56,7 +56,7 @@ let seen: Array<{ path: string; authorization: string | null }> = [];
  * The deal book, refusing this browser's bearer.
  *
  * Handed to `readLoanBook` in-process, the way the app's own loan module is
- * since #5 (`lib/loans/`): a request handler, not an address. Until #5 this was
+ * since #5 (`api/`): a request handler, not an address. Until #5 this was
  * a `Bun.serve` on port `0` answering the same 401.
  */
 const loanBook = {

@@ -19,7 +19,7 @@
  * that said "denied" here would be asserting a control-plane action that never
  * happened, which is the mislabelling this project is organised against.
  */
-import { readSession, writeSession, type Session } from "../../../lib/identity/session.ts";
+import { readSession, writeSession, type Session } from "../../../auth/session.ts";
 import { readIdentitySurface } from "../../../lib/config.ts";
 import { readLoanBook } from "../../../lib/loan-context/read.ts";
 

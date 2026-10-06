@@ -43,9 +43,9 @@
  * `components/identity/ConfigurationBanner.tsx`, placed by the pages, and its
  * own file says why.
  */
-import { SIGNIN_PATH, SIGNOUT_PATH, GATEWAY_START_PATH } from "../../lib/identity/handlers.ts";
+import { SIGNIN_PATH, SIGNOUT_PATH, GATEWAY_START_PATH } from "../../auth/handlers.ts";
 import type { ConfigurationProblems } from "../../lib/config.ts";
-import type { Session } from "../../lib/identity/session.ts";
+import type { Session } from "../../auth/session.ts";
 
 export interface SessionChromeProps {
   session: Session | null;

@@ -123,7 +123,7 @@ import { Database } from "bun:sqlite";
 import { existsSync } from "node:fs";
 
 import { IN_MEMORY, memoryDbPath } from "../lib/agent/memory-path.ts";
-import { assertPublicHost, PublicHostError } from "../lib/control-plane/public-host.ts";
+import { assertPublicHost, PublicHostError } from "../gate/service/public-host.ts";
 
 /** sysexits: the environment is wrong, not the invocation. */
 const EX_CONFIG = 78;

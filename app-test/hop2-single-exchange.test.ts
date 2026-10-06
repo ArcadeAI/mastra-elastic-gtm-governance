@@ -36,7 +36,7 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { flowReference, followNextUri, identityReference, loggable } from "../lib/identity/verifier.ts";
+import { flowReference, followNextUri, identityReference, loggable } from "../auth/verifier.ts";
 import {
   Browser,
   PEOPLE,

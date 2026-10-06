@@ -26,8 +26,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Subprocess } from "bun";
 
-import { readConfig } from "../../lib/control-plane/config.ts";
-import { assertPublicHost, PublicHostError } from "../../lib/control-plane/public-host.ts";
+import { readConfig } from "../../gate/service/config.ts";
+import { assertPublicHost, PublicHostError } from "../../gate/service/public-host.ts";
 import { spawnChild } from "../child.ts";
 
 /**

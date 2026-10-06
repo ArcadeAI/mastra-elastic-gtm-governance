@@ -12,9 +12,9 @@
 import { describe, expect, test } from "bun:test";
 
 import { readWebConfig } from "../lib/config.ts";
-import { readCookies } from "../lib/identity/cookies.ts";
-import { CHUNK_LIMIT, chunk, chunkName, clearedChunks, joinChunks, openSealed, seal } from "../lib/identity/seal.ts";
-import { SESSION_COOKIE, clearSession, readSession, writeSession, type Session } from "../lib/identity/session.ts";
+import { readCookies } from "../auth/cookies.ts";
+import { CHUNK_LIMIT, chunk, chunkName, clearedChunks, joinChunks, openSealed, seal } from "../auth/seal.ts";
+import { SESSION_COOKIE, clearSession, readSession, writeSession, type Session } from "../auth/session.ts";
 
 const SECRET = "a-session-secret-for-the-suite-0123456789";
 

@@ -616,8 +616,8 @@ describe("AC5 end to end: the JSON on screen equals what the model saw", () => {
     const { DANA, OVER_LIMIT_LOAN, startAgentHarness } = await import("./agent-harness.ts");
     const { chat, CHAT_PATH } = await import("../lib/agent/handlers.ts");
     const { scriptedModel } = await import("./model.ts");
-    const { writeSession } = await import("../lib/identity/session.ts");
-    const loans = (await import("../lib/loans/fixtures/loans.json", { with: { type: "json" } })).default as unknown as {
+    const { writeSession } = await import("../auth/session.ts");
+    const loans = (await import("../api/fixtures/loans.json", { with: { type: "json" } })).default as unknown as {
       loans: Array<Record<string, string>>;
     };
     const account = loans.loans.find((loan) => loan.deal_id === OVER_LIMIT_LOAN)?.bank_account_number as string;

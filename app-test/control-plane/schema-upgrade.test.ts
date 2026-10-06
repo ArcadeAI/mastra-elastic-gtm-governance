@@ -15,9 +15,9 @@ import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { createPolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { createPolicyCache } from "../../gate/service/policy-cache.ts";
+import { createServer } from "../../gate/service/server.ts";
 import {
   count as auditCount,
   maxSeq,
@@ -25,7 +25,7 @@ import {
   pageAfter,
   record,
   recent,
-} from "../../lib/control-plane/audit-log.ts";
+} from "../../gate/service/audit-log.ts";
 import {
   SCHEMA_VERSION,
   counts,
@@ -38,7 +38,7 @@ import {
   seed,
   type MigrationReport,
   type SeedOptions,
-} from "../../lib/control-plane/policy-store.ts";
+} from "../../gate/service/policy-store.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const OPTIONS: SeedOptions = {
@@ -270,7 +270,7 @@ describe("a fresh database", () => {
       try {
         expect(counts(db)).toMatchObject({
           subjects: 0,
-          // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (docs/ELASTIC.md).
+          // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (elastic/README.md).
           catalogue: 32,
           // The template's 6, the 9 Elastic access rules, the 3 Elastic pre rules.
           policy_rules: 18,

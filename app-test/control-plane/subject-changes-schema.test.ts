@@ -17,8 +17,8 @@ import {
   readSchemaVersion,
   type MigrationReport,
   type SeedOptions,
-} from "../../lib/control-plane/policy-store.ts";
-import { addSubject, subjectChanges } from "../../lib/control-plane/subjects.ts";
+} from "../../gate/service/policy-store.ts";
+import { addSubject, subjectChanges } from "../../gate/service/subjects.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const OPTIONS: SeedOptions = { toolkit: "DealDesk" };

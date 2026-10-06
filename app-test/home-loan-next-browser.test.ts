@@ -34,8 +34,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { Subprocess } from "bun";
 
-import { chunk, chunkName, seal } from "../lib/identity/seal.ts";
-import { SESSION_COOKIE } from "../lib/identity/session.ts";
+import { chunk, chunkName, seal } from "../auth/seal.ts";
+import { SESSION_COOKIE } from "../auth/session.ts";
 import { encodeEvent } from "../lib/agent/events.ts";
 import { LOAN_POLL_INTERVAL_MS } from "../lib/loan-context/loans.ts";
 import { DANA, DEV_IDP_TOKEN_PREFIX, SESSION_SECRET, startAgentHarness, type AgentHarness } from "./agent-harness.ts";
@@ -256,7 +256,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
         // The IdP bearer the loan cards are read with (#157). The harness's
         // identity provider is the repo's dev stub, which answers
         // `/oauth2/userinfo` for `dev:<email>` — the real code path in
-        // `lib/loans/actor.ts`, with a fixture issuer behind it.
+        // `api/actor.ts`, with a fixture issuer behind it.
         idp: {
           access_token: `${DEV_IDP_TOKEN_PREFIX}${DANA}`,
           expires_at: Date.now() + 3_600_000,

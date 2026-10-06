@@ -64,8 +64,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { Subprocess } from "bun";
 
-import { chunk, chunkName, seal } from "../lib/identity/seal.ts";
-import { SESSION_COOKIE } from "../lib/identity/session.ts";
+import { chunk, chunkName, seal } from "../auth/seal.ts";
+import { SESSION_COOKIE } from "../auth/session.ts";
 import { DANA, SESSION_SECRET, startAgentHarness, type AgentHarness } from "./agent-harness.ts";
 import { browserRequired, missingBrowserMessage, resolveChrome } from "./chrome.ts";
 import { browserTarget, Cdp, evaluate, serveOnFreePort, startChrome, stopProcess, waitFor } from "./cdp.ts";

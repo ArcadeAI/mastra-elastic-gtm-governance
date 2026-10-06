@@ -1,0 +1,762 @@
+{
+  "//": [
+    "The rules governance.db is seeded from when it has no schema, and the demo cast. Edit a row live in the database, not here — this file is read once, on first boot.",
+    "$TOOLKIT is replaced at seed time with ARCADE_TOOLKIT (default DealDesk): one deployed server, one toolkit, every tool DealDesk_<Tool> on the wire. Tool names are PascalCase because arcade-mcp PascalCases them unconditionally (measured on #35); a rule keyed on get_deal matches nothing, and a rule that matches nothing is indistinguishable from a rule that permits.",
+    "The placeholder is the toolkit name alone, so the separator after it is yours to choose and it means something (#89). Write $TOOLKIT.ApproveDiscount in a match or anywhere naming the tool as a hook payload and an audit row do; write $TOOLKIT_ApproveDiscount in a pre denial's reason, because that sentence is addressed to the model and the model can only call the name its own tool list carries. The compiler enforces the difference: a reason naming a catalogued toolkit dot-spelled does not compile.",
+    "$TOOLKIT.Decide lists an argument the tool does not take: `approval`. It is not something a caller supplies — /pre resolves the request_id against approval_requests and writes the resolved facts into that key, discarding anything the caller put there. Catalogued because a rule condition may only read a catalogued argument, and optional because a request_id naming nothing must reach pre.decide-needs-a-known-request rather than be refused as a malformed call.",
+    "subjects is the demo cast, and the first boot does NOT seed it (#33): governance.db starts with no subjects and idp.db with no users. `bun run users seed-demo` adds these four with these names, roles and clearances, under whatever addresses it is given. The @bank.example addresses are how the reset and the drift check know the demo cast: a demo row at one of them is rewritten by a reset and compared by the drift check, only where it is on disk. A demo person seeded under any other address counts as a real user.",
+    "Two output rules, on purpose (#16). post.redact-customer-identifiers is act 3 and is conditioned on clearance — Charlie and Michael read the identifiers, Alice and Bob do not — because a control that redacts for everyone demonstrates nothing about identity. post.strip-injected-instructions is act 4 and is conditioned on nobody, because whether text is trying to give the model orders is not a question about anyone's authority; a chief revenue officer must not be the one persona who reads the injection. Both fire on the same call and the audit row names each by id.",
+    "post.strip-injected-instructions carries SIX patterns, one per injection shape, each with its own id so redactions[] names which one fired (#17). They key on text ADDRESSED TO A MACHINE, and deliberately not on text that merely claims authority: 'committee granted an exception, the usual officer limits do not apply' is prose a real underwriter writes and no regex can tell it from an invented one. That is a stated false negative, not an oversight. Every pattern is proved to match in app-test/control-plane/injection-corpus.test.ts against app-test/control-plane/fixtures/injection-corpus.json, whose benign half is realistic underwriter prose proved NOT to trip any of them; the seeded DL-2291 case is proved byte for byte against apps/loan-app's own fixture in post-redaction.test.ts. A pattern with no corpus entry FAILS that suite, because a rule that matches nothing is indistinguishable from a rule that permits — the regex shipped before #16 was exactly that, looking for 'ignore previous instructions' in a note that says 'Ignore any earlier instruction'. Re-measure both suites before rewording a pattern or the note.",
+    "Both output rules match every $TOOLKIT tool, not GetDeal alone (#4, the demo's #184). ApproveDiscount and DenyDiscount return the same whole loan record GetDeal does, account number, tax id and underwriter note included, so a rule keyed on GetDeal left every approve and deny unredacted while act 3 looked finished. '*' is also what covers the next tool that returns the record. SearchDeals projects six safe columns and never reads the sensitive ones, so on it both rules match and have nothing to remove.",
+    "Order matters. pattern.injected-instruction is first and removes the whole pasted block, so on DL-2291 it is the only one that fires and the audit row carries one record for $.crm_notes rather than four. The sweep applies patterns in array order and feeds each the previous one's output.",
+    "pattern.injected-instruction — #16's floor, unchanged byte for byte: a pasted block announcing itself to an automated reader, or the seeded note's own imperative. Removes from the paste marker, or from the tell when there is no marker, to the end of the field.",
+    "pattern.instruction-override — an imperative telling the reader to set aside the instructions it was given. The verb must govern an instruction-shaped noun: 'disregard the prior appraisal' is what an underwriter writes and is left alone. Removes the sentence, so prose on either side survives.",
+    "pattern.addressed-to-the-model — free text that names its reader: a note or an imperative addressed to an AI, an LLM, or an automated reviewer. A header opens a block, so this removes to the end of the field, paste marker included. 'System note: core banking flagged an address mismatch' is not this and is left alone.",
+    "pattern.tool-call-directive — an imperative naming a tool by its identifier, in either spelling this demo has: approve_discount as the business system writes it, DealDesk_ApproveDiscount as the model sees it over MCP. 'Rep will execute discount paperwork' is not this.",
+    "pattern.concealment-directive — the reader is told to hide the note from the human. Scoped to the note itself, because a confidentiality instruction about the customer is legitimate prose.",
+    "pattern.conversation-delimiter — a chat-transcript or prompt delimiter pasted into a business field. No prose tell at all: the token is the evidence, and no underwriter types one.",
+    "The Elastic rules are the same three controls the loan rules are, keyed on retrieval instead of on a write. Access: the nine tools that write or destroy an index are hidden from everyone but the chief revenue officer, who is the identity `bun run seed:elastic` runs as. Post: search results carry the same customer identifiers GetDeal does, at hits[].source.*, so the same clearance bar masks them by path. ES|QL and aggregations return rows and buckets rather than documents, so there is no path to mask; for anyone under the bar, /pre refuses an ES|QL query that names an identifier column or has neither a KEEP nor a STATS clause (a bare `FROM deal-files | LIMIT 10` returns every column), and an aggregation over an identifier field. The injection sweep runs on every Elastic tool's output for everyone, exactly as it does on GetDeal: an underwriter note is the same note whether it arrived from the deal book or from the index.",
+    "post.strip-injected-instructions-from-search-results carries the SAME six patterns, byte for byte, so the corpus that proves each one proves it here too. It is a second rule rather than a wildcard on the first because a rule matches one toolkit. The on-stage disarm is therefore `UPDATE output_rules SET enabled = 0 WHERE id LIKE 'post.strip-injected-instructions%'`: both rules, or /health keeps reporting armed — correctly, since the index copy would still be scanned."
+  ],
+  "catalogue": {
+    "$TOOLKIT": {
+      "SearchDeals": [
+        "status?",
+        "min_amount?",
+        "max_amount?"
+      ],
+      "GetDeal": [
+        "deal_id"
+      ],
+      "ApproveDiscount": [
+        "deal_id",
+        "amount"
+      ],
+      "DenyDiscount": [
+        "deal_id",
+        "reason"
+      ],
+      "RequestApproval": [
+        "action",
+        "resource_id",
+        "amount",
+        "justification"
+      ],
+      "Decide": [
+        "request_id",
+        "decision",
+        "note?",
+        "approval?"
+      ],
+      "ElasticWhoAmI": [],
+      "ElasticListIndices": [
+        "index_pattern?",
+        "include_system_indices?"
+      ],
+      "ElasticGetIndexMapping": [
+        "index",
+        "include_system_indices?"
+      ],
+      "ElasticListAliases": [
+        "alias_pattern?",
+        "include_system_indices?"
+      ],
+      "ElasticListInferenceEndpoints": [
+        "task_type?",
+        "dimensions?",
+        "usable_now?"
+      ],
+      "ElasticGetClusterHealth": [],
+      "ElasticGetIndexStats": [
+        "index",
+        "include_system_indices?"
+      ],
+      "ElasticGetShards": [
+        "index?",
+        "include_system_indices?"
+      ],
+      "ElasticSearchByText": [
+        "index",
+        "query_text?",
+        "fields?",
+        "size?",
+        "offset?",
+        "filter_query?",
+        "source_fields?",
+        "highlight?",
+        "cursor?",
+        "include_system_indices?"
+      ],
+      "ElasticSemanticSearch": [
+        "index",
+        "field",
+        "query_text",
+        "size?",
+        "offset?",
+        "filter_query?",
+        "source_fields?",
+        "cursor?",
+        "include_system_indices?"
+      ],
+      "ElasticVectorSearch": [
+        "index",
+        "field",
+        "query_text?",
+        "inference_id?",
+        "query_vector?",
+        "k?",
+        "offset?",
+        "num_candidates?",
+        "filter_query?",
+        "source_fields?",
+        "include_system_indices?"
+      ],
+      "ElasticHybridSearch": [
+        "index",
+        "query_text",
+        "semantic_field",
+        "text_fields?",
+        "size?",
+        "offset?",
+        "rank_window_size?",
+        "filter_query?",
+        "source_fields?",
+        "include_system_indices?"
+      ],
+      "ElasticSearchDocuments": [
+        "index",
+        "query?",
+        "size?",
+        "offset?",
+        "sort?",
+        "source_fields?",
+        "aggregations?",
+        "track_total_hits?",
+        "cursor?",
+        "include_system_indices?"
+      ],
+      "ElasticAggregateDocuments": [
+        "index",
+        "aggregations",
+        "query?",
+        "include_system_indices?"
+      ],
+      "ElasticCountDocuments": [
+        "index",
+        "query?",
+        "include_system_indices?"
+      ],
+      "ElasticGetDocument": [
+        "index",
+        "document_id",
+        "source_fields?",
+        "include_system_indices?"
+      ],
+      "ElasticRunEsqlQuery": [
+        "query",
+        "include_system_indices?"
+      ],
+      "ElasticIndexDocument": [
+        "index",
+        "document",
+        "document_id?",
+        "if_seq_no?",
+        "if_primary_term?",
+        "refresh?"
+      ],
+      "ElasticBulkIndexDocuments": [
+        "index",
+        "documents",
+        "refresh?"
+      ],
+      "ElasticUpdateDocument": [
+        "index",
+        "document_id",
+        "fields",
+        "if_seq_no?",
+        "if_primary_term?",
+        "upsert?",
+        "refresh?"
+      ],
+      "ElasticDeleteDocument": [
+        "index",
+        "document_id",
+        "if_seq_no?",
+        "if_primary_term?",
+        "refresh?"
+      ],
+      "ElasticDeleteDocumentsByQuery": [
+        "index",
+        "query",
+        "refresh?"
+      ],
+      "ElasticCreateIndex": [
+        "index",
+        "mappings?",
+        "settings?"
+      ],
+      "ElasticReindexDocuments": [
+        "source_index",
+        "destination_index",
+        "query?",
+        "max_documents?",
+        "refresh?"
+      ],
+      "ElasticDeleteIndex": [
+        "index"
+      ],
+      "ElasticRefreshIndex": [
+        "index"
+      ]
+    }
+  },
+  "subjects": [
+    {
+      "persona": "dana",
+      "user_id": "alice@bank.example",
+      "display_name": "Alice",
+      "role": "account_executive",
+      "clearance": 50000
+    },
+    {
+      "persona": "sam",
+      "user_id": "bob@bank.example",
+      "display_name": "Bob",
+      "role": "sdr",
+      "clearance": 0
+    },
+    {
+      "persona": "riley",
+      "user_id": "charlie@bank.example",
+      "display_name": "Charlie",
+      "role": "vp_sales",
+      "clearance": 250000
+    },
+    {
+      "persona": "morgan",
+      "user_id": "michael@bank.example",
+      "display_name": "Michael",
+      "role": "cro",
+      "clearance": 5000000
+    }
+  ],
+  "policy_rules": [
+    {
+      "id": "access.analysts-cannot-see-approve",
+      "description": "Act 1. A SDR never sees the approval tool: it is absent from tools/list, not merely refused.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ApproveDiscount"
+      },
+      "subjects": {
+        "roles": [
+          "sdr"
+        ]
+      },
+      "effect": "deny",
+      "reason": "Credit analysts do not hold approval authority; the tool is hidden from this role.",
+      "priority": 10
+    },
+    {
+      "id": "pre.approve-within-clearance",
+      "description": "Act 2. An approval above the caller's authority is blocked, and the denial tells the model how to escalate and then retry.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ApproveDiscount"
+      },
+      "conditions": [
+        {
+          "input": "amount",
+          "operator": "exceeds_clearance"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: approving {{inputs.deal_id}} for {{inputs.amount}} exceeds your approval authority of {{subject.clearance}}. To proceed, call $TOOLKIT_RequestApproval with action=approve_discount, resource_id={{inputs.deal_id}}, amount={{inputs.amount}} and justification=<why this discount should be approved>, then wait for the approval and retry $TOOLKIT_ApproveDiscount with deal_id={{inputs.deal_id}} and amount={{inputs.amount}} unchanged.",
+      "priority": 100
+    },
+    {
+      "id": "pre.decide-needs-a-known-request",
+      "description": "Act 2, the recursive turn. A decision on an id that names no approval request is refused before any other question is asked, so the answer says 'no such request' rather than tripping over a missing field.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "Decide"
+      },
+      "conditions": [
+        {
+          "input": "approval",
+          "operator": "exists",
+          "value": false
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: no approval request matches that id, so there is nothing to decide. Do not retry; open the approval link again, or ask whoever raised the request to resend it.",
+      "priority": 200
+    },
+    {
+      "id": "pre.decide-not-by-the-requester",
+      "description": "Act 2, and PRD story 18. The person who asked cannot be the person who approves. This is what makes it safe to put the approval link in a conversation the requester can read: possession of the URL is not permission, and the check happens when the button is pressed.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "Decide"
+      },
+      "conditions": [
+        {
+          "input": "approval.decided_by_requester",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: {{subject.display_name}} raised this approval request, and separation of duties means the person who asks cannot also be the person who approves. Do not retry; it has already been routed to an approver whose authority covers it.",
+      "priority": 210
+    },
+    {
+      "id": "pre.decide-within-clearance",
+      "description": "Act 2. Deciding is itself an exercise of authority: a clicker whose clearance does not cover the amount is refused exactly as the original call was.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "Decide"
+      },
+      "conditions": [
+        {
+          "input": "approval.amount",
+          "operator": "exceeds_clearance"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this request is for more than your approval authority of {{subject.clearance}}, so deciding it is not yours to do. Do not retry; it has been routed to an approver whose clearance covers the amount.",
+      "priority": 220
+    },
+    {
+      "id": "pre.decide-only-while-pending",
+      "description": "A decision is final: once a request is approved or denied it cannot be decided again, so a denial cannot later be turned into an approval by clicking the same link.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "Decide"
+      },
+      "conditions": [
+        {
+          "input": "approval.status",
+          "operator": "neq",
+          "value": "pending"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this approval request has already been decided, and a decision is final. Do not retry; raise a new request if the outcome should change.",
+      "priority": 230
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticIndexDocument",
+      "description": "Elastic, act 1. ElasticIndexDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticIndexDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 20
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticBulkIndexDocuments",
+      "description": "Elastic, act 1. ElasticBulkIndexDocuments writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticBulkIndexDocuments"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 21
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticUpdateDocument",
+      "description": "Elastic, act 1. ElasticUpdateDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticUpdateDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 22
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticDeleteDocument",
+      "description": "Elastic, act 1. ElasticDeleteDocument writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticDeleteDocument"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 23
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticDeleteDocumentsByQuery",
+      "description": "Elastic, act 1. ElasticDeleteDocumentsByQuery writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticDeleteDocumentsByQuery"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 24
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticCreateIndex",
+      "description": "Elastic, act 1. ElasticCreateIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticCreateIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 25
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticReindexDocuments",
+      "description": "Elastic, act 1. ElasticReindexDocuments writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticReindexDocuments"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 26
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticDeleteIndex",
+      "description": "Elastic, act 1. ElasticDeleteIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticDeleteIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 27
+    },
+    {
+      "id": "access.only-the-cco-writes-the-index.ElasticRefreshIndex",
+      "description": "Elastic, act 1. ElasticRefreshIndex writes or destroys the deal index; nobody below the chief revenue officer sees it. The seed script runs as the CCO.",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticRefreshIndex"
+      },
+      "subjects": {
+        "roles": [
+          "account_executive",
+          "sdr",
+          "vp_sales"
+        ]
+      },
+      "effect": "deny",
+      "reason": "This role reads the deal index and does not write it; the tool is hidden from this role.",
+      "priority": 28
+    },
+    {
+      "id": "pre.esql-names-no-identifier-column",
+      "description": "Elastic, act 3 for ES|QL. A query that names a customer identifier column is refused for anyone under the clearance bar, because a row has no field path for /post to mask.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticRunEsqlQuery"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "query",
+          "operator": "matches",
+          "value": "\\bbank_account_number\\b|\\btax_id\\b"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this ES|QL query reads bank_account_number or tax_id, which your clearance of {{subject.clearance}} does not cover. Retry $TOOLKIT_ElasticRunEsqlQuery with query=<the same query, with a KEEP clause that names only the columns you need and neither identifier>.",
+      "priority": 300
+    },
+    {
+      "id": "pre.esql-must-keep-named-columns",
+      "description": "Elastic, act 3 for ES|QL. A query with neither a KEEP nor a STATS clause returns every column, identifiers included; for anyone under the bar it is refused with the fix. STATS returns aggregates rather than rows, so it passes here and is judged by the rule above.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticRunEsqlQuery"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "query",
+          "operator": "matches",
+          "value": "^(?![\\s\\S]*\\|\\s*(?:KEEP|STATS)\\b)"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this ES|QL query has no KEEP clause, so it would return every column of the index including customer identifiers your clearance of {{subject.clearance}} does not cover. Retry $TOOLKIT_ElasticRunEsqlQuery with query=<the same query, plus a KEEP clause naming only the columns you need>.",
+      "priority": 310
+    },
+    {
+      "id": "pre.aggregate-not-over-identifiers",
+      "description": "Elastic, act 3 for aggregations. A terms aggregation over an identifier field would list the identifiers as bucket keys; refused for anyone under the bar.",
+      "hook": "pre",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "ElasticAggregateDocuments"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "conditions": [
+        {
+          "input": "aggregations",
+          "operator": "matches",
+          "value": "\\bbank_account_number\\b|\\btax_id\\b"
+        }
+      ],
+      "effect": "deny",
+      "reason": "DENIED: this aggregation groups over bank_account_number or tax_id, which your clearance of {{subject.clearance}} does not cover. Retry $TOOLKIT_ElasticAggregateDocuments with index={{inputs.index}} and aggregations=<the same aggregations over a field that is not a customer identifier>.",
+      "priority": 320
+    }
+  ],
+  "output_rules": [
+    {
+      "id": "post.redact-customer-identifiers",
+      "description": "Act 3. Masks the customer's bank account number and tax id for anyone whose clearance is under 250000, on every loan tool that returns the record.",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "*"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "fields": [
+        {
+          "path": "bank_account_number",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "tax_id",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        }
+      ],
+      "reason": "Customer identifiers masked before the output reached the model.",
+      "priority": 100
+    },
+    {
+      "id": "post.strip-injected-instructions",
+      "description": "Act 4. Strips text addressed to the model out of a deal record's free text, for everyone, on every loan tool that returns it. Six shapes, each with its own id, so the audit row names which one fired.",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "*"
+      },
+      "patterns": [
+        {
+          "id": "pattern.injected-instruction",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:system note for automated review|ignore (?:any|all|the) (?:earlier|previous|prior) instructions?)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.instruction-override",
+          "regex": "\\s*[^.!?\\n]*\\b(?:ignore|disregard|forget|override|bypass|set aside|do not follow)\\s+(?:all\\s+|any\\s+|every\\s+)?(?:of\\s+)?(?:your|the|my|its|these|those|any|all|previous|prior|earlier|preceding|above|system|original)\\s+(?:[a-z]+\\s+){0,2}?(?:instructions?|directives?|prompts?|guardrails?)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.addressed-to-the-model",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:(?:notes?|messages?|instructions?)\\s+(?:to|for)\\s+(?:the\\s+)?|attention[\\s,:]+)(?:\\bai\\b|\\bllm\\b|language model|automated\\s+(?:review|reviewer|assistant|system|agent))[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.tool-call-directive",
+          "regex": "\\s*[^.!?\\n]*\\b(?:call|invoke|run|execute|trigger)\\b\\s+(?:the\\s+)?(?:[A-Za-z]+[_.])?(?:approve|deny)[_ ]?discount\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.concealment-directive",
+          "regex": "\\s*[^.!?\\n]*\\bdo not\\s+(?:mention|reveal|disclose|repeat|report|include|surface)\\b[^.!?\\n]{0,60}?\\bthis\\s+(?:note|message|instruction|text|block|section|paste)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.conversation-delimiter",
+          "regex": "\\s*(?:<\\|im_(?:start|end)\\|>|</?system>|\\[/?(?:INST|SYSTEM)\\]|#{2,}\\s*system\\b|begin system prompt)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        }
+      ],
+      "reason": "An instruction addressed to the model was found in free text and stripped before the output reached it.",
+      "priority": 110
+    },
+    {
+      "id": "post.redact-identifiers-in-search-results",
+      "description": "Elastic, act 3. The deal index carries the same customer identifiers GetDeal does, at hits[].source.* on every search tool and at source.* on ElasticGetDocument. Masked for anyone whose clearance is under 250000. ES|QL rows and aggregation buckets have no field to name, so those two tools are governed at /pre instead (pre.esql-*, pre.aggregate-*).",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "*"
+      },
+      "subjects": {
+        "clearance_below": 250000
+      },
+      "fields": [
+        {
+          "path": "hits[].source.bank_account_number",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "hits[].source.tax_id",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "source.bank_account_number",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        },
+        {
+          "path": "source.tax_id",
+          "strategy": "mask",
+          "replacement": "[REDACTED]"
+        }
+      ],
+      "reason": "Customer identifiers masked in the search result before it reached the model.",
+      "priority": 120
+    },
+    {
+      "id": "post.strip-injected-instructions-from-search-results",
+      "description": "Elastic, act 4. The same six shapes as post.strip-injected-instructions, on every Elastic tool's output, for everyone: DL-2291's underwriter note is the same note whether the model read it from the deal book or from the index.",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "*"
+      },
+      "patterns": [
+        {
+          "id": "pattern.injected-instruction",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:system note for automated review|ignore (?:any|all|the) (?:earlier|previous|prior) instructions?)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.instruction-override",
+          "regex": "\\s*[^.!?\\n]*\\b(?:ignore|disregard|forget|override|bypass|set aside|do not follow)\\s+(?:all\\s+|any\\s+|every\\s+)?(?:of\\s+)?(?:your|the|my|its|these|those|any|all|previous|prior|earlier|preceding|above|system|original)\\s+(?:[a-z]+\\s+){0,2}?(?:instructions?|directives?|prompts?|guardrails?)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.addressed-to-the-model",
+          "regex": "\\s*(?:[-–—]{2,}[^\\n]*\\n)?(?:(?:notes?|messages?|instructions?)\\s+(?:to|for)\\s+(?:the\\s+)?|attention[\\s,:]+)(?:\\bai\\b|\\bllm\\b|language model|automated\\s+(?:review|reviewer|assistant|system|agent))[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.tool-call-directive",
+          "regex": "\\s*[^.!?\\n]*\\b(?:call|invoke|run|execute|trigger)\\b\\s+(?:the\\s+)?(?:[A-Za-z]+[_.])?(?:approve|deny)[_ ]?discount\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.concealment-directive",
+          "regex": "\\s*[^.!?\\n]*\\bdo not\\s+(?:mention|reveal|disclose|repeat|report|include|surface)\\b[^.!?\\n]{0,60}?\\bthis\\s+(?:note|message|instruction|text|block|section|paste)\\b[^.!?\\n]*[.!?]?",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        },
+        {
+          "id": "pattern.conversation-delimiter",
+          "regex": "\\s*(?:<\\|im_(?:start|end)\\|>|</?system>|\\[/?(?:INST|SYSTEM)\\]|#{2,}\\s*system\\b|begin system prompt)[\\s\\S]*$",
+          "flags": "i",
+          "strategy": "remove",
+          "replacement": ""
+        }
+      ],
+      "reason": "An instruction addressed to the model was found in a search result and stripped before the output reached it.",
+      "priority": 130
+    }
+  ]
+}

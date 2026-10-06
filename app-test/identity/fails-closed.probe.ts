@@ -20,9 +20,9 @@
  */
 import { expect, mock, test } from "bun:test";
 
-import { chunk, chunkName } from "../../lib/identity/seal.ts";
-import { seal } from "../../lib/identity/seal.ts";
-import { SESSION_COOKIE, readSessionFromCookies } from "../../lib/identity/session.ts";
+import { chunk, chunkName } from "../../auth/seal.ts";
+import { seal } from "../../auth/seal.ts";
+import { SESSION_COOKIE, readSessionFromCookies } from "../../auth/session.ts";
 
 const EXPECT = process.env.CG_PROBE_EXPECT;
 if (EXPECT !== "failed" && EXPECT !== "ok") throw new Error(`CG_PROBE_EXPECT=${String(EXPECT)}; want failed or ok`);
@@ -54,14 +54,14 @@ async function signedInAsCharlie(): Promise<void> {
 // `bun run users seed-demo` adds it, before either module opens its file.
 if (!FAILED) {
   const { seedDemoIdentity, seedDemoSubjects } = await import("../demo-cast.ts");
-  const { openGovernance } = await import("../../lib/control-plane/policy-store.ts");
+  const { openGovernance } = await import("../../gate/service/policy-store.ts");
   await seedDemoIdentity(process.env.IDP_DB_PATH!);
   const governance = openGovernance(process.env.GOVERNANCE_DB_PATH!, { toolkit: "DealDesk" });
   seedDemoSubjects(governance);
   governance.close();
 }
 
-const { identityProviderFailure, serve } = await import("../../lib/identity/provider/instance.ts");
+const { identityProviderFailure, serve } = await import("../../auth/provider/instance.ts");
 const failure = await identityProviderFailure();
 
 test(`the identity provider ${FAILED ? "refused to boot" : "booted"}`, () => {

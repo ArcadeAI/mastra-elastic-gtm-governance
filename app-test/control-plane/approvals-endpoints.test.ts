@@ -14,10 +14,10 @@ import type { Database } from "bun:sqlite";
 
 import { ApprovalRecord } from "@cg/policy-schema";
 
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { createPolicyCache, type PolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { createPolicyCache, type PolicyCache } from "../../gate/service/policy-cache.ts";
+import { openGovernance } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const DANA = "alice@bank.example";

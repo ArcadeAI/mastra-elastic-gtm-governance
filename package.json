@@ -3,13 +3,15 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "packages/*",
-    "lib/loans",
-    "lib/identity/provider"
+    "gate/engine",
+    "gate/schema",
+    "api",
+    "auth/provider"
   ],
   "scripts": {
     "dev": "bun scripts/next.ts dev",
     "dev:web": "bun run dev",
+    "gate": "bun scripts/gate.ts",
     "studio": "bun --no-env-file scripts/studio.ts",
     "dev:idp-stub": "bun scripts/dev-idp.ts",
     "loans": "bun scripts/loans.ts",
@@ -27,16 +29,16 @@
     "typecheck": "next typegen && tsc --noEmit && bun run --filter '*' typecheck",
     "verify:standalone": "bun scripts/verify-standalone.ts",
     "reset": "bun scripts/reset.ts",
-    "seed:elastic": "bun scripts/seed-elastic.ts"
+    "seed:elastic": "bun elastic/seed.ts"
   },
   "//": [
-    "The root manifest is the app's since #3: the Next.js app that was apps/web lives at the repo root, and the workspaces are packages/*, lib/loans and lib/identity/provider, the services having all been folded in (#4, #5, #6). `--filter '*'` in `build` and `typecheck` matches the workspaces and never the root, so neither recurses. There is no `test` script: at the root `bun test` runs every group in the repo, and a script scoped to one of them would read as the whole suite. The app's group is `bun test ./app-test/`.",
-    "The app runs on Bun, not Node, since #4: `build` is `bun --bun next build`, and `dev` and `start` pass `--bun` in `scripts/next.ts`. The control plane in `lib/control-plane/` opens `governance.db` with `bun:sqlite`, and since #5 the loan module in `lib/loans/` opens `loans.db` the same way; Node cannot load it, and `next`'s bin is `#!/usr/bin/env node`, which plain `bun run` honours. Measured on #4: under Node the build fails collecting page data and the route answers 500.",
+    "The root manifest is the app's since #3: the Next.js app that was apps/web lives at the repo root, and the workspaces are packages/*, api and auth/provider, the services having all been folded in (#4, #5, #6). `--filter '*'` in `build` and `typecheck` matches the workspaces and never the root, so neither recurses. There is no `test` script: at the root `bun test` runs every group in the repo, and a script scoped to one of them would read as the whole suite. The app's group is `bun test ./app-test/`.",
+    "The app runs on Bun, not Node, since #4: `build` is `bun --bun next build`, and `dev` and `start` pass `--bun` in `scripts/next.ts`. The control plane in `gate/service/` opens `governance.db` with `bun:sqlite`, and since #5 the loan module in `api/` opens `loans.db` the same way; Node cannot load it, and `next`'s bin is `#!/usr/bin/env node`, which plain `bun run` honours. Measured on #4: under Node the build fails collecting page data and the route answers 500.",
     "`dev` and `start` go through `scripts/next.ts` so that PORT comes from the root `.env.local`, the way it does for the three Bun services from theirs. `next dev --port ${PORT:-3000}` did not: the shell expanded it before anything read the file, and the service bound 3000 in a worktree that owns 4410. See #50 and the comment at the top of that script; `app-test/dev-port.test.ts` fails if the shell-expanded form comes back. `dev:web` is the name the app ran under before #3, kept as an alias.",
     "zod is pinned to one exact 4.x version, repo-wide, by the override below. The old 3.x pin (#28) guarded an Arcade TypeScript SDK this repo never depended on, and by #187 it blocked @mastra/mcp 2, whose MCP SDK requires zod ^4.2. One version everywhere is the point: two zods in one process disagree about instanceof.",
-    "Better Auth is the app's own dependency since #6: `apps/idp` is the identity module, `lib/identity/provider/`, served by the app on its port and opening `idp.db` with `bun:sqlite`. Pinned exactly, at 1.7.5 with a fresh `idp.db` schema (DESIGN.md → Services): `lib/identity/provider/replay-tolerance.ts` and `authorization-code.ts` quote the plugin's internals by version, and a range would let them drift from what they cite. `bun run identity` puts the module on a port of its own (scripts/identity.ts), for tests; `oauth-client`, `identity:reset` and `generate:identity-schema` are the scripts that were `apps/idp`'s. `app-test/identity/only-identity-mints.test.ts` fails if any other module imports its signing keys or its token issuance.",
+    "Better Auth is the app's own dependency since #6: `apps/idp` is the identity module, `auth/provider/`, served by the app on its port and opening `idp.db` with `bun:sqlite`. Pinned exactly, at 1.7.5 with a fresh `idp.db` schema (DESIGN.md → Services): `auth/provider/replay-tolerance.ts` and `authorization-code.ts` quote the plugin's internals by version, and a range would let them drift from what they cite. `bun run identity` puts the module on a port of its own (scripts/identity.ts), for tests; `oauth-client`, `identity:reset` and `generate:identity-schema` are the scripts that were `apps/idp`'s. `app-test/identity/only-identity-mints.test.ts` fails if any other module imports its signing keys or its token issuance.",
     "dev:idp-stub is the laptop-only identity stand-in, at scripts/dev-idp.ts since #5 folded apps/loan-app (it lived in apps/loan-app/scripts before). It binds IDENTITY_HOST's port, not PORT — the root .env.local's PORT is the app's. See #56 and the comment at the top of scripts/dev-idp.ts; app-test/loans/dev-idp-port.test.ts fails if it goes back to PORT.",
-    "lib/loans is a workspace member for its manifest's `cg.governed` flag, which `packages/policy-schema`'s sweep reads to exempt it; `bun run loans` puts the module on a port of its own (scripts/loans.ts), for tests and for anyone who wants the loan API without Next.",
+    "api is a workspace member for its manifest's `cg.governed` flag, which `gate/schema`'s sweep reads to exempt it; `bun run loans` puts the module on a port of its own (scripts/loans.ts), for tests and for anyone who wants the loan API without Next.",
     "`studio` is `mastra dev`, through `scripts/studio.ts`, which first names any identity or secret key the shell sets to a value `.env` does not hold (#54) and then runs `mastra dev` with the shell's environment, as the script did before: it bundles `src/mastra/index.ts` and serves Mastra Studio under Node, on `STUDIO_PORT` rather than on `PORT`, which is the app's and which `mastra dev` would otherwise read from the root `.env.local`. Studio runs the chat route's agent and authorizes against the gateway itself, at `/arcade/authorize` on its own server (#8). In an Orca worktree `scripts/orca-setup.sh` sets `STUDIO_PORT` from the worktree's block; unset, Studio takes Mastra's own default, 4111, deliberately (`lib/agent/studio.ts::MASTRA_DEFAULT_PORT`). `app-test/studio-dev-server.test.ts` boots it on a port the OS hands out."
   ],
   "//ws": "`ws` is a transitive runtime dependency, declared here on purpose. `@mastra/core` opens it at module scope (`import WebSocket from \"ws\"`), and Bun's isolated install links only a package's *declared* dependencies — so without this line `ws` exists only under `node_modules/.bun/@mastra+core@…/node_modules/ws` and is unreachable from the app. In the Alpine builder webpack left it as a bare `require(\"ws\")` external, Next's file tracing could not resolve that specifier from the emitted route, and the standalone image shipped without it: `POST /api/chat` answered `Cannot find module 'ws'` on the stage demo's deployment while `next start` on a full node_modules was fine. Declaring it is the whole fix — the specifier now resolves from this package, so tracing carries it. Measured in #92; `scripts/verify-standalone.ts` is what proves it, against the Docker image rather than `next start`.",
@@ -58,7 +60,7 @@
     "zod": "4.6.5"
   },
   "//memory": "`@mastra/memory` and `@mastra/libsql` are Studio's thread memory (#36), pinned exactly: both declare `@mastra/core` as a peer (`>=1.4.1` and `>=1.68.0`, below 2), and `@mastra/memory` 1.32.1 depends on the same `@mastra/schema-compat` 1.3.11 as the installed core, so the lockfile holds one core, one schema-compat and one zod. Only `lib/agent/memory.ts` imports them, and only Studio reaches that module: the chat route's agent has no memory, so libsql never enters the Next bundle or the standalone image. See docs/studio-memory.md.",
-  "//gc": "`@cg/governance-core` is a runtime dependency since #4: the control plane is a module of this app (`lib/control-plane/`), and it is the engine's one consumer. The edge that matters runs the other way and still does not exist: `packages/governance-core` imports nothing from any app, and its `no-app-dependencies.test.ts` fails if it starts to. The UI side of the app still reaches the control plane only through its routes and `lib/control-plane/`'s exports, never the engine directly.",
+  "//gc": "`@cg/governance-core` is a runtime dependency since #4: the control plane is a module of this app (`gate/service/`), and it is the engine's one consumer. The edge that matters runs the other way and still does not exist: `gate/engine` imports nothing from any app, and its `no-app-dependencies.test.ts` fails if it starts to. The UI side of the app still reaches the control plane only through its routes and `gate/service/`'s exports, never the engine directly.",
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.14.5",
     "@types/bun": "^1.4.2",

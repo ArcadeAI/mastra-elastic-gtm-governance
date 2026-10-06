@@ -29,7 +29,7 @@ import { chatEntry, LOAD_STEP, RUN_STEP, type LoadChat } from "../lib/agent/entr
 import { faultMessage } from "../lib/agent/fault.ts";
 import { chat, PRE_STREAM } from "../lib/agent/handlers.ts";
 import { readIdentitySurface, type IdentitySurface } from "../lib/config.ts";
-import { writeSession, type Session } from "../lib/identity/session.ts";
+import { writeSession, type Session } from "../auth/session.ts";
 
 const SESSION_SECRET = "chat-fault-suite-session-secret-0123456789";
 

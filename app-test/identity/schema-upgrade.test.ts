@@ -24,7 +24,7 @@ import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { OAUTH_CLIENT_ROW_ID } from "../../lib/identity/provider/client.ts";
+import { OAUTH_CLIENT_ROW_ID } from "../../auth/provider/client.ts";
 import {
   countPeople,
   idempotentSchema,
@@ -33,7 +33,7 @@ import {
   SCHEMA_VERSION,
   SchemaTooNewError,
   SchemaTooOldError,
-} from "../../lib/identity/provider/db.ts";
+} from "../../auth/provider/db.ts";
 import { DEMO_PEOPLE } from "../demo-cast.ts";
 
 const ROOT = join(import.meta.dir, "..", "..");
@@ -120,7 +120,7 @@ describe("idempotentSchema", () => {
     const db = await openPeople(":memory:", DEMO_PEOPLE.map(({ name, email, password }) => ({ name, email, password })));
     const before = tables(db);
 
-    db.exec(idempotentSchema(await Bun.file(join(ROOT, "lib", "identity", "provider", "schema.sql")).text()));
+    db.exec(idempotentSchema(await Bun.file(join(ROOT, "auth", "provider", "schema.sql")).text()));
 
     expect(tables(db)).toEqual(before);
     expect(countPeople(db)).toBe(DEMO_PEOPLE.length);

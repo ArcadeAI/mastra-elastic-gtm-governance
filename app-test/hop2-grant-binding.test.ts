@@ -19,7 +19,7 @@
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
-import { flowReference, identityReference } from "../lib/identity/verifier.ts";
+import { flowReference, identityReference } from "../auth/verifier.ts";
 import {
   Browser,
   PEOPLE,

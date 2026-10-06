@@ -17,7 +17,7 @@ import { expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { readConfig } from "../lib/identity/provider/config.ts";
+import { readConfig } from "../auth/provider/config.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const example = readFileSync(join(ROOT, ".env.example"), "utf8");
@@ -30,12 +30,16 @@ const active = [...example.matchAll(/^([A-Z][A-Z0-9_]+)=(.*)$/gm)].map(([, key, 
 const SHIPPED = [
   "app",
   "lib",
+  "api",
+  "auth",
+  "gate/service",
+  "elastic",
   "src",
   "components",
   "scripts",
-  "packages/governance-core/src",
-  "packages/policy-schema/src",
-  "packages/policy-schema/contract",
+  "gate/engine/src",
+  "gate/schema/src",
+  "gate/schema/contract",
   "mcp/deal_desk/deals.py",
   "mcp/deal_desk/approvals.py",
   "mcp/deal_desk/elasticsearch.py",
@@ -130,7 +134,7 @@ test("every variable the code reads is in .env.example or is set by something el
 // read or refused anywhere, and the contract module no longer exists.
 test("no persona variable is in it, and the persona email contract is gone", () => {
   expect(example).not.toMatch(/PERSONA_/);
-  expect(existsSync(join(ROOT, "packages/policy-schema/contract/persona-email-contract.ts"))).toBe(false);
+  expect(existsSync(join(ROOT, "gate/schema/contract/persona-email-contract.ts"))).toBe(false);
   expect(example).toContain("bun run users seed-demo");
 });
 

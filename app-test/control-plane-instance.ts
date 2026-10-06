@@ -3,7 +3,7 @@
  * reaching it (`app/health/route.ts`), before that file changes the
  * environment.
  *
- * The control plane is one per process (`lib/control-plane/instance.ts`), and
+ * The control plane is one per process (`gate/service/instance.ts`), and
  * `bun test` runs every file in one process, so whichever test reaches it
  * first decides its configuration for the rest of the run. Booting it here,
  * on a scratch file outside the repo, means a test that sets `NODE_ENV=production` to check the
@@ -14,7 +14,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { controlPlaneFailure } from "../lib/control-plane/instance.ts";
+import { controlPlaneFailure } from "../gate/service/instance.ts";
 import { seedDemoGovernance } from "./demo-cast.ts";
 
 /**

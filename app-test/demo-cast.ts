@@ -18,10 +18,10 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 
-import fixture from "../lib/control-plane/fixtures/governance.json" with { type: "json" };
-import { openGovernance, type SeedOptions } from "../lib/control-plane/policy-store.ts";
-import { addSubject, readSubject } from "../lib/control-plane/subjects.ts";
-import { addPerson, findPerson, openPeople } from "../lib/identity/provider/db.ts";
+import fixture from "../gate/policies/governance.json" with { type: "json" };
+import { openGovernance, type SeedOptions } from "../gate/service/policy-store.ts";
+import { addSubject, readSubject } from "../gate/service/subjects.ts";
+import { addPerson, findPerson, openPeople } from "../auth/provider/db.ts";
 import { childEnv } from "./child-env.ts";
 import { spawnChild } from "./child.ts";
 

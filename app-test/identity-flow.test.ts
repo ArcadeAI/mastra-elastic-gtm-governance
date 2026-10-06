@@ -23,9 +23,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 
 import { deploymentReadiness, readIdentitySurface, readWebConfig } from "../lib/config.ts";
-import { readSession } from "../lib/identity/session.ts";
-import { SIGNIN_PATH } from "../lib/identity/handlers.ts";
-import { SESSION_SECRET_MIN_LENGTH, sessionSecretProblem } from "../lib/identity/seal.ts";
+import { readSession } from "../auth/session.ts";
+import { SIGNIN_PATH } from "../auth/handlers.ts";
+import { SESSION_SECRET_MIN_LENGTH, sessionSecretProblem } from "../auth/seal.ts";
 import {
   Browser,
   PEOPLE,
@@ -360,7 +360,7 @@ describe("hop 1 — the gateway token", () => {
 
 describe("hop 1 — refresh, server-side", () => {
   test("a token close to expiry is refreshed without the browser doing anything", async () => {
-    const { liveGatewayToken } = await import("../lib/identity/handlers.ts");
+    const { liveGatewayToken } = await import("../auth/handlers.ts");
 
     const browser = new Browser();
     await signInAs(browser, harness, "dana", { stopAt: "/api/arcade/start" });
@@ -382,7 +382,7 @@ describe("hop 1 — refresh, server-side", () => {
   });
 
   test("a live token is returned as it stands, with no call to the gateway", async () => {
-    const { liveGatewayToken } = await import("../lib/identity/handlers.ts");
+    const { liveGatewayToken } = await import("../auth/handlers.ts");
 
     const browser = new Browser();
     await signInAs(browser, harness, "sam", { stopAt: "/api/arcade/start" });
@@ -396,7 +396,7 @@ describe("hop 1 — refresh, server-side", () => {
   });
 
   test("no token at all is reported as a reason, not as an empty string", async () => {
-    const { liveGatewayToken } = await import("../lib/identity/handlers.ts");
+    const { liveGatewayToken } = await import("../auth/handlers.ts");
     const live = await liveGatewayToken({ email: PEOPLE.dana.email, signed_in_at: 1 }, harness.config);
     expect(live.token).toBeNull();
     if (live.token === null) expect(live.reason).toContain("no gateway token");
@@ -783,7 +783,7 @@ describe("a SESSION_SECRET that is set but too weak", () => {
 
   test("every identity route answers 503 over HTTP and names the minimum", async () => {
     const weak = readIdentitySurface({ ...FILLED, SESSION_SECRET: "x" });
-    const { gatewayStart, signin, signinCallback, verify } = await import("../lib/identity/handlers.ts");
+    const { gatewayStart, signin, signinCallback, verify } = await import("../auth/handlers.ts");
 
     const server = Bun.serve({
       port: 0,
@@ -818,7 +818,7 @@ describe("a SESSION_SECRET that is set but too weak", () => {
   });
 
   test("sealing under a weak secret is refused, so no route can get there by another path", async () => {
-    const { seal } = await import("../lib/identity/seal.ts");
+    const { seal } = await import("../auth/seal.ts");
     expect(seal({ email: PEOPLE.dana.email }, "x")).rejects.toThrow(
       new RegExp(`at least ${SESSION_SECRET_MIN_LENGTH} characters`),
     );
@@ -828,7 +828,7 @@ describe("a SESSION_SECRET that is set but too weak", () => {
 describe("an unconfigured deployment", () => {
   test("every route says which variable is missing rather than failing obscurely", async () => {
     const bare = readWebConfig({});
-    const { signin, verify } = await import("../lib/identity/handlers.ts");
+    const { signin, verify } = await import("../auth/handlers.ts");
 
     const signinAnswer = await signin(new Request("https://cg-web-sa31.example.com/api/auth/signin"), bare);
     expect(signinAnswer.status).toBe(503);
@@ -865,7 +865,7 @@ describe("an unconfigured deployment", () => {
       });
       delete process.env.APPROVALS_STORE_TOKEN;
 
-      const { signin } = await import("../lib/identity/handlers.ts");
+      const { signin } = await import("../auth/handlers.ts");
       const answer = await signin(new Request(`${harness.webUrl}/api/auth/signin?persona=dana`));
       expect(answer.status).toBe(303);
       expect(answer.headers.get("location")).toContain(`${harness.idpUrl}/oauth2/authorize`);

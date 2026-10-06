@@ -216,7 +216,7 @@ describe("the control plane, on the app's own port", () => {
     // Behind Next on Bun, two things had to change for this to hold (#4):
     // Bun's node:http never said the response closed (lib/runtime/
     // response-close.ts), and the stream only left the bus when its body was
-    // cancelled, which Next does not do (lib/control-plane/events.ts).
+    // cancelled, which Next does not do (gate/service/events.ts).
     // Without either, every closed tab stayed subscribed for the life of the
     // process.
     const clients = async () =>
@@ -279,7 +279,7 @@ describe("the control plane, on the app's own port", () => {
       panel_stream: "live",
       policy: { status: "ready", revision: 59 },
       fixture_drift: null,
-      // Six over the deal book and the same six over the index (docs/ELASTIC.md).
+      // Six over the deal book and the same six over the index (elastic/README.md).
       injection_detection: { state: "armed", patterns: 12 },
       reset: "disabled",
       control_plane: { status: "healthy", service: "hooks", failure_mode: "fail-closed" },

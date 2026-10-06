@@ -15,7 +15,7 @@
  * the browser needs down as props.
  */
 import { publicHost } from "./public-host.ts";
-import { sessionSecretProblem } from "./identity/seal.ts";
+import { sessionSecretProblem } from "../auth/seal.ts";
 
 /**
  * Who the browser is signed in as, and the two OAuth hops that follow from it.
@@ -37,7 +37,7 @@ export interface IdentityConfig {
    * The identity provider's public origin and OAuth issuer, no trailing slash:
    * `appOrigin`, since #6 folded `apps/idp` into the app. It was `IDP_ISSUER`.
    * Only a browser is ever sent here; this server reaches the provider
-   * in-process (`lib/identity/link.ts`).
+   * in-process (`auth/link.ts`).
    */
   idpIssuer: string;
   /** Client C: this service's own registration at the IdP, separate from the two Arcade holds. */
@@ -45,7 +45,7 @@ export interface IdentityConfig {
   idpClientSecret: string;
   /** What sign-in asks for. `email` is the join key, so it is not optional. */
   idpScopes: string;
-  /** Seals the session cookie. No fallback — see `lib/identity/seal.ts`. */
+  /** Seals the session cookie. No fallback — see `auth/seal.ts`. */
   sessionSecret: string;
   /**
    * This app's own public origin, no trailing slash. Every redirect_uri is
@@ -118,7 +118,7 @@ export interface AgentConfig {
    */
   toolkit: string;
   /**
-   * `ELASTIC_MODULE` — `on` turns the Elastic module on (docs/ELASTIC.md):
+   * `ELASTIC_MODULE` — `on` turns the Elastic module on (elastic/README.md):
    * the instructions then say the index exists and name it. Off, the agent's
    * surface is the six deal and approvals tools the gateway lists; the
    * Elasticsearch tools are deployed either way, in the same server, and
@@ -126,9 +126,9 @@ export interface AgentConfig {
    */
   elasticEnabled: boolean;
   /**
-   * `ELASTIC_INDEX` — the index `scripts/seed-elastic.ts` writes the deal book
+   * `ELASTIC_INDEX` — the index `elastic/seed.ts` writes the deal book
    * into, named in the instructions so the model does not spend a turn on
-   * `ListIndices`. Read only when `elasticEnabled`.
+   * `ElasticListIndices`. Read only when `elasticEnabled`.
    */
   elasticIndex: string;
 }
@@ -137,7 +137,7 @@ export interface WebConfig {
   /**
    * The control plane's public address: `APP_PUBLIC_HOST` since #6, the host
    * the deployed approvals toolkit and the panel's browser reach it at. The
-   * app itself since #4 (`lib/control-plane/`). Validated here; this server
+   * app itself since #4 (`gate/service/`). Validated here; this server
    * never reads the control plane through it (see `controlPlaneHost`).
    */
   hooksHost: string;
@@ -166,7 +166,7 @@ export interface WebConfig {
 /**
  * The value `apps/hooks` falls back to when `APPROVALS_STORE_TOKEN` is unset
  * and it is not running in production — see `DEV_STORE_TOKEN` in
- * `lib/control-plane/config.ts`.
+ * `gate/service/config.ts`.
  *
  * Duplicated rather than imported because `apps/web` does not depend on
  * `apps/hooks` in the package graph and should not start to. The cost of a
@@ -251,7 +251,7 @@ export function readIdentitySurface(
 
 export function readWebConfig(env: Record<string, string | undefined> = process.env): WebConfig {
   const storeToken = env.APPROVALS_STORE_TOKEN?.trim();
-  // Same guard, same wording, as `lib/control-plane/config.ts`. Round 3 of #52's
+  // Same guard, same wording, as `gate/service/config.ts`. Round 3 of #52's
   // review caught it missing here: the control plane refused to boot without a
   // real token while the service that *presents* it fell back to a value
   // published in this file, so a production `apps/web` would have gone on

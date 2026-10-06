@@ -44,8 +44,8 @@ import {
   studioTools,
 } from "../lib/agent/studio.ts";
 import { readIdentitySurface, type IdentitySurface } from "../lib/config.ts";
-import { forgetGatewayClients } from "../lib/identity/gateway.ts";
-import { writeSession } from "../lib/identity/session.ts";
+import { forgetGatewayClients } from "../auth/gateway.ts";
+import { writeSession } from "../auth/session.ts";
 
 const REPO = join(import.meta.dir, "..");
 const ENTRY = join(REPO, "src", "mastra", "index.ts");
@@ -264,14 +264,14 @@ describe("one token seam", () => {
   test("only gatewayToken reaches the functions behind it", () => {
     const users = [...sources()].filter(([, text]) => BEHIND_THE_SEAM.test(text)).map(([path]) => path).sort();
     // The seam and the module that defines what it wraps, and nothing else.
-    expect(users).toEqual(["lib/agent/gateway-token.ts", "lib/identity/handlers.ts"]);
+    expect(users).toEqual(["lib/agent/gateway-token.ts", "auth/handlers.ts"]);
   });
 
   test("no module outside the identity module reads a stored gateway bearer", () => {
     const readers = [...sources()].filter(([, text]) => READS_BEARER.test(text)).map(([path]) => path).sort();
     // Matched, not merely absent: the one reader is the refresh logic the seam
     // calls, so a pattern that stopped matching would fail here too.
-    expect(readers).toEqual(["lib/identity/handlers.ts"]);
+    expect(readers).toEqual(["auth/handlers.ts"]);
   });
 
   test("the chat route, the page-load listing and Studio all call it", () => {
@@ -420,7 +420,7 @@ describe("the entry Studio loads under Node", () => {
     const { visited, specifiers } = importGraph(ENTRY);
     // The graph was walked, not skipped: the agent, Studio's glue, the token
     // seam and the identity module behind it are all in it.
-    for (const file of ["lib/agent/agent.ts", "lib/agent/studio.ts", "lib/agent/gateway-token.ts", "lib/identity/handlers.ts"]) {
+    for (const file of ["lib/agent/agent.ts", "lib/agent/studio.ts", "lib/agent/gateway-token.ts", "auth/handlers.ts"]) {
       expect(visited).toContain(file);
     }
     expect(specifiers.has("@mastra/core")).toBe(true);

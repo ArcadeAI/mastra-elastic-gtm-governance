@@ -20,8 +20,8 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { PERSONAS } from "../lib/identity/personas.ts";
-import { formatAuthority, personIn, roleLabel } from "../lib/identity/roster.ts";
+import { PERSONAS } from "../auth/personas.ts";
+import { formatAuthority, personIn, roleLabel } from "../auth/roster.ts";
 
 const REPO_ROOT = join(import.meta.dir, "..");
 
@@ -33,7 +33,7 @@ interface SeedSubject {
 }
 
 function seededSubjects(): SeedSubject[] {
-  const path = join(REPO_ROOT, "lib", "control-plane", "fixtures", "governance.json");
+  const path = join(REPO_ROOT, "gate", "policies", "governance.json");
   return (JSON.parse(readFileSync(path, "utf8")) as { subjects: SeedSubject[] }).subjects;
 }
 
@@ -67,7 +67,7 @@ describe("the role/limit table matches what apps/hooks seeds", () => {
   test("no email is written down here", () => {
     // The buttons name a persona; the identity is whatever the IdP asserts.
     // A hardcoded address would be one refactor away from being trusted.
-    const source = readFileSync(join(import.meta.dir, "..", "lib", "identity", "personas.ts"), "utf8");
+    const source = readFileSync(join(import.meta.dir, "..", "auth", "personas.ts"), "utf8");
     expect(source).not.toMatch(/@[a-z0-9-]+\.[a-z]{2,}/i);
   });
 });
@@ -121,7 +121,7 @@ describe("looking a person up from the address the IdP asserted", () => {
     // Before #32 the card was keyed on per-persona email variables, which #33
     // removed altogether, so a user added to the database
     // was "not in the cast". The lookup takes no environment at all now.
-    const source = readFileSync(join(REPO_ROOT, "lib", "identity", "roster.ts"), "utf8");
+    const source = readFileSync(join(REPO_ROOT, "auth", "roster.ts"), "utf8");
     expect(source).not.toMatch(/persona-email-contract|readPersonaEmailOverrides|process\.env|\bPERSONAS\b/);
   });
 });

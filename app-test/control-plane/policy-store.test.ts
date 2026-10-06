@@ -10,7 +10,7 @@ import { dirname, join } from "node:path";
 
 import { compilePolicy } from "@cg/governance-core";
 
-import { count as auditCount, byExecution, newEventId, recent, record } from "../../lib/control-plane/audit-log.ts";
+import { count as auditCount, byExecution, newEventId, recent, record } from "../../gate/service/audit-log.ts";
 import {
   counts,
   hasSchema,
@@ -21,7 +21,7 @@ import {
   readRevision,
   seed,
   type SeedOptions,
-} from "../../lib/control-plane/policy-store.ts";
+} from "../../gate/service/policy-store.ts";
 import { DEMO_PEOPLE, seedDemoSubjects } from "../demo-cast.ts";
 
 const OPTIONS: SeedOptions = { toolkit: "DealDesk" };
@@ -138,7 +138,7 @@ describe("the seed", () => {
   test("keys tools on the PascalCase names arcade-mcp actually produces", () => {
     const tools = Object.keys(loadSeed(OPTIONS).catalogue.DealDesk ?? {}).sort();
     expect(tools).toHaveLength(32);
-    for (const tool of ["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals", "RequestApproval", "Decide", "RunEsqlQuery"]) expect(tools).toContain(tool);
+    for (const tool of ["ApproveDiscount", "DenyDiscount", "GetDeal", "SearchDeals", "RequestApproval", "Decide", "ElasticRunEsqlQuery"]) expect(tools).toContain(tool);
   });
 });
 
@@ -147,7 +147,7 @@ describe("seeding", () => {
     const db = bare();
     expect(counts(db)).toMatchObject({
       subjects: 0,
-      // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (docs/ELASTIC.md).
+      // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (elastic/README.md).
       catalogue: 32,
       // The template's 6, the 9 Elastic access rules, the 3 Elastic pre rules.
       policy_rules: 18,

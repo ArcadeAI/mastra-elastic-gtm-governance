@@ -30,7 +30,7 @@
  *                                      its consent screen
  *   GET  <studio>/arcade/callback      the code, exchanged for access + refresh
  *
- * Every step is `lib/identity/gateway.ts`, the module the web UI's hop 1 is
+ * Every step is `auth/gateway.ts`, the module the web UI's hop 1 is
  * built from. Only the redirect URI differs, and it differs because the
  * callback has to land on the process that will hold the token. The grant is
  * whoever signed in, and nothing here names a persona: Studio acts as Alice
@@ -62,11 +62,11 @@ import {
   gatewayClient as registerGatewayClient,
   mcpUrl,
   probeGatewayToken,
-} from "../identity/gateway.ts";
-import { nonce, pkce } from "../identity/oidc.ts";
-import { sessionSecrets } from "../identity/handlers.ts";
-import { escapeHtml, page, redirect, verbatim } from "../identity/pages.ts";
-import type { GatewayToken, Session } from "../identity/session.ts";
+} from "../../auth/gateway.ts";
+import { nonce, pkce } from "../../auth/oidc.ts";
+import { sessionSecrets } from "../../auth/handlers.ts";
+import { escapeHtml, page, redirect, verbatim } from "../../auth/pages.ts";
+import type { GatewayToken, Session } from "../../auth/session.ts";
 import { secretFingerprints } from "../secret-fingerprints.ts";
 import { anthropicModel, buildAgent, instructionsFor } from "./agent.ts";
 import { authorizationRequired } from "./authorization.ts";

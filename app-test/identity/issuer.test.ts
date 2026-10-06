@@ -4,7 +4,7 @@
  * the ngrok host is https. Decided with #6's Q2.
  *
  * Two places compute it and they must agree byte for byte: the provider
- * (`lib/identity/provider/config.ts`, which names it in discovery and puts it
+ * (`auth/provider/config.ts`, which names it in discovery and puts it
  * on every token as `iss`) and the web sign-in (`lib/config.ts`, which sends
  * the browser to it and builds every `redirect_uri` from the same origin). An
  * Arcade User Source matches `iss` exactly, so a provider saying
@@ -14,7 +14,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { appOrigin, readIdentitySurface } from "../../lib/config.ts";
-import { issuerOf, readConfig } from "../../lib/identity/provider/config.ts";
+import { issuerOf, readConfig } from "../../auth/provider/config.ts";
 
 const CASES: Array<[string, string]> = [
   ["localhost:3000", "http://localhost:3000"],

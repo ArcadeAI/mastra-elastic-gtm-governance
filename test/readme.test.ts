@@ -383,7 +383,7 @@ const MOVED: Array<{ page: string; headings: string[]; facts: string[] }> = [
       "Arcade evaluates auth requirements before `/hooks/pre`, so a refusal there fires no hook, writes no audit row and shows nothing on the panel.",
       "A rule keyed on `get_deal` matches nothing, and a rule that matches nothing is indistinguishable from a rule that permits.",
       "`app-test/loans/knows-nothing-about-governance.test.ts` fails if governance vocabulary",
-      "`packages/governance-core/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package",
+      "`gate/engine/test/no-app-dependencies.test.ts` fails if it declares a dependency on an app package",
       "The custom verifier covers custom providers only.",
       "**Email is the join key.**",
       "The loan module takes the actor from the token, never from a request parameter",

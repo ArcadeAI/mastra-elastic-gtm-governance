@@ -19,7 +19,7 @@ only checks status codes reads as success. It serves the three methods spike #3
 exercised — `users.lookupByEmail`, `conversations.open`, `chat.postMessage` —
 and nothing else, so a call the spike never measured fails here too.
 
-The roster comes from `packages/policy-schema/contract/approver-routing-cases.json`,
+The roster comes from `gate/schema/contract/approver-routing-cases.json`,
 the same file `test_routing.py` and the TypeScript router read, so the cast a
 tool test routes over cannot drift from the cast the routing rule is pinned
 against.

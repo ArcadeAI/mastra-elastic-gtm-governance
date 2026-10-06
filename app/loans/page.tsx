@@ -19,7 +19,7 @@
 import { cookies } from "next/headers";
 
 import { readIdentitySurface } from "../../lib/config.ts";
-import { readSessionFromCookies } from "../../lib/identity/session.ts";
+import { readSessionFromCookies } from "../../auth/session.ts";
 import { readLoanBook } from "../../lib/loan-context/read.ts";
 import { LoanBoard } from "../../components/bank/LoanBoard.tsx";
 

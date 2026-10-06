@@ -18,8 +18,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { GET } from "../../app/health/route.ts";
-import fixture from "../../lib/loans/fixtures/loans.json" with { type: "json" };
-import { closeLoanModule } from "../../lib/loans/instance.ts";
+import fixture from "../../api/fixtures/loans.json" with { type: "json" };
+import { closeLoanModule } from "../../api/instance.ts";
 import { bootTestControlPlane } from "../control-plane-instance.ts";
 import { openTestIdentity } from "../identity-instance.ts";
 

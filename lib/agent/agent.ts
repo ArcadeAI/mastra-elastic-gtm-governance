@@ -114,7 +114,7 @@ export const INSTRUCTIONS = [
  * Read the header first. Every sentence is something the model could not
  * otherwise know — that a second copy of the deal book exists, where, what a
  * document in it looks like, and which field is searchable by meaning (the
- * toolkit's own descriptions say to look that up with `GetIndexMapping`, and
+ * toolkit's own descriptions say to look that up with `ElasticGetIndexMapping`, and
  * naming it here saves that turn). Nothing about which store to prefer, when
  * to search, or what to do with what comes back; the tool descriptions and the
  * hooks own that, exactly as they do for the deal tools.

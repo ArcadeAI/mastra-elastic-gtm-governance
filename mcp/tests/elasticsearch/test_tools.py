@@ -101,7 +101,7 @@ class TestTheNamesTheRepoPins:
 
     def test_every_argument_the_governance_catalogue_records(self) -> None:
         fixture = json.loads(
-            (REPO_ROOT / "lib" / "control-plane" / "fixtures" / "governance.json").read_text(encoding="utf-8")
+            (REPO_ROOT / "gate" / "policies" / "governance.json").read_text(encoding="utf-8")
         )
         catalogue = fixture["catalogue"]["$TOOLKIT"]
         for tool in CATALOG:

@@ -1,7 +1,7 @@
 """Routing, against the same rows the TypeScript router is checked against.
 
-`packages/policy-schema/contract/approver-routing-cases.json` is the contract.
-`packages/governance-core/test/approver-router.test.ts` loads it too. Agreement
+`gate/schema/contract/approver-routing-cases.json` is the contract.
+`gate/engine/test/approver-router.test.ts` loads it too. Agreement
 between the two implementations is therefore tested, not argued: a row added
 there is checked here on the next run, and a row that stops matching one side
 fails on that side.
@@ -20,8 +20,8 @@ from deal_desk.approvals_routing import Subject, route_approval
 
 CASES_PATH = (
     Path(__file__).resolve().parents[3]
-    / "packages"
-    / "policy-schema"
+    / "gate"
+    / "schema"
     / "contract"
     / "approver-routing-cases.json"
 )

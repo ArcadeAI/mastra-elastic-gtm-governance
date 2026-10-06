@@ -495,12 +495,12 @@ describe("the Elastic module's allow-list entry and prompt facts", () => {
     // prefix as the deal tools and the allow-list cannot tell them apart. What
     // gates them is the gateway: `setup-arcade` lists them only when the
     // module is on. The flag here decides the prompt facts, nothing else.
-    const withElastic = [...LIVE_TOOLS_LIST, "DealDesk_HybridSearch", "DealDesk_RunEsqlQuery"];
+    const withElastic = [...LIVE_TOOLS_LIST, "DealDesk_ElasticHybridSearch", "DealDesk_ElasticRunEsqlQuery"];
 
     const off = readIdentitySurface({}).agent;
     expect(off.elasticEnabled).toBe(false);
     expect(off.toolkits).toEqual(["DealDesk"]);
-    expect(Object.keys(selectGoverned(asRecord(withElastic), off).governed)).toContain("DealDesk_HybridSearch");
+    expect(Object.keys(selectGoverned(asRecord(withElastic), off).governed)).toContain("DealDesk_ElasticHybridSearch");
 
     const on = readIdentitySurface({ ELASTIC_MODULE: "on", ELASTIC_INDEX: "deal-files" }).agent;
     expect(on.elasticEnabled).toBe(true);
@@ -508,7 +508,7 @@ describe("the Elastic module's allow-list entry and prompt facts", () => {
     expect(on.toolkits).toEqual(["DealDesk"]);
     const { governed, dropped } = selectGoverned(asRecord(withElastic), on);
     expect(Object.keys(governed)).toHaveLength(8);
-    expect(Object.keys(governed)).toContain("DealDesk_HybridSearch");
+    expect(Object.keys(governed)).toContain("DealDesk_ElasticHybridSearch");
     expect(dropped).toEqual([...GATEWAY_BUILTINS]);
 
     expect(readIdentitySurface({ ELASTIC_MODULE: "  " }).agent.elasticEnabled).toBe(false);

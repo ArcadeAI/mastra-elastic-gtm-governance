@@ -33,9 +33,9 @@ import {
   studioTools,
 } from "../../lib/agent/studio.ts";
 import { readIdentitySurface, type IdentitySurface } from "../../lib/config.ts";
-import { forgetGatewayClients } from "../../lib/identity/gateway.ts";
-import { joinChunks, openSealed } from "../../lib/identity/seal.ts";
-import { SESSION_COOKIE, type Session } from "../../lib/identity/session.ts";
+import { forgetGatewayClients } from "../../auth/gateway.ts";
+import { joinChunks, openSealed } from "../../auth/seal.ts";
+import { SESSION_COOKIE, type Session } from "../../auth/session.ts";
 import {
   Browser,
   GATEWAY_ID,

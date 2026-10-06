@@ -68,7 +68,7 @@
 /**
  * The hop-2 provider id, fixed because `mcp/deal_desk/deals.py` reads `OAuth2(id=...)` at
  * import. A literal rather than an import of the identity provider's
- * constant: nothing outside `lib/identity/` imports the provider's internals
+ * constant: nothing outside `auth/` imports the provider's internals
  * (`only-identity-mints.test.ts`). `app-test/identity/provider-id.test.ts`
  * fails if this, the provider's and `mcp/deal_desk/deals.py`'s ever disagree.
  */
@@ -430,11 +430,11 @@ export function unverifiedLine({ path, sent }: { path: string; sent: string }): 
 
 /**
  * The Arcade Elasticsearch toolkit's 26 tools, as its `MCPApp` names them
- * (docs/ELASTIC.md). Listed here so the gateway's `tool_filter` can carry them
+ * (elastic/README.md). Listed here so the gateway's `tool_filter` can carry them
  * when `ELASTIC_MODULE` is set; the toolkit itself is not deployed by
  * this script, it is Arcade's, added to the project in the dashboard.
  */
-export const ELASTIC_TOOLS = ["WhoAmI", "ListIndices", "GetIndexMapping", "ListAliases", "ListInferenceEndpoints", "GetClusterHealth", "GetIndexStats", "GetShards", "SearchByText", "SemanticSearch", "VectorSearch", "HybridSearch", "SearchDocuments", "AggregateDocuments", "CountDocuments", "GetDocument", "RunEsqlQuery", "IndexDocument", "BulkIndexDocuments", "UpdateDocument", "DeleteDocument", "DeleteDocumentsByQuery", "CreateIndex", "ReindexDocuments", "DeleteIndex", "RefreshIndex"] as const;
+export const ELASTIC_TOOLS = ["ElasticWhoAmI", "ElasticListIndices", "ElasticGetIndexMapping", "ElasticListAliases", "ElasticListInferenceEndpoints", "ElasticGetClusterHealth", "ElasticGetIndexStats", "ElasticGetShards", "ElasticSearchByText", "ElasticSemanticSearch", "ElasticVectorSearch", "ElasticHybridSearch", "ElasticSearchDocuments", "ElasticAggregateDocuments", "ElasticCountDocuments", "ElasticGetDocument", "ElasticRunEsqlQuery", "ElasticIndexDocument", "ElasticBulkIndexDocuments", "ElasticUpdateDocument", "ElasticDeleteDocument", "ElasticDeleteDocumentsByQuery", "ElasticCreateIndex", "ElasticReindexDocuments", "ElasticDeleteIndex", "ElasticRefreshIndex"] as const;
 
 /**
  * The tools the agent is given, as a gateway's `tool_filter` names them: `Toolkit.Tool`.
@@ -446,6 +446,37 @@ export function gatewayTools(toolkit: string, elastic = false): string[] {
     ...["RequestApproval", "Decide"].map((tool) => `${toolkit}.${tool}`),
     ...(elastic ? ELASTIC_TOOLS.map((tool) => `${toolkit}.${tool}`) : []),
   ];
+}
+
+/**
+ * The Elastic tools a gateway that already exists lacks, when they are all it
+ * lacks: the six deal and approvals tools present, the Elastic module on, some
+ * of the 26 missing. That is the gateway modules 1 and 2 left behind when
+ * module 3 turns the module on, and the one case `setup-arcade` edits a gateway
+ * it did not just create: it only ever adds these, and never touches the
+ * gateway's authentication. Anything else missing is a warning, as before.
+ * Empty when there is nothing to add. (JD Armada's, from PR #2, with the one
+ * toolkit name.)
+ */
+export function elasticToolsToAdd(gateway: unknown, toolkit: string, elastic = false): string[] {
+  const tools = at(gateway, "tool_filter.allowed_tools");
+  if (!elastic || !Array.isArray(tools)) return [];
+  const have = new Set((tools as unknown[]).map(String));
+  if (gatewayTools(toolkit).some((tool) => !have.has(tool))) return [];
+  return ELASTIC_TOOLS.map((tool) => `${toolkit}.${tool}`).filter((tool) => !have.has(tool));
+}
+
+/**
+ * `PATCH …/gateways/{id}` adding `add` to the gateway's tool list and keeping
+ * every tool it already has. Only `tool_filter` is sent: measured against
+ * Arcade on 2026-10-06 (PR #2), a six-tool gateway answered 200 and read back
+ * with 32 tools and every other field as it was. The caller still treats a
+ * refusal as a warning, not a failure.
+ */
+export function gatewayToolsPatch(gateway: unknown, add: string[]) {
+  const tools = at(gateway, "tool_filter.allowed_tools");
+  const have = Array.isArray(tools) ? (tools as unknown[]).map(String) : [];
+  return { tool_filter: { allowed_tools: [...new Set([...have, ...add])] } };
 }
 
 /** The authentication hop 1 needs: the app's own sign-in, through the User Source. */

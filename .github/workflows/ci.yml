@@ -28,7 +28,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       # One install covers every workspace. The identity provider is part of
-      # the app since #6 (lib/identity/provider), so the root install and the
+      # the app since #6 (auth/provider), so the root install and the
       # root typecheck reach it; it has no install or typecheck of its own.
       - name: Typecheck
         run: bun run typecheck
@@ -37,7 +37,7 @@ jobs:
       # document. `bun test` catches a stale committed file too, but this step
       # names the cause and the fix instead of failing as an opaque string diff.
       - name: Hook contract is regenerated from the vendored spec
-        run: bun run --cwd packages/policy-schema generate:check
+        run: bun run --cwd gate/schema generate:check
 
       # idp.db's schema is generated from the installed Better Auth. A stale
       # file fails `bun test` too, but this names the fix.

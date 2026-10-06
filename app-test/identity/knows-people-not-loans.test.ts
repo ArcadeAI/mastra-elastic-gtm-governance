@@ -4,7 +4,7 @@
  * with a real IdP replaces it — so it must depend on nothing in the template.
  *
  * Carried from `apps/idp/test/` on #6, when the service became the app's
- * identity module (`lib/identity/provider/`, its scripts under
+ * identity module (`auth/provider/`, its scripts under
  * `scripts/identity/` and `scripts/identity.ts`). The source scan moved with
  * it and the assertions did not change. One test did not survive the fold:
  * "nothing else in the template depends on it". The app mounts the provider
@@ -19,7 +19,7 @@ import { join } from "node:path";
 
 const REPO = join(import.meta.dir, "..", "..");
 /** The module's own directory, which holds its `package.json` as `apps/idp` did. */
-const ROOT = join(REPO, "lib", "identity", "provider");
+const ROOT = join(REPO, "auth", "provider");
 
 /**
  * Comments are stripped before matching, as in the deal book's sibling test:
@@ -31,7 +31,7 @@ function stripComments(source: string): string {
 }
 
 /** What `apps/idp`'s `src/` and `scripts/` became: the module, its scripts, and its runner. */
-const SOURCES = ["lib/identity/provider/**/*.ts", "scripts/identity/**/*.ts", "scripts/identity.ts"];
+const SOURCES = ["auth/provider/**/*.ts", "scripts/identity/**/*.ts", "scripts/identity.ts"];
 
 async function sourceFiles(): Promise<{ path: string; text: string }[]> {
   const files = [];
@@ -42,7 +42,7 @@ async function sourceFiles(): Promise<{ path: string; text: string }[]> {
     }
   }
   // Vacuous if the scan found nothing: the move is exactly when a path goes stale.
-  expect(files.map((file) => file.path)).toContain("lib/identity/provider/server.ts");
+  expect(files.map((file) => file.path)).toContain("auth/provider/server.ts");
   return files;
 }
 

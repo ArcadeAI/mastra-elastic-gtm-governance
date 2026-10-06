@@ -44,9 +44,9 @@ import { LoanFilesView } from "../components/bank/LoanFiles.tsx";
 import { LoanFileCard } from "../components/bank/LoanFileCard.tsx";
 import { LoanBoard } from "../components/bank/LoanBoard.tsx";
 import { TOOL_LIST_SLOT } from "../components/bank/ToolListSlot.tsx";
-import { GATEWAY_START_PATH, SIGNIN_PATH } from "../lib/identity/handlers.ts";
+import { GATEWAY_START_PATH, SIGNIN_PATH } from "../auth/handlers.ts";
 import type { LoanBookState, LoanCard } from "../lib/loan-context/loans.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { Session } from "../auth/session.ts";
 import type { SessionTools } from "../lib/agent/tool-list.ts";
 
 const HERE = import.meta.dir;
@@ -1009,14 +1009,14 @@ describe("the fork seam", () => {
    * about this path that did not change — the read is attributable to a person
    * or it does not happen (`DESIGN.md` → Business system).
    *
-   * Since #5 the loan module is part of this app (`lib/loans/`), so the app
+   * Since #5 the loan module is part of this app (`api/`), so the app
    * does open `loans.db` — there, and only there.
    */
   test("nothing this service serves opens the deal book's database", () => {
     // Since #4 the app opens governance.db (the control plane,
-    // `lib/control-plane/`), since #5 loans.db (the loan module,
-    // `lib/loans/`) and since #6 idp.db (the identity provider,
-    // `lib/identity/provider/`). So the rule is stated as what it always meant:
+    // `gate/service/`), since #5 loans.db (the loan module,
+    // `api/`) and since #6 idp.db (the identity provider,
+    // `auth/provider/`). So the rule is stated as what it always meant:
     // bun:sqlite only under those three modules, and only the loan module reads
     // the variable that locates the deal book's file. (The control plane's reset names
     // `loans.db` in its answer, to say it was not touched.)
@@ -1032,15 +1032,15 @@ describe("the fork seam", () => {
     }
     expect(opening.length).toBeGreaterThan(0);
     for (const path of opening) {
-      const owner = ["lib/control-plane/", "lib/loans/", "lib/identity/provider/"].some((module) => path.startsWith(module));
+      const owner = ["gate/service/", "api/", "auth/provider/"].some((module) => path.startsWith(module));
       expect({ path, owner }).toEqual({
         path,
         owner: true,
       });
     }
-    expect(opening.some((path) => path.startsWith("lib/loans/"))).toBe(true);
+    expect(opening.some((path) => path.startsWith("api/"))).toBe(true);
     expect(locating.length).toBeGreaterThan(0);
-    for (const path of locating) expect(path).toStartWith("lib/loans/");
+    for (const path of locating) expect(path).toStartWith("api/");
   });
 
   /**
@@ -1091,10 +1091,10 @@ describe("the fork seam", () => {
     expect(reaching.sort()).toEqual([
       "components/identity/OriginBanner.tsx",
       "lib/config.ts",
-      "lib/control-plane/config.ts",
+      "gate/service/config.ts",
       "lib/dev-origins.ts",
       "lib/governance/stream-url.ts",
-      "lib/identity/provider/config.ts",
+      "auth/provider/config.ts",
       "lib/origin.ts",
     ]);
   });

@@ -20,7 +20,7 @@
  *
  * Everything here is real: a real `apps/idp` subprocess, a real
  * authorization-code + PKCE flow asking for `offline_access`, a real
- * loan module (`lib/loans/`) with a real `loans.db`, and the real `readLoanBook`. A
+ * loan module (`api/`) with a real `loans.db`, and the real `readLoanBook`. A
  * counting proxy sits in front of the IdP so "the refresh token was not spent"
  * is a number this file reads back rather than a claim it makes.
  *
@@ -31,12 +31,12 @@ import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { identityLink, linkIdentity } from "../lib/identity/link.ts";
-import { nonce, pkce } from "../lib/identity/oidc.ts";
+import { identityLink, linkIdentity } from "../auth/link.ts";
+import { nonce, pkce } from "../auth/oidc.ts";
 import { readLoanBook } from "../lib/loan-context/read.ts";
-import { openLoanBook } from "../lib/loans/db.ts";
-import { createLoanModule, type LoanModule } from "../lib/loans/server.ts";
-import type { IdpToken, Session } from "../lib/identity/session.ts";
+import { openLoanBook } from "../api/db.ts";
+import { createLoanModule, type LoanModule } from "../api/server.ts";
+import type { IdpToken, Session } from "../auth/session.ts";
 import { Browser, PEOPLE, startIdentityHarness, type IdentityHarness } from "./identity-harness.ts";
 let identity: IdentityHarness;
 /** A real loan module over its own `loans.db`, handed to the reader in-process (#5). */
@@ -62,7 +62,7 @@ beforeAll(async () => {
   });
 
   // Every refresh the reader makes reaches the provider in-process since #6
-  // (`lib/identity/link.ts`), not over HTTP, so the counting sits where the
+  // (`auth/link.ts`), not over HTTP, so the counting sits where the
   // proxy used to: around the linked provider, passing every request on
   // untouched.
   const linked = identityLink();

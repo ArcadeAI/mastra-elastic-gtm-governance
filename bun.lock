@@ -32,7 +32,14 @@
         "typescript": "^6.0.3",
       },
     },
-    "lib/identity/provider": {
+    "api": {
+      "name": "@cg/loans",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "4.6.5",
+      },
+    },
+    "auth/provider": {
       "name": "@cg/identity-provider",
       "version": "0.0.0",
       "dependencies": {
@@ -41,14 +48,7 @@
         "zod": "4.6.5",
       },
     },
-    "lib/loans": {
-      "name": "@cg/loans",
-      "version": "0.0.0",
-      "dependencies": {
-        "zod": "4.6.5",
-      },
-    },
-    "packages/governance-core": {
+    "gate/engine": {
       "name": "@cg/governance-core",
       "version": "0.0.0",
       "dependencies": {
@@ -60,7 +60,7 @@
         "typescript": "^6.0.3",
       },
     },
-    "packages/policy-schema": {
+    "gate/schema": {
       "name": "@cg/policy-schema",
       "version": "0.0.0",
       "dependencies": {
@@ -172,13 +172,13 @@
 
     "@better-fetch/fetch": ["@better-fetch/fetch@1.3.2", "", {}, "sha512-Gs7n99b5tqUC6cQAPbV0uED3IraHB6xQbHLQ/C3l7ZFafHScOx9pQ+DYmP5blbLFShVWLqxNUlI9wi4xU/X+ow=="],
 
-    "@cg/governance-core": ["@cg/governance-core@workspace:packages/governance-core"],
+    "@cg/governance-core": ["@cg/governance-core@workspace:gate/engine"],
 
-    "@cg/identity-provider": ["@cg/identity-provider@workspace:lib/identity/provider"],
+    "@cg/identity-provider": ["@cg/identity-provider@workspace:auth/provider"],
 
-    "@cg/loans": ["@cg/loans@workspace:lib/loans"],
+    "@cg/loans": ["@cg/loans@workspace:api"],
 
-    "@cg/policy-schema": ["@cg/policy-schema@workspace:packages/policy-schema"],
+    "@cg/policy-schema": ["@cg/policy-schema@workspace:gate/schema"],
 
     "@clack/core": ["@clack/core@1.5.1", "", { "dependencies": { "fast-wrap-ansi": "^0.2.0", "sisteransi": "^1.0.5" } }, "sha512-iHTrHA8MtVuLl2TfZySmcKv1qO2PoyC9Z7pfSDozEuV5vtY3/wcOPKJXlqJ5Oq2Cx5DDGQGAMVx6HZfRRoVEbQ=="],
 

@@ -137,7 +137,7 @@ test("the panel's stream source refuses a bare service name in either mode", () 
 
 /**
  * The three copies of the check are written out rather than shared, because
- * the loan module (`lib/loans/`) depends on nothing outside itself on purpose and a shared
+ * the loan module (`api/`) depends on nothing outside itself on purpose and a shared
  * module would be the dependency edge it must not have. The cost of a copy is
  * drift, and drift in *this* code is a control that silently permits — so the
  * marked region is compared byte for byte here.
@@ -168,9 +168,9 @@ test("the three copies of the check are byte-identical", () => {
 
   const web = region("lib", "public-host.ts");
 
-  expect(region("lib", "control-plane", "public-host.ts")).toBe(web);
-  // The loan module's copy, in `lib/loans/` since #5. Still a copy rather than
+  expect(region("gate", "service", "public-host.ts")).toBe(web);
+  // The loan module's copy, in `api/` since #5. Still a copy rather than
   // an import of `lib/public-host.ts`: the module depends on nothing else in
   // the app, because it is the part a forker replaces.
-  expect(region("lib", "loans", "public-host.ts")).toBe(web);
+  expect(region("api", "public-host.ts")).toBe(web);
 });

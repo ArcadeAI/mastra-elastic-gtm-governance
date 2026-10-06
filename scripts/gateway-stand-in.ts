@@ -707,7 +707,7 @@ export function createGatewayStandIn(options: GatewayStandInOptions): GatewaySta
 
       // The real gateway answers an unauthenticated call with the 401 that
       // names where its protected-resource metadata lives. Hop 1's discovery
-      // starts there (`lib/identity/gateway.ts`), so a stand-in that let an
+      // starts there (`auth/gateway.ts`), so a stand-in that let an
       // anonymous call through would hide the one failure that matters.
       const bearer = /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
       if (!bearer) {

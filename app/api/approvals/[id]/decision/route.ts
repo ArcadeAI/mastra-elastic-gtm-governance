@@ -1,13 +1,13 @@
 /**
  * `POST /api/approvals/{id}/decision` — record an outcome.
  *
- * The approvals store, served by the control-plane module (`lib/control-plane/`)
+ * The approvals store, served by the control-plane module (`gate/service/`)
  * in-process since #4, behind the `APPROVALS_STORE_TOKEN` bearer. Under
  * `/api/approvals` because the app's `/approvals/{id}` is the approval page;
  * the service served it at `/approvals/…`. The contract is in
  * `mcp/APPROVALS.md`.
  */
-import { serve } from "../../../../../lib/control-plane/instance.ts";
+import { serve } from "../../../../../gate/service/instance.ts";
 
 export const dynamic = "force-dynamic";
 

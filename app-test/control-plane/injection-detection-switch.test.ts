@@ -38,11 +38,11 @@ import type { Database } from "bun:sqlite";
 
 import { PostHookResult } from "@cg/policy-schema";
 
-import { readConfig, type HooksConfig, type ScannerSetting } from "../../lib/control-plane/config.ts";
-import { fixtureDigest } from "../../lib/control-plane/fixture-drift.ts";
-import { createPolicyCache, type PolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import { readConfig, type HooksConfig, type ScannerSetting } from "../../gate/service/config.ts";
+import { fixtureDigest } from "../../gate/service/fixture-drift.ts";
+import { createPolicyCache, type PolicyCache } from "../../gate/service/policy-cache.ts";
+import { openGovernance } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
 import { loanFixture } from "./loan-fixture.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
@@ -83,7 +83,7 @@ afterEach(() => {
   for (const instance of running.splice(0)) instance.stop();
 });
 
-/** A whole control plane, as `lib/control-plane/index.ts` boots one. */
+/** A whole control plane, as `gate/service/index.ts` boots one. */
 function start(setting: ScannerSetting): Running {
   const config = configFor(setting);
   const db = openGovernance(":memory:", config);

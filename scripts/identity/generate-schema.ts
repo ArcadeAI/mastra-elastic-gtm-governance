@@ -9,18 +9,18 @@
 import { Database } from "bun:sqlite";
 import { join } from "node:path";
 
-import { compileSchema } from "../../lib/identity/provider/schema.ts";
+import { compileSchema } from "../../auth/provider/schema.ts";
 
-const target = join(import.meta.dir, "..", "..", "lib", "identity", "provider", "schema.sql");
+const target = join(import.meta.dir, "..", "..", "auth", "provider", "schema.sql");
 const fresh = await compileSchema(new Database(":memory:"));
 
 if (process.argv.includes("--check")) {
   const current = await Bun.file(target).text().catch(() => "");
   if (current !== fresh) {
-    console.error(`[idp] lib/identity/provider/schema.sql is stale — run: bun run generate:identity-schema`);
+    console.error(`[idp] auth/provider/schema.sql is stale — run: bun run generate:identity-schema`);
     process.exit(1);
   }
-  console.log("[idp] lib/identity/provider/schema.sql is current");
+  console.log("[idp] auth/provider/schema.sql is current");
 } else {
   await Bun.write(target, fresh);
   console.log(`[idp] wrote ${target}`);

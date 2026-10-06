@@ -19,7 +19,7 @@
  *
  * The IdP access token from this browser's own sign-in, and nothing else. There
  * is no service credential here and there must never be one: the loan module
- * derives the actor from the bearer at `/oauth2/userinfo` (`lib/loans/
+ * derives the actor from the bearer at `/oauth2/userinfo` (`api/
  * actor.ts`, `DESIGN.md` rule 1), so a read made with a shared secret would be
  * a read nobody can be named for. No branch in this file takes an identity from
  * a query string, a body or a header — the same rule the chat route and the
@@ -28,7 +28,7 @@
  *
  * ## In-process, and still through the module's front door
  *
- * Since #5 the deal book is a module of this app (`lib/loans/`), and this file
+ * Since #5 the deal book is a module of this app (`api/`), and this file
  * reads it without leaving the process: no loopback HTTP to `/bank/…`, no MCP,
  * no gateway. It hands the module's own request handler a `Request` carrying
  * the person's bearer, so the read goes through exactly the path `mcp/deal_desk/deals.py`'s
@@ -43,15 +43,15 @@
  * because `decided_by` and `decided_at` live on the detail route. Nine calls
  * into the module per poll, against a fixture of eight loans, and one
  * `/oauth2/userinfo` call per minute per person (the module remembers a read's
- * answer; `lib/loans/actor.ts`). Stated rather than hidden: if the book ever
+ * answer; `api/actor.ts`). Stated rather than hidden: if the book ever
  * grows, this is the line that has to change.
  */
 import { appOrigin, type WebConfig } from "../config.ts";
-import { rosterNames } from "../identity/roster.ts";
-import { refreshIdpToken, tokenExpiry } from "../identity/oidc.ts";
-import { withIdpToken, type IdpToken, type Session } from "../identity/session.ts";
-import { loanModule } from "../loans/instance.ts";
-import type { LoanModule } from "../loans/server.ts";
+import { rosterNames } from "../../auth/roster.ts";
+import { refreshIdpToken, tokenExpiry } from "../../auth/oidc.ts";
+import { withIdpToken, type IdpToken, type Session } from "../../auth/session.ts";
+import { loanModule } from "../../api/instance.ts";
+import type { LoanModule } from "../../api/server.ts";
 import type { LoanBookState, LoanCard } from "./loans.ts";
 
 /**
@@ -76,7 +76,7 @@ const IN_PROCESS = "http://loan-module.in-process";
 
 export interface ReadLoanBookOptions {
   /**
-   * The loan module to read. Defaults to this process's (`lib/loans/instance.ts`),
+   * The loan module to read. Defaults to this process's (`api/instance.ts`),
    * which is the only one the app ever has; a test hands in one over its own
    * `loans.db` and its own identity provider.
    */
@@ -307,7 +307,7 @@ async function usableToken(session: Session, options: ReadLoanBookOptions): Prom
 
   const idp = options.idp ?? {
     // The app's own origin since #6; the refresh itself is in-process
-    // (`refreshIdpToken` → `lib/identity/link.ts`), never over the tunnel.
+    // (`refreshIdpToken` → `auth/link.ts`), never over the tunnel.
     issuer: appOrigin(process.env),
     clientId: (process.env.IDP_CLIENT_ID ?? "").trim(),
     clientSecret: (process.env.IDP_CLIENT_SECRET ?? "").trim(),
@@ -385,7 +385,7 @@ export function projectLoan(body: unknown): LoanCard | null {
  * The last decision in the append-only history, which is the one the loan's
  * current status came from.
  *
- * `loan_decisions` is append-only by design (`lib/loans/db.ts`), so
+ * `loan_decisions` is append-only by design (`api/db.ts`), so
  * approving twice leaves two rows; the card names the decision that stands.
  */
 function latestDecision(value: unknown): { decided_by: string | null; decided_at: string | null } | null {

@@ -17,14 +17,14 @@
 import { describe, expect, test } from "bun:test";
 
 import { turnSecrets } from "../lib/agent/handlers.ts";
-import { sessionSecrets } from "../lib/identity/handlers.ts";
+import { sessionSecrets } from "../auth/handlers.ts";
 import { registerSecretFingerprint, secretFingerprints, sha256 } from "../lib/secret-fingerprints.ts";
 import type { ChatEvent } from "../lib/agent/events.ts";
 import { runTurn, type Streamable } from "../lib/agent/run.ts";
 import { WITHHELD, withholdSecrets } from "../lib/agent/withhold.ts";
 import { readIdentitySurface, readWebConfig } from "../lib/config.ts";
-import { readConfig as readProviderConfig } from "../lib/identity/provider/config.ts";
-import type { GatewayToken, IdpToken, Session } from "../lib/identity/session.ts";
+import { readConfig as readProviderConfig } from "../auth/provider/config.ts";
+import type { GatewayToken, IdpToken, Session } from "../auth/session.ts";
 
 const BEARER = "gw_5b0f4a1e-2c3d-4e5f-8a9b-0c1d2e3f4a5b";
 const REFRESH = "gw_refresh_9a8b7c6d5e4f3a2b1c0d";

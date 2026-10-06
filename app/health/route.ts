@@ -47,7 +47,7 @@
  * `control_plane.status`, which is what the panel's strip reads.
  *
  * **Since #5 it is the deal book's `/health` too**, because the loan module is
- * part of this app (`lib/loans/`). `loans` is `{ status: "ok", count }`, or
+ * part of this app (`api/`). `loans` is `{ status: "ok", count }`, or
  * `{ status: "failed", count: null, error }` when `loans.db` did not open, and
  * a failed deal book is `degraded`. Never a bare count: `cg-loan-app` answered
  * `loans: <n>`, and `0` read the same whether the book was empty or the
@@ -56,7 +56,7 @@
  * same `RESET_TOKEN` decides it.
  *
  * **Since #6 it is the identity provider's `/health` too**, because Better
- * Auth is part of this app (`lib/identity/provider/`). `identity` is
+ * Auth is part of this app (`auth/provider/`). `identity` is
  * `{ status: "ok", issuer, people }`, or `{ status: "failed", issuer: null,
  * people: null, error }` when the provider did not boot — in production with
  * `BETTER_AUTH_SECRET` unset, say — and a failed provider is `degraded`. It
@@ -75,10 +75,10 @@
  * either module did not boot and its own field already says why.
  */
 import { deploymentReadiness, readIdentitySurface } from "../../lib/config.ts";
-import { bootedControlPlane, controlPlaneFailure } from "../../lib/control-plane/instance.ts";
+import { bootedControlPlane, controlPlaneFailure } from "../../gate/service/instance.ts";
 import { panelStreamHealth } from "../../lib/governance/stream-url.ts";
-import { identityCapability, identityEmails } from "../../lib/identity/provider/instance.ts";
-import { loanBookHealth } from "../../lib/loans/instance.ts";
+import { identityCapability, identityEmails } from "../../auth/provider/instance.ts";
+import { loanBookHealth } from "../../api/instance.ts";
 import { compareUsers, userDriftWarning } from "../../lib/user-drift.ts";
 
 export const dynamic = "force-dynamic";

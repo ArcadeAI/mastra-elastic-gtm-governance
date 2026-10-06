@@ -14,7 +14,7 @@ import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-import type { LoanRecord, LoanSummary } from "../../lib/loans/db.ts";
+import type { LoanRecord, LoanSummary } from "../../api/db.ts";
 import { serveOnFreePort } from "../cdp.ts";
 import { spawnChild } from "../child.ts";
 

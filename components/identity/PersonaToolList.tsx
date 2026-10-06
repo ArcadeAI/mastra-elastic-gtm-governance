@@ -18,7 +18,7 @@
  *
  * It also does not resolve identity. `session` is #82's sealed session, already
  * unsealed on the server; the role and authority beside it are a *label* looked
- * up from an address the IdP asserted (`lib/identity/roster.ts`), in
+ * up from an address the IdP asserted (`auth/roster.ts`), in
  * `governance.db`'s `subjects` table, by the page, before this renders. #176 deleted
  * the switcher outright — one Chrome profile per persona is the real demo shape
  * — so the only way a `user_id` changes is a fresh sign-in at cg-idp from
@@ -33,16 +33,16 @@
  * prop rather than a fetch in here for the same reason `tools` is: the page
  * reads, this renders.
  */
-import { formatAuthority, type PersonLookup } from "../../lib/identity/roster.ts";
+import { formatAuthority, type PersonLookup } from "../../auth/roster.ts";
 import type { SessionTools } from "../../lib/agent/tool-list.ts";
-import type { Session } from "../../lib/identity/session.ts";
+import type { Session } from "../../auth/session.ts";
 
 export interface PersonaToolListProps {
   /** #82's sealed session, unsealed on the server. `null` when nobody is signed in. */
   session: Session | null;
   /** The result of one real `tools/list` for that session — `lib/agent/tool-list.ts`. */
   tools: SessionTools;
-  /** The session's address in `governance.db`'s `subjects` — `lookupPerson` in `lib/identity/roster.ts`. */
+  /** The session's address in `governance.db`'s `subjects` — `lookupPerson` in `auth/roster.ts`. */
   person: PersonLookup;
 }
 

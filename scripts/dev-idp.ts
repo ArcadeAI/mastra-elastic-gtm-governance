@@ -1,7 +1,7 @@
 /**
  * A stand-in identity provider for local development. NOT the real one.
  *
- * The loan module (`lib/loans/`) validates every bearer token by asking the issuer's
+ * The loan module (`api/`) validates every bearer token by asking the issuer's
  * `/oauth2/userinfo` who it belongs to. The real issuer is the app's own
  * identity module since #6, which the app serves on its own port; this serves
  * that one endpoint for the loan module on a port of its own (`bun run loans`),
@@ -13,7 +13,7 @@
  *
  * A token is `dev:<email>`; the email after the prefix is who you are. That
  * is the whole protocol, so this must never run anywhere but a laptop. It
- * lives under the repo's `scripts/`, outside the `lib/loans/` the boundary test
+ * lives under the repo's `scripts/`, outside the `api/` the boundary test
  * scans, and outside the Docker image. It lived in `apps/loan-app/scripts/`
  * until #5 folded that service into the app.
  */

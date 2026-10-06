@@ -33,8 +33,8 @@
  */
 import type { IdentitySurface } from "../config.ts";
 import { readIdentitySurface } from "../config.ts";
-import { SIGNIN_PATH } from "../identity/handlers.ts";
-import { readSessionFromCookies } from "../identity/session.ts";
+import { SIGNIN_PATH } from "../../auth/handlers.ts";
+import { readSessionFromCookies } from "../../auth/session.ts";
 
 /**
  * Who the page is acting as.

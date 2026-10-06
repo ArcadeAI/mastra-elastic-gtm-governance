@@ -1,5 +1,5 @@
 /**
- * Adapter. The handler is `lib/identity/handlers.ts`, a plain
+ * Adapter. The handler is `auth/handlers.ts`, a plain
  * `(Request) => Promise<Response>` that the test suite mounts behind a real
  * server — see the note at the top of that file.
  *
@@ -9,7 +9,7 @@
  * the configuration, and the failure would be a service that reads every
  * identity variable as `undefined` at runtime and nowhere else.
  */
-import { gatewayStart } from "../../../../lib/identity/handlers.ts";
+import { gatewayStart } from "../../../../auth/handlers.ts";
 
 export const dynamic = "force-dynamic";
 

@@ -17,8 +17,8 @@ import { decodeEvents, type ChatEvent } from "../lib/agent/events.ts";
 import { runTurn, type Streamable } from "../lib/agent/run.ts";
 import { environmentSecrets, secretValues, WITHHELD, withholdSecrets } from "../lib/agent/withhold.ts";
 import { scriptedModel, type ScriptedModel, type Turn } from "./model.ts";
-import { writeSession, type Session } from "../lib/identity/session.ts";
-import loans from "../lib/loans/fixtures/loans.json" with { type: "json" };
+import { writeSession, type Session } from "../auth/session.ts";
+import loans from "../api/fixtures/loans.json" with { type: "json" };
 
 const LOAN = (loans.loans as Array<Record<string, unknown>>).find(
   (loan) => loan.deal_id === OVER_LIMIT_LOAN,

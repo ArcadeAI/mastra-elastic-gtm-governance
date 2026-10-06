@@ -37,7 +37,7 @@ import { MEMORY_DB_FILE, memoryDbPath, projectRoot } from "../lib/agent/memory-p
 import { threadMemory } from "../lib/agent/memory.ts";
 import { forgetStudioGrant, holdGatewayGrant } from "../lib/agent/studio.ts";
 import { WITHHELD } from "../lib/agent/withhold.ts";
-import { writeSession } from "../lib/identity/session.ts";
+import { writeSession } from "../auth/session.ts";
 import { clearMemory } from "../scripts/reset.ts";
 
 const REPO = join(import.meta.dir, "..");

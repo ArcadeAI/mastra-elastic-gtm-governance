@@ -154,7 +154,7 @@ interface RosterEntry {
   attributes: Record<string, unknown>;
 }
 
-/** The roster the pages read (`lib/identity/roster.ts`). */
+/** The roster the pages read (`auth/roster.ts`). */
 async function roster(): Promise<RosterEntry[]> {
   const response = await fetch(`${app.origin}/api/approvals/roster`, {
     headers: { authorization: `Bearer ${STORE_TOKEN}` },

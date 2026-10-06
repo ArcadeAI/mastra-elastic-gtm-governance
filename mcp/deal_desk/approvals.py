@@ -14,7 +14,7 @@ Three things this toolkit does not do, each on purpose:
 
 **It does not choose the approver.** Routing is deterministic — lowest
 sufficient clearance, requester excluded — and lives in `routing.py`, checked
-row for row against the TypeScript in `packages/governance-core` (#9). A model
+row for row against the TypeScript in `gate/engine` (#9). A model
 that could name its own approver could name a friendly one.
 
 **It does not decide anything.** `decide` records an outcome. Whether the

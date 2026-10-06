@@ -23,7 +23,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { assertPublicHost, publicHost, PublicHostError } from "../../lib/loans/public-host.ts";
+import { assertPublicHost, publicHost, PublicHostError } from "../../api/public-host.ts";
 import { serveOnFreePort } from "../cdp.ts";
 import { spawnChild } from "../child.ts";
 

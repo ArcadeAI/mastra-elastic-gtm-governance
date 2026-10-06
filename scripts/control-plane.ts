@@ -22,10 +22,10 @@
  * synchronously straight after it, before this process yields to the event
  * loop, so no request is served ahead of the warm cache.
  */
-import { bootControlPlane } from "../lib/control-plane/index.ts";
-import { readConfig } from "../lib/control-plane/config.ts";
-import { orExitConfig } from "../lib/control-plane/public-host.ts";
-import { mountedFetch, SERVICE, type ControlPlane } from "../lib/control-plane/server.ts";
+import { bootControlPlane } from "../gate/service/index.ts";
+import { readConfig } from "../gate/service/config.ts";
+import { orExitConfig } from "../gate/service/public-host.ts";
+import { mountedFetch, SERVICE, type ControlPlane } from "../gate/service/server.ts";
 
 // A configuration the boot would refuse is refused before the port opens, the
 // way the service always did — `EX_CONFIG` for an unreachable address, a throw

@@ -1,12 +1,12 @@
 /**
  * `GET /hooks/health`: the hook contract's health check (`healthCheck`), in Arcade's own vocabulary: `status` is `healthy`, `degraded` or `unhealthy`. The app's own readiness is `/health`, a different endpoint.
  *
- * Served by the control-plane module (`lib/control-plane/`), in-process, since
+ * Served by the control-plane module (`gate/service/`), in-process, since
  * #4 folded `apps/hooks` into the app. Under `/hooks` by the human's decision
  * on #4. The service served it at `/health`, and `mountedFetch` hands the module
  * that path.
  */
-import { serve } from "../../../lib/control-plane/instance.ts";
+import { serve } from "../../../gate/service/instance.ts";
 
 export const dynamic = "force-dynamic";
 

@@ -30,10 +30,10 @@
 import { describe, expect, test } from "bun:test";
 import type { Database } from "bun:sqlite";
 
-import { createApprovalControl } from "../../lib/control-plane/approval-governance.ts";
-import { handleAccess, type HandlerContext } from "../../lib/control-plane/handlers.ts";
-import { createPolicyCache, type CacheState } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance } from "../../lib/control-plane/policy-store.ts";
+import { createApprovalControl } from "../../gate/service/approval-governance.ts";
+import { handleAccess, type HandlerContext } from "../../gate/service/handlers.ts";
+import { createPolicyCache, type CacheState } from "../../gate/service/policy-cache.ts";
+import { openGovernance } from "../../gate/service/policy-store.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 
 const DANA = "alice@bank.example";

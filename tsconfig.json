@@ -18,5 +18,5 @@
     "paths": { "@/*": ["./*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "apps", "packages", "docs", "tools"]
+  "exclude": ["node_modules", "apps", "gate/engine", "gate/schema", "docs", "mcp"]
 }

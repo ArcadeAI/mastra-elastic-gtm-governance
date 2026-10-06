@@ -3,7 +3,7 @@
  * to it (#6).
  *
  * The provider's handler decides its own paths (`IDENTITY_PATHS` in
- * `lib/identity/provider/server.ts`) and the runner (`scripts/identity.ts`)
+ * `auth/provider/server.ts`) and the runner (`scripts/identity.ts`)
  * serves exactly those, so the carried tests exercise exactly those. The app
  * reaches the handler through Next routes, one per path, and a path the
  * handler answers with no route in front of it is a path that works in every
@@ -14,7 +14,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { IDENTITY_PATHS, isIdentityPath } from "../../lib/identity/provider/server.ts";
+import { IDENTITY_PATHS, isIdentityPath } from "../../auth/provider/server.ts";
 
 const REPO = join(import.meta.dir, "..", "..");
 
@@ -44,7 +44,7 @@ describe("every identity path has a route in front of it", () => {
     const source = readFileSync(join(REPO, route), "utf8");
     // Handed to the provider's door, for both methods an OAuth client uses.
     expect(source).toContain('from "');
-    expect(source).toMatch(/lib\/identity\/provider\/instance\.ts"/);
+    expect(source).toMatch(/auth\/provider\/instance\.ts"/);
     expect(source).toMatch(/export const GET = serve;/);
     expect(source).toMatch(/export const POST = serve;/);
   });

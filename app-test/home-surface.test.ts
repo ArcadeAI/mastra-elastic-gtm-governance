@@ -29,7 +29,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { DANA, SAM, startAgentHarness, type AgentHarness } from "./agent-harness.ts";
 import { homeSurface, type HomeSurface } from "../lib/home/surface.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { Session } from "../auth/session.ts";
 
 let harness: AgentHarness;
 

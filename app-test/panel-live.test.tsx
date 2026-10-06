@@ -20,7 +20,7 @@ import { MORGAN, SAM, startAgentHarness, type AgentHarness } from "./agent-harne
 // page load no longer makes at all since #157.
 import { homeSurface } from "../lib/home/surface.ts";
 import { sessionSurface } from "../lib/agent/tool-list.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { Session } from "../auth/session.ts";
 import { createRoot, installDom } from "./dom.ts";
 
 // Keep the network implementation captured before happy-dom replaces browser

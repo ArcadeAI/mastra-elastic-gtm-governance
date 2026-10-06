@@ -9,18 +9,18 @@ through the same three hooks a write does.
 ## What you build
 
 1. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), and an API key scoped to `deal-files*`.
-   `docs/ELASTIC.md` → Setup has the exact key request, and what Serverless leaves out.
+   `elastic/README.md` → Setup has the exact key request, and what Serverless leaves out.
    Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
    `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
 2. Its two secrets on your Arcade project, in the dashboard: `ELASTICSEARCH_URL` and
    `ELASTICSEARCH_API_KEY`. Nothing to deploy: the Elasticsearch tools shipped in module 1's
    one `arcade deploy`, and have sat idle without a cluster to call.
-3. In `.env`: `ELASTIC_MODULE=on` and `ELASTIC_SEED_USER=<Michael's email>`.
-   An existing gateway is not edited, so blank `ARCADE_GATEWAY_ID` and run
-   `bun run setup-arcade <APP_PUBLIC_HOST> --gateway <a-new-slug>`: the new gateway carries
-   the 26 `Elasticsearch.*` tools with the six deal tools. Restart `bun run dev` and authorize it once.
+3. In `.env`: `ELASTIC_MODULE=on` and `ELASTIC_SEED_USER=<Michael's email>`, then
+   `bun run setup-arcade <APP_PUBLIC_HOST>` again. It adds the 26 Elasticsearch tools to the
+   gateway modules 1 and 2 made, keeping its six and its User Source, and reads it back.
+   Restart `bun run dev`. No new gateway, no new authorization.
 4. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
-   A refusal here is act 1 working — nobody else can see `CreateIndex`.
+   A refusal here is act 1 working — nobody else can see `ElasticCreateIndex`.
 5. As Alice:
    > Which requests mention procurement?
 

@@ -31,13 +31,13 @@ import {
   APPROVAL_EVENT_NAME,
   createApprovalNoticeBus,
   type ApprovalNoticeBus,
-} from "../../lib/control-plane/approval-notices.ts";
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { GOVERNANCE_EVENT_NAME } from "../../lib/control-plane/events.ts";
-import { allGrants } from "../../lib/control-plane/grants-store.ts";
-import { createPolicyCache, type PolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+} from "../../gate/service/approval-notices.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { GOVERNANCE_EVENT_NAME } from "../../gate/service/events.ts";
+import { allGrants } from "../../gate/service/grants-store.ts";
+import { createPolicyCache, type PolicyCache } from "../../gate/service/policy-cache.ts";
+import { openGovernance } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
 import { openEventStream } from "./sse-reader.ts";
 import { seedDemoSubjects } from "../demo-cast.ts";
 

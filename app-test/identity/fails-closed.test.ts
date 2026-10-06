@@ -23,8 +23,8 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { openIdentityProvider } from "../../lib/identity/provider/server.ts";
-import { readConfig } from "../../lib/identity/provider/config.ts";
+import { openIdentityProvider } from "../../auth/provider/server.ts";
+import { readConfig } from "../../auth/provider/config.ts";
 import { spawnChild } from "../child.ts";
 import { childEnv } from "../child-env.ts";
 

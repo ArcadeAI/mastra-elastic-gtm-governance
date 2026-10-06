@@ -17,7 +17,7 @@ first run is **act 2**: the $95K approval refused by `/hooks/pre`, routed to Cha
 Slack, and retried by Alice. The goal and every settled decision are in `DESIGN.md`.
 "Working" means a developer runs the Quickstart and sees act 2 in Studio and in the UI.
 
-- **The business system must not know about governance.** `lib/loans/` has a
+- **The business system must not know about governance.** `api/` has a
   test that fails if governance vocabulary appears in its source. That is the
   demo's central claim, enforced rather than asserted.
 - **A control that silently does nothing is worse than no control.** The
@@ -61,8 +61,8 @@ Desktop on this machine.**
   | group | note |
   | --- | --- |
   | `app-test/` | the app at the repo root, with the control plane (`app-test/control-plane/`) and the loan module (`app-test/loans/`) folded in; not a workspace; `bun test ./app-test/` |
-  | `packages/governance-core` · `packages/policy-schema` | workspace members |
-  | `apps/idp` | workspace member until #6 folds it into `lib/identity/`; it has its own tests |
+  | `gate/engine` · `gate/schema` | workspace members |
+  | `apps/idp` | workspace member until #6 folds it into `auth/`; it has its own tests |
   | root `test/` | not a workspace; `bun test ./test/` |
   | `docs/spikes/evidence` | not a workspace |
 
@@ -155,7 +155,7 @@ your attention accordingly.
   ones, so there is nothing for a hook to miss.
 - **Enforcement written but never demonstrated.** If a slice adds a denial path,
   demand evidence it actually denied, not that the code exists.
-- **The business system learning about governance.** `lib/loans/` must not
+- **The business system learning about governance.** `api/` must not
   contain policy, role, limit, redaction or authority vocabulary, and must not
   import `@cg/*`. There is a test, keyed on its manifest's `"cg": { "governed": true }`;
   check it was not weakened to pass.
@@ -221,16 +221,16 @@ Gate through the human regardless of slice:
 - `src/mastra/index.ts` — the Studio entry, registering the chat route's own
   agent. Every gateway bearer comes from `gatewayToken()`
   (`lib/agent/gateway-token.ts`).
-- `lib/control-plane/` — the control plane, served under `/hooks/*`
+- `gate/service/` — the control plane, served under `/hooks/*`
   (`/hooks/pre`, `/hooks/post`, `/hooks/access`, `/hooks/health` in Arcade's
   enum, the audit log, the event stream). The approvals store is
-  `/api/approvals/*`. `lib/control-plane/fixtures/governance.json` is the policy
+  `/api/approvals/*`. `gate/policies/governance.json` is the policy
   fixture.
-- `lib/loans/` — the bank, served under `/bank/*`, read in-process by the
+- `api/` — the bank, served under `/bank/*`, read in-process by the
   `/loans` board. Knows nothing about governance, and a test enforces that.
 - `apps/idp` — the IdP (Better Auth), a workspace member until #6 folds it into
-  `lib/identity/`. The Loan toolkit's provider id is `app-identity`.
-- `packages/governance-core`, `packages/policy-schema` — policy types and
+  `auth/`. The Loan toolkit's provider id is `app-identity`.
+- `gate/engine`, `gate/schema` — policy types and
   evaluation shared by the hooks.
 - `mcp/deal_desk/deals.py`, `mcp/deal_desk/approvals.py` — the Arcade toolkits, Python, `uv`.
 - `test/` — root-level reset tests. `docs/spikes/evidence` — spike evidence

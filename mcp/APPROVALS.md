@@ -62,10 +62,10 @@ later by someone who does not know why it is absent.
 ## Routing, and how it is kept honest
 
 `approvals/routing.py` is a parity port of
-[`packages/governance-core/src/approver-router.ts`](../../packages/governance-core/src/approver-router.ts)
+[`gate/engine/src/approver-router.ts`](../../gate/engine/src/approver-router.ts)
 (#9). Two implementations of one rule in two languages is a real divergence
 risk, so neither is argued to agree with the other: both load
-[`packages/policy-schema/contract/approver-routing-cases.json`](../../packages/policy-schema/contract/approver-routing-cases.json)
+[`gate/schema/contract/approver-routing-cases.json`](../../gate/schema/contract/approver-routing-cases.json)
 and are checked row for row against it. A row added there is checked on both
 sides on the next run.
 
@@ -124,7 +124,7 @@ contract against the real thing.
 
 ## The approvals store contract
 
-Four endpoints on the app's control plane (`lib/control-plane/approvals-api.ts`). Written out here rather than left in a Python
+Four endpoints on the app's control plane (`gate/service/approvals-api.ts`). Written out here rather than left in a Python
 docstring, because whoever builds #19 works in TypeScript and should not have
 to read Python to build against it.
 

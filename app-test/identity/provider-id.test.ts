@@ -14,13 +14,13 @@ import { expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { ARCADE_PROVIDER_ID } from "../../lib/identity/provider/client.ts";
+import { ARCADE_PROVIDER_ID } from "../../auth/provider/client.ts";
 import { PROVIDER_ID, providerBody } from "../../scripts/setup-arcade/arcade.ts";
 
 const REPO = join(import.meta.dir, "..", "..");
 
 test("mcp/deal_desk/deals.py, the identity provider and setup-arcade name the same provider id", () => {
-  const python = readFileSync(join(REPO, "tools", "deal-desk", "loan", "__init__.py"), "utf8");
+  const python = readFileSync(join(REPO, "mcp", "deal_desk", "deals.py"), "utf8");
   const declared = /^IDP_PROVIDER_ID = "([^"]+)"$/m.exec(python)?.[1];
   expect(declared).toBe("app-identity");
   expect(ARCADE_PROVIDER_ID).toBe(declared!);

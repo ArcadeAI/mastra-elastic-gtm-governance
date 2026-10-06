@@ -22,7 +22,7 @@ import {
   rememberedKeys,
   RESOLUTION_TTL_MS,
   tokenFingerprint,
-} from "../../lib/loans/actor.ts";
+} from "../../api/actor.ts";
 
 const ALICE = "alice@example.test";
 const BOB = "bob@example.test";

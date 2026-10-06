@@ -5,7 +5,7 @@
 #   1. Claim a block of ports no other live worktree holds, and write them to
 #      an untracked .env.local.
 #   2. Install dependencies. One `bun install` at the root covers every
-#      workspace, the identity provider (lib/identity/provider) included.
+#      workspace, the identity provider (auth/provider) included.
 #
 # Wire it up in the Orca app: Repo settings -> hooks -> setup script:
 #   bash scripts/orca-setup.sh

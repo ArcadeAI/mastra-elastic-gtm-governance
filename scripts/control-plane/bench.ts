@@ -10,10 +10,10 @@
  *
  *   bun scripts/control-plane/bench.ts
  */
-import { createPolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { loadSeed, openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { addSubject } from "../../lib/control-plane/subjects.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import { createPolicyCache } from "../../gate/service/policy-cache.ts";
+import { loadSeed, openGovernance } from "../../gate/service/policy-store.ts";
+import { addSubject } from "../../gate/service/subjects.ts";
+import { createServer } from "../../gate/service/server.ts";
 
 const SECRET = "bench";
 const SAM = "bob@bank.example";

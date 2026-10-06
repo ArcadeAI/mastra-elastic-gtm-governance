@@ -28,8 +28,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PersonaToolList } from "../components/identity/PersonaToolList.tsx";
 import type { SessionTools } from "../lib/agent/tool-list.ts";
 import type { RosterEntry } from "../lib/approvals-store.ts";
-import { personIn, type PersonLookup } from "../lib/identity/roster.ts";
-import type { Session } from "../lib/identity/session.ts";
+import { personIn, type PersonLookup } from "../auth/roster.ts";
+import type { Session } from "../auth/session.ts";
 
 const DANA = "alice@bank.example";
 const SAM = "bob@bank.example";

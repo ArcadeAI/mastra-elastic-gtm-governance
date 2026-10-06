@@ -10,7 +10,7 @@
  * plane, reaches identity only through here, so it has nothing it could mint
  * a token with.
  */
-import { idpDbPath } from "../../lib/identity/provider/config.ts";
+import { idpDbPath } from "../../auth/provider/config.ts";
 import {
   addPerson,
   findPerson,
@@ -20,7 +20,7 @@ import {
   removePerson,
   type Person,
   type Removal,
-} from "../../lib/identity/provider/db.ts";
+} from "../../auth/provider/db.ts";
 
 export { PersonExistsError, type Person, type Removal };
 

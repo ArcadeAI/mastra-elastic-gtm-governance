@@ -1,12 +1,12 @@
 /**
  * `POST /hooks/admin/reset`: put the policy (or the whole demo) back to the fixture; 404 when `RESET_TOKEN` is unset.
  *
- * Served by the control-plane module (`lib/control-plane/`), in-process, since
+ * Served by the control-plane module (`gate/service/`), in-process, since
  * #4 folded `apps/hooks` into the app. Under `/hooks` by the human's decision
  * on #4. The service served it at `/admin/reset`, and `mountedFetch` hands the module
  * that path.
  */
-import { serve } from "../../../../lib/control-plane/instance.ts";
+import { serve } from "../../../../gate/service/instance.ts";
 
 export const dynamic = "force-dynamic";
 

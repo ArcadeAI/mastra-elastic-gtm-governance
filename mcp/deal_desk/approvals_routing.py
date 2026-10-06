@@ -1,9 +1,9 @@
 """Minimum-sufficient-clearance approver routing, in Python.
 
-A parity port of `packages/governance-core/src/approver-router.ts` (#9). Two
+A parity port of `gate/engine/src/approver-router.ts` (#9). Two
 implementations of one rule in two languages is a real divergence risk, so
 neither side is argued to agree with the other: both read
-`packages/policy-schema/contract/approver-routing-cases.json` and are checked
+`gate/schema/contract/approver-routing-cases.json` and are checked
 against the same rows. `tests/test_routing.py` is that check on this side.
 
 The rule, in words — the same four lines the TypeScript carries:

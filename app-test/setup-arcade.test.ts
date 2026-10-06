@@ -35,11 +35,11 @@ import { spawnChild } from "./child.ts";
 import { childEnv } from "./child-env.ts";
 import { Browser } from "./identity-harness.ts";
 import { readWebConfig, type WebConfig } from "../lib/config.ts";
-import { signin, signinCallback } from "../lib/identity/handlers.ts";
-import { linkIdentity } from "../lib/identity/link.ts";
-import { readConfig as readIdpConfig } from "../lib/identity/provider/config.ts";
-import { isIdentityPath, openIdentityProvider } from "../lib/identity/provider/server.ts";
-import { SESSION_COOKIE } from "../lib/identity/session.ts";
+import { signin, signinCallback } from "../auth/handlers.ts";
+import { linkIdentity } from "../auth/link.ts";
+import { readConfig as readIdpConfig } from "../auth/provider/config.ts";
+import { isIdentityPath, openIdentityProvider } from "../auth/provider/server.ts";
+import { SESSION_COOKIE } from "../auth/session.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const SCRIPT = join(ROOT, "scripts", "setup-arcade.ts");
@@ -72,7 +72,7 @@ const ROUTE_NOT_FOUND = { name: "route_not_found", message: "requested route is 
 
 /** The Coordinator's User Source routes the stand-in serves (#52), by the name a test injects an answer under. */
 type CoordinatorRoute = "list" | "get" | "test_issuer" | "create";
-/** What the app's discovery publishes as `scopes_supported` (`lib/identity/provider/auth.ts`). */
+/** What the app's discovery publishes as `scopes_supported` (`auth/provider/auth.ts`). */
 const APP_SCOPES = ["openid", "profile", "email", "offline_access"] as const;
 
 /**
@@ -133,6 +133,8 @@ class StandIn {
   nextGatewayCreate: { status: number; body: Json } | null = null;
   /** When set, a gateway read-back answers this instead (#52). */
   gatewayReadBack: { status: number; body: Json } | null = null;
+  /** When set, the next gateway update answers this instead of updating anything. */
+  nextGatewayPatch: { status: number; body: Json } | null = null;
   /**
    * The dashboard's behaviour (#48), assumed of the API too, which is the worst
    * case: while the project's hooks are active, a gateway create that names a
@@ -485,6 +487,21 @@ class StandIn {
       return Response.json(stored, { status: 201 });
     }
     const gatewayId = /^\/gateways\/([^/]+)$/.exec(rest)?.[1];
+    // Adding the Elastic module's tools to a gateway that exists: a partial update of `tool_filter`
+    // that leaves every other field as it was, which is what real Arcade did on 2026-10-06 (PR #2:
+    // 200, the six tools read back as 32, nothing else changed).
+    if (gatewayId !== undefined && method === "PATCH") {
+      if (this.nextGatewayPatch !== null) {
+        const { status, body: answer } = this.nextGatewayPatch;
+        this.nextGatewayPatch = null;
+        return Response.json(answer, { status });
+      }
+      const stored = this.gateways.get(gatewayId);
+      if (!stored) return Response.json({ name: "not_found", message: "gateway not found" }, { status: 404 });
+      const updated = { ...stored, ...(body?.tool_filter ? { tool_filter: body.tool_filter } : {}) };
+      this.gateways.set(gatewayId, updated);
+      return Response.json(updated);
+    }
     if (gatewayId !== undefined && method === "GET") {
       if (this.gatewayReadBack !== null) return Response.json(this.gatewayReadBack.body, { status: this.gatewayReadBack.status });
       const stored = this.gateways.get(gatewayId);
@@ -3092,3 +3109,92 @@ test("the identity module's advice, followed to the letter, ends in a working si
   expect(again.stdout).not.toContain("rewrote");
   expect((await signInAt(dir, PERSON.email, PERSON.password)).signedIn).toBe(true);
 }, 180_000);
+
+// --- The Elastic module: its tools on the gateway (JD Armada's tests, PR #2, one toolkit) ---
+
+const ELASTIC_ON = (env: string) => `${env}\nELASTIC_MODULE=on\n`;
+const ELASTIC_TOOL_NAMES = [
+  "ElasticWhoAmI", "ElasticListIndices", "ElasticGetIndexMapping", "ElasticListAliases", "ElasticListInferenceEndpoints", "ElasticGetClusterHealth", "ElasticGetIndexStats", "ElasticGetShards",
+  "ElasticSearchByText", "ElasticSemanticSearch", "ElasticVectorSearch", "ElasticHybridSearch", "ElasticSearchDocuments", "ElasticAggregateDocuments", "ElasticCountDocuments", "ElasticGetDocument",
+  "ElasticRunEsqlQuery", "ElasticIndexDocument", "ElasticBulkIndexDocuments", "ElasticUpdateDocument", "ElasticDeleteDocument", "ElasticDeleteDocumentsByQuery", "ElasticCreateIndex",
+  "ElasticReindexDocuments", "ElasticDeleteIndex", "ElasticRefreshIndex",
+].map((tool) => `DealDesk.${tool}`);
+const SIX = ["DealDesk.SearchDeals", "DealDesk.GetDeal", "DealDesk.ApproveDiscount", "DealDesk.DenyDiscount", "DealDesk.RequestApproval", "DealDesk.Decide"];
+
+function turnElasticOn(dir: string): void {
+  writeFileSync(join(dir, ".env"), ELASTIC_ON(readFileSync(join(dir, ".env"), "utf8")));
+}
+function onlyGateway(): Json {
+  expect(arcade.gateways.size).toBe(1);
+  return [...arcade.gateways.values()][0]!;
+}
+const gatewayPatches = () => arcade.requests.filter((each) => each.method === "PATCH" && /\/gateways\//.test(each.path));
+
+test("with the Elastic module on, one click creates the gateway with all 32 tools, and deploys nothing extra", async () => {
+  const dir = project("elastic-one-click", ELASTIC_ON);
+  arcade.coordinatorMode = "available";
+  const run = await setupArcade(dir, ENTER);
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(projects.get(dir)!.deploys()).toEqual(DEPLOYS);
+  expect(run.stdout).toContain("with the 32 DealDesk tools (read back)");
+  expect([...(onlyGateway().tool_filter.allowed_tools as string[])].sort()).toEqual([...SIX, ...ELASTIC_TOOL_NAMES].sort());
+  expect(gatewayPatches()).toEqual([]);
+}, 90_000);
+
+test("turning the Elastic module on after modules 1 and 2 adds its 26 tools to the gateway that exists, and changes nothing else", async () => {
+  const dir = project("elastic-later");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  const before = structuredClone(onlyGateway());
+
+  turnElasticOn(dir);
+  arcade.requests = [];
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(run.stdout).toContain(`gateway: added the 26 Elasticsearch tools to ${before.slug}, keeping its other tools and its User Source (read back)`);
+  expect(run.stdout).not.toContain("warning       tool_filter");
+  // One update, of the tool list only: the six kept, the 26 added, nothing removed.
+  const [patch] = gatewayPatches();
+  expect(gatewayPatches()).toHaveLength(1);
+  expect(Object.keys(patch!.body as Json)).toEqual(["tool_filter"]);
+  const after = onlyGateway();
+  expect([...(after.tool_filter.allowed_tools as string[])].sort()).toEqual([...SIX, ...ELASTIC_TOOL_NAMES].sort());
+  expect({ ...after, tool_filter: null }).toEqual({ ...before, tool_filter: null });
+  // No new gateway, and nothing left to add on the run after.
+  expect(arcade.requests.filter((each) => each.method === "POST" && /\/gateways$/.test(each.path))).toEqual([]);
+  arcade.requests = [];
+  const third = await setupArcade(dir, { tty: true, input: "" });
+  expect(third.code, `${third.stdout}\n${third.stderr}`).toBe(0);
+  expect(gatewayPatches()).toEqual([]);
+  expect(third.stdout).not.toContain("added the 26");
+}, 120_000);
+
+test("Arcade refusing the update is a warning naming both ways to finish, and the run still turns the hooks on", async () => {
+  const dir = project("elastic-patch-refused");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  turnElasticOn(dir);
+  arcade.nextGatewayPatch = { status: 405, body: { name: "method_not_allowed", message: "method not allowed" } };
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(run.stdout).toMatch(/warning {7}adding the 26 Elasticsearch tools to \S+ failed: .*405.*\(Arcade says: method not allowed\)/);
+  expect(run.stdout).toContain("--gateway <a-new-slug>");
+  expect(run.stdout).toContain("warning       tool_filter.allowed_tools is missing DealDesk.");
+  expect(onlyGateway().tool_filter.allowed_tools).toHaveLength(6);
+  hooksAreRegistered(dir, "active");
+}, 120_000);
+
+test("a gateway missing one of the six is not edited, even with the Elastic module on: that stays a warning", async () => {
+  const dir = project("elastic-six-incomplete");
+  arcade.coordinatorMode = "available";
+  expect((await setupArcade(dir, ENTER)).code).toBe(0);
+  const gateway = onlyGateway();
+  gateway.tool_filter = { allowed_tools: SIX.filter((tool) => tool !== "DealDesk.DenyDiscount") };
+  turnElasticOn(dir);
+  arcade.requests = [];
+  const run = await setupArcade(dir, { tty: true, input: "" });
+  expect(run.code, `${run.stdout}\n${run.stderr}`).toBe(0);
+  expect(gatewayPatches()).toEqual([]);
+  // One toolkit, so the missing deal tool sorts among the missing Elasticsearch ones.
+  expect(run.stdout).toMatch(/warning {7}tool_filter\.allowed_tools is missing [^\n]*DealDesk\.DenyDiscount/);
+}, 120_000);

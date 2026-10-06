@@ -5,8 +5,8 @@ is about loans. This document is the concrete walk from the loan domain to yours
 
 The promise, stated as an instruction rather than a claim:
 
-> Replace **`lib/loans/`** (the business system), **`mcp/deal_desk/deals.py`** (the Arcade
-> toolkit that wraps it) and the **seed fixtures**. Touch nothing under `packages/`.
+> Replace **`api/`** (the business system), **`mcp/deal_desk/deals.py`** (the Arcade
+> toolkit that wraps it) and the **seed fixtures**. Touch nothing under `gate/`.
 
 That is a better story than the one this repo started with. You are not writing an MCP
 server — you are pointing a thin Python toolkit at an API you already have, and
@@ -21,14 +21,14 @@ control layers, two OAuth hops, three databases.
 
 | | | |
 |---|---|---|
-| `lib/loans/` | **replace** | The system of record, a module of the app served under `/bank`. A plain HTTP API over `loans.db`. Yours already exists — you probably delete this directory rather than edit it |
+| `api/` | **replace** | The system of record, a module of the app served under `/bank`. A plain HTTP API over `loans.db`. Yours already exists — you probably delete this directory rather than edit it |
 | `mcp/deal_desk/deals.py` | **replace** | Four Python `arcade-mcp` tools, each a stateless client of the API above |
-| `lib/control-plane/fixtures/governance.json` | **rewrite** | The catalogue, the demo cast, the rules. Your own people come from `bun run users` (§3) |
-| `lib/identity/provider/` | **delete** | The enterprise IdP, as a demo fixture the app serves on its own port. You have an Okta |
-| `lib/identity/session.ts` | **repoint** | One function pair, `readSession` / `readSessionFromCookies` |
+| `gate/policies/governance.json` | **rewrite** | The catalogue, the demo cast, the rules. Your own people come from `bun run users` (§3) |
+| `auth/provider/` | **delete** | The enterprise IdP, as a demo fixture the app serves on its own port. You have an Okta |
+| `auth/session.ts` | **repoint** | One function pair, `readSession` / `readSessionFromCookies` |
 | the rest of the app (`app/`, `components/`, `lib/`) | **keep** | Chat, panel, approval page, the bank's screen |
-| `lib/control-plane/` | **keep** | `/hooks/access`, `/hooks/pre`, `/hooks/post`, audit, SSE, reset |
-| `packages/` | **do not touch** | The hook framework, the policy engine, the shared types |
+| `gate/service/` | **keep** | `/hooks/access`, `/hooks/pre`, `/hooks/post`, audit, SSE, reset |
+| `gate/` | **do not touch** | The hook framework, the policy engine, the shared types |
 | `mcp/deal_desk/approvals.py` | **keep** | Routing and Slack are domain-independent; it names actions, not loans |
 
 Eight seams follow, each with a path, then the boundary check and how to run it. Work
@@ -36,7 +36,7 @@ them in order — later ones read values the earlier ones produce.
 
 ---
 
-## 1. The governed system — `lib/loans/`
+## 1. The governed system — `api/`
 
 The bank's system of record. A plain HTTP API, five routes, owning `loans.db`:
 
@@ -60,7 +60,7 @@ If you are writing a stand-in, three properties are load-bearing and one is the 
 demo:
 
 1. **It derives the actor from the bearer token, never from a request parameter.**
-   `lib/loans/actor.ts` validates every token against the identity provider's
+   `api/actor.ts` validates every token against the identity provider's
    `/oauth2/userinfo` and records the email that comes back as `decided_by`. A body
    that tries to name an actor is a `400`. An actor passed as an argument is an actor
    the model can forge.
@@ -73,7 +73,7 @@ demo:
 
 ### The seed fixture
 
-`lib/loans/fixtures/loans.json` — read once, when `loans.db` has no schema.
+`api/fixtures/loans.json` — read once, when `loans.db` has no schema.
 Later boots leave accumulated decisions alone (see **Durability** in `DESIGN.md`).
 
 Your fixture needs one record that carries the beats you intend to show:
@@ -172,7 +172,7 @@ compile (#89).
 
 ---
 
-## 3. The policy — `lib/control-plane/fixtures/governance.json`
+## 3. The policy — `gate/policies/governance.json`
 
 The one file that is entirely about your domain and lives outside it. Four keys.
 
@@ -187,12 +187,12 @@ The one file that is entirely about your domain and lives outside it. Four keys.
 
 `$TOOLKIT` and `$TOOLKIT` are **placeholders**, substituted at seed time with
 `ARCADE_TOOLKIT` and `ARCADE_TOOLKIT`
-(`lib/control-plane/policy-store.ts`, `TOOLKIT_PLACEHOLDERS`). Keep the indirection: it is
+(`gate/service/policy-store.ts`, `TOOLKIT_PLACEHOLDERS`). Keep the indirection: it is
 what stops a measured toolkit name from having to be typed into a dozen rows.
 
 The catalogue is a closed world. A rule condition may only read an argument the
 catalogue lists, and a tool the catalogue does not list is denied rather than ignored —
-`packages/governance-core/src/policy-engine.ts`. So the catalogue is the first thing to
+`gate/engine/src/policy-engine.ts`. So the catalogue is the first thing to
 get right and the first thing to check when a rule silently does nothing.
 
 ### `subjects` — the roster
@@ -289,9 +289,9 @@ notes, re-run both suites.
 
 ---
 
-## 4. Identity — `lib/identity/provider/` and the session seam
+## 4. Identity — `auth/provider/` and the session seam
 
-`lib/identity/provider/` is a demo fixture standing in for the enterprise's real IdP:
+`auth/provider/` is a demo fixture standing in for the enterprise's real IdP:
 Better Auth as an OAuth 2.1 server, owning `idp.db`, serving a login page and a consent
 page. The app serves it on its own port (#6). **You delete it and point at your Okta.**
 
@@ -307,12 +307,12 @@ directory plus what mounts it:
   that run them (`identity`, `oauth-client`, `identity:reset`, `generate:identity-schema`);
 - the two readers of its state, `app/health/route.ts` (the `identity` field) and
   `instrumentation.ts`;
-- `lib/identity/provider` in the root `package.json`'s `workspaces`, then `bun install`
+- `auth/provider` in the root `package.json`'s `workspaces`, then `bun install`
   to drop it from the lockfile.
 
 `bun run users` goes with it in part. `scripts/users.ts` writes the identity half of each
 person through `scripts/identity/people.ts`, which is in the list above, and the
-control-plane half through `lib/control-plane/subjects.ts`, which stays. Your IdP owns the
+control-plane half through `gate/service/subjects.ts`, which stays. Your IdP owns the
 accounts, so keep the control-plane half and drop the identity half: every person who
 signs in still needs a `subjects` row under the email your IdP asserts, or every hook
 denies them.
@@ -322,17 +322,17 @@ Two places reference it from outside and both are configuration rather than code
 | | |
 |---|---|
 | **Arcade** | one custom OAuth provider (hop 2, id `app-identity`), registered by `bun run setup-arcade`, and one User Source (hop 1), created in the dashboard from the form it prints. Both point at issuer URLs. Point them at yours |
-| **`lib/loans/`** | validates bearer tokens at `IDENTITY_HOST` + `/oauth2/userinfo` and reads `$.email`. `IDENTITY_HOST` defaults to the app's own listener; set it to your IdP |
+| **`api/`** | validates bearer tokens at `IDENTITY_HOST` + `/oauth2/userinfo` and reads `$.email`. `IDENTITY_HOST` defaults to the app's own listener; set it to your IdP |
 
 The application seam is one function pair:
 
 | | |
 |---|---|
-| **the seam** | `lib/identity/session.ts` — `readSession(request)`, `readSessionFromCookies(jar)` |
+| **the seam** | `auth/session.ts` — `readSession(request)`, `readSessionFromCookies(jar)` |
 | **returns** | `Session { email, gateway?, signed_in_at }`, or `null` |
-| **callers** | `lib/agent/handlers.ts`, `lib/agent/approval-status.ts`, `lib/approvals/opener.ts`, `lib/identity/handlers.ts`, `app/api/loans/route.ts`, `app/chat/page.tsx`, `app/loans/page.tsx`, `app/page.tsx` |
+| **callers** | `lib/agent/handlers.ts`, `lib/agent/approval-status.ts`, `lib/approvals/opener.ts`, `auth/handlers.ts`, `app/api/loans/route.ts`, `app/chat/page.tsx`, `app/loans/page.tsx`, `app/page.tsx` |
 | **keep** | the two signatures, and `email` being the join key |
-| **delete** | `lib/identity/provider/` (above), `lib/identity/oidc.ts`, `lib/identity/personas.ts`, `lib/identity/roster.ts`, `components/identity/SessionChrome.tsx` |
+| **delete** | `auth/provider/` (above), `auth/oidc.ts`, `auth/personas.ts`, `auth/roster.ts`, `components/identity/SessionChrome.tsx` |
 
 Point `readSession` at your own session store and return a `Session` whose `email` is
 the address your directory knows the person by. Nothing downstream reads an identity
@@ -342,7 +342,7 @@ from anywhere else — the verifier refuses a request that tries to carry one wi
 The `gateway` field is the one thing to think about rather than swap: it holds this
 person's Arcade gateway token, which is how the tool call reaches Arcade as them. A
 real IdP replaces how the **session** is established, not hop 1.
-`lib/identity/handlers.ts::liveGatewayToken` stays.
+`auth/handlers.ts::liveGatewayToken` stays.
 
 > ⚠️ Your IdP must publish a `jwks_uri` with RS256 keys, or Arcade will not accept it as
 > a User Source — measured against a real Arcade project, where an IdP with HS256 ID
@@ -387,7 +387,7 @@ and they fall into five groups.
 | | |
 |---|---|
 | `lib/agent/agent.ts` | the system prompt: role, tools, how to resolve a record named by amount, how to report verbatim |
-| `lib/identity/roster.ts` | email → display name and role, label direction only |
+| `auth/roster.ts` | email → display name and role, label direction only |
 
 **The system prompt carries no behavioural instruction**, and that is the demo's
 methodology rather than a style preference. Nothing about confirming, refusing,
@@ -414,7 +414,7 @@ of #150's review.
 > credential.** Opening your own database directly, or calling your own API as the
 > application rather than as the person, is faster and costs you the one property this
 > screen has: *the read is attributable to a person or it does not happen.* The bearer
-> is the IdP access token from that browser's own sign-in, and `lib/loans/` derives
+> is the IdP access token from that browser's own sign-in, and `api/` derives
 > the actor from it — so swap in your API and your IdP, never a shared secret.
 >
 > **These reads deliberately do *not* go through the gateway (#157, reversing #22 and
@@ -473,7 +473,7 @@ the leftover this guide exists to prevent.
 
 ```sh
 grep -ril --exclude-dir=node_modules loan app components lib \
-  | grep -v '^lib/loans/\|^lib/control-plane/\|^lib/identity/provider/'
+  | grep -v '^api/\|^gate/service/\|^auth/provider/'
 ```
 
 The three excluded directories are §1's module, which you replace whole, the control
@@ -499,7 +499,7 @@ overrides with their defaults. The domain swap touches:
 | `ARCADE_TOOLKIT` | your toolkit name, **measured off a real deploy**, not derived |
 | `ARCADE_TOOLKIT` | unchanged unless you rename `mcp/deal_desk/approvals.py` |
 | `APP_PUBLIC_HOST` | the app's public host, which is also where `mcp/deal_desk/deals.py` finds the API (under `API_BASE_PATH`). If your API lives on a host of its own, give the toolkit a secret of its own for it |
-| `IDENTITY_HOST` | where `lib/loans/` validates bearers; unset, the app's own listener. Point it at your IdP (§4) |
+| `IDENTITY_HOST` | where `api/` validates bearers; unset, the app's own listener. Point it at your IdP (§4) |
 | `LOANS_DB_PATH` | only if you keep a database of your own |
 
 Your people are not configuration, and nothing seeds them. Add each one with
@@ -533,16 +533,16 @@ drift apart:
 
 | reader | what it does with it |
 |---|---|
-| `app-test/loans/knows-nothing-about-governance.test.ts` | asserts the flag is present, and fails if governance vocabulary or a `@cg/*` import appears anywhere under `lib/loans/` |
-| `packages/policy-schema/test/consumable.test.ts` | sweeps every workspace in the root `package.json`'s `workspaces` list, requiring it to declare `@cg/policy-schema`, and **exempts** the flagged one. Keep your module a workspace member, as `lib/loans` is, so the sweep finds its manifest |
+| `app-test/loans/knows-nothing-about-governance.test.ts` | asserts the flag is present, and fails if governance vocabulary or a `@cg/*` import appears anywhere under `api/` |
+| `gate/schema/test/consumable.test.ts` | sweeps every workspace in the root `package.json`'s `workspaces` list, requiring it to declare `@cg/policy-schema`, and **exempts** the flagged one. Keep your module a workspace member, as `api` is, so the sweep finds its manifest |
 
 Without the flag, the sweep would put the governance vocabulary back inside the business
 system and the two tests would contradict each other (#33).
 
 The flag is read off the manifest rather than matched on a directory name on purpose:
-`packages/` keeps business-domain code out of its runtime source, so a forker marking
+`gate/` keeps business-domain code out of its runtime source, so a forker marking
 their own app inherits both halves automatically. There is a sibling,
-`"cg": { "external": true }`, which `lib/identity/provider/` carries — it means "stands in
+`"cg": { "external": true }`, which `auth/provider/` carries — it means "stands in
 for a system outside the template", and it exempts the directory from the same sweep
 without claiming it is governed.
 
@@ -555,10 +555,10 @@ real.
 ### `@cg/governed-app`
 
 You will meet this name and there is no such package. It is a **stand-in app name**,
-used as literal test data in `packages/governance-core/test/no-app-dependencies.test.ts`
+used as literal test data in `gate/engine/test/no-app-dependencies.test.ts`
 to prove that eleven different import forms — static, type-only, default, namespace,
 re-export, side-effect, dynamic, `require`, single-quoted, and a relative path that
-climbs out of `packages/` — are all recognised as dependencies on an app.
+climbs out of `gate/` — are all recognised as dependencies on an app.
 
 It is deliberately not a real app name: this fixture exercises import recognition without
 coupling a package to a real business system. That guard is what enforces "the hook
@@ -572,14 +572,14 @@ Two tests enforce it, in opposite directions:
 
 | test | claim |
 |---|---|
-| `packages/governance-core/test/no-app-dependencies.test.ts` | governance-core declares no dependency on an app package and imports from none |
+| `gate/engine/test/no-app-dependencies.test.ts` | governance-core declares no dependency on an app package and imports from none |
 | `app-test/loans/knows-nothing-about-governance.test.ts` | the business system mentions no governance vocabulary and imports no `@cg/*` |
 
 Run both, with the consumability sweep beside them:
 
 ```sh
-bun test ./packages/governance-core/test/no-app-dependencies.test.ts \
-         ./packages/policy-schema/test/consumable.test.ts \
+bun test ./gate/engine/test/no-app-dependencies.test.ts \
+         ./gate/schema/test/consumable.test.ts \
          ./app-test/loans/knows-nothing-about-governance.test.ts
 ```
 
@@ -588,7 +588,7 @@ bun test ./packages/governance-core/test/no-app-dependencies.test.ts \
 `#24` asks for a third check, written down so it stays true:
 
 ```sh
-grep -ri loan packages/
+grep -ri loan gate/
 ```
 
 Since #33 removed the persona email contract, it prints nothing; anything it prints is a
@@ -597,13 +597,13 @@ finding.
 The domain-specific acts 3 and 4 pin now lives beside the fixture in
 `app-test/loans/acts-3-4-redaction.test.ts`. A forker replaces that test with the
 business app and seed data, leaving the reusable redaction suite and the rest of
-`packages/` domain-free.
+`gate/` domain-free.
 
 The enforced boundary and consumability checks pass in the current tree:
 
 ```sh
-bun test ./packages/governance-core/test/no-app-dependencies.test.ts \
-         ./packages/policy-schema/test/consumable.test.ts \
+bun test ./gate/engine/test/no-app-dependencies.test.ts \
+         ./gate/schema/test/consumable.test.ts \
          ./app-test/loans/knows-nothing-about-governance.test.ts
 # → 36 pass, 0 fail
 ```
@@ -633,10 +633,10 @@ try once it runs is its Try it out section.
 - [ ] Seed fixture carries an over-authority record, sensitive fields, an injected note, and a control record
 - [ ] Toolkit copied, renamed, `MCPApp(name=…)` set; descriptions carry no behavioural instruction
 - [ ] `arcade deploy` run, toolkit name **read back** and put in `ARCADE_TOOLKIT`
-- [ ] `lib/control-plane/fixtures/governance.json` rewritten: catalogue, demo cast, policy rules, output rules
+- [ ] `gate/policies/governance.json` rewritten: catalogue, demo cast, policy rules, output rules
 - [ ] Your people added with `bun run users add`, or, with your own IdP, each given a `subjects` row under the email it asserts
 - [ ] Every injection pattern has both halves of a corpus entry; `bun test ./app-test/control-plane/` green
-- [ ] `readSession` pointed at your IdP; `lib/identity/provider/` and its routes deleted; Arcade's provider and User Source repointed
+- [ ] `readSession` pointed at your IdP; `auth/provider/` and its routes deleted; Arcade's provider and User Source repointed
 - [ ] `"cg": { "governed": true }` on your app's manifest, and its `knows-nothing` test shipped
 - [ ] Both boundary tests green
 - [ ] One act driven end to end, and a `/pre` row in the audit log with your `user_id` on it

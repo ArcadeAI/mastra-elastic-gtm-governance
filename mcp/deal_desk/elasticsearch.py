@@ -2,22 +2,22 @@
 
 A Python `arcade-mcp` toolkit, like its siblings `mcp/deal_desk/deals.py` and
 `mcp/deal_desk/approvals.py`, shipped with `arcade deploy`. It exists because the module
-it serves (`docs/ELASTIC.md`) was written against an Arcade Elasticsearch
+it serves (`elastic/README.md`) was written against an Arcade Elasticsearch
 toolkit that a project cannot add from the catalog; this is that toolkit's
 contract, rebuilt from what the repo pins:
 
 - **The names.** `MCPApp(name="DealDesk")` is PascalCased by Arcade into
   the toolkit name, and each snake_case function into a tool name, so these
-  are `DealDesk.SearchByText`, `DealDesk_SearchByText` on the wire,
-  and so on: exactly the 26 in `lib/control-plane/fixtures/governance.json`'s
+  are `DealDesk.ElasticSearchByText`, `DealDesk_ElasticSearchByText` on the wire,
+  and so on: exactly the 26 in `gate/policies/governance.json`'s
   `$TOOLKIT` catalogue and `scripts/setup-arcade/arcade.ts`'s `ELASTIC_TOOLS`.
   A rule keyed on a name this file does not serve matches nothing.
 - **The arguments.** Each tool takes the argument list the catalogue records,
-  under the same names. `/hooks/pre` reads `query` on `RunEsqlQuery` and
-  `aggregations` on `AggregateDocuments` as strings, so structured arguments
+  under the same names. `/hooks/pre` reads `query` on `ElasticRunEsqlQuery` and
+  `aggregations` on `ElasticAggregateDocuments` as strings, so structured arguments
   (`query`, `aggregations`, `mappings`, `documents`, …) are JSON strings.
 - **The output shapes.** `/hooks/post` masks `hits[].source.<field>` on every
-  search tool and `source.<field>` on `GetDocument`, so search results are
+  search tool and `source.<field>` on `ElasticGetDocument`, so search results are
   `{index, total_hits, returned_hits, hits: [{id, score, source}]}` and a
   fetched document is `{index, id, found, source}`.
   `app-test/control-plane/elastic-post.test.ts` pins both.
@@ -25,13 +25,13 @@ contract, rebuilt from what the repo pins:
 It holds no policy. Who may see a write tool, which fields are masked, which
 ES|QL is refused: all of it is the control plane's, decided before or after
 this code runs. The two guards here (system indices off by default, no
-wildcard on `DeleteIndex`) are the toolkit refusing to be a footgun, not
+wildcard on `ElasticDeleteIndex`) are the toolkit refusing to be a footgun, not
 governance.
 
 It talks to Elasticsearch over its REST API with the two secrets below, and
 nothing else. On Elasticsearch Serverless the cluster-level APIs
-(`_cluster/*`, `_cat/shards`, index stats) do not exist, so `GetClusterHealth`,
-`GetShards` and `GetIndexStats` answer with Elasticsearch's own error there;
+(`_cluster/*`, `_cat/shards`, index stats) do not exist, so `ElasticGetClusterHealth`,
+`ElasticGetShards` and `ElasticGetIndexStats` answer with Elasticsearch's own error there;
 they are kept so the catalogue stays the catalogue.
 """
 
@@ -260,7 +260,7 @@ async def _text_fields(context: Context, index: str) -> list[str]:
 # --- Cluster and index metadata -------------------------------------------------
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_who_am_i", requires_secrets=_secrets, metadata=_read)
 async def who_am_i(
     context: Context,
 ) -> Annotated[dict[str, Any], "The authenticated principal and the cluster it is connected to."]:
@@ -279,7 +279,7 @@ async def who_am_i(
     }
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_list_indices", requires_secrets=_secrets, metadata=_read)
 async def list_indices(
     context: Context,
     index_pattern: Annotated[str | None, "Index name or wildcard pattern. Defaults to every index."] = None,
@@ -297,7 +297,7 @@ async def list_indices(
     return {"indices": sorted(indices, key=lambda row: str(row.get("index")))}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_get_index_mapping", requires_secrets=_secrets, metadata=_read)
 async def get_index_mapping(
     context: Context,
     index: Annotated[str, "The index name."],
@@ -309,7 +309,7 @@ async def get_index_mapping(
     return {"index": index, "mappings": {name: body.get("mappings") for name, body in (mappings or {}).items()}}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_list_aliases", requires_secrets=_secrets, metadata=_read)
 async def list_aliases(
     context: Context,
     alias_pattern: Annotated[str | None, "Alias name or wildcard pattern. Defaults to every alias."] = None,
@@ -326,7 +326,7 @@ async def list_aliases(
     return {"aliases": aliases}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_list_inference_endpoints", requires_secrets=_secrets, metadata=_read)
 async def list_inference_endpoints(
     context: Context,
     task_type: Annotated[str | None, "Only endpoints of this task type: text_embedding, sparse_embedding, rerank, completion, chat_completion."] = None,
@@ -351,7 +351,7 @@ async def list_inference_endpoints(
     return {"endpoints": endpoints}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_get_cluster_health", requires_secrets=_secrets, metadata=_read)
 async def get_cluster_health(
     context: Context,
 ) -> Annotated[dict[str, Any], "Cluster health: status, nodes and shard counts."]:
@@ -360,7 +360,7 @@ async def get_cluster_health(
     return body
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_get_index_stats", requires_secrets=_secrets, metadata=_read)
 async def get_index_stats(
     context: Context,
     index: Annotated[str, "The index name."],
@@ -372,7 +372,7 @@ async def get_index_stats(
     return {"index": index, "stats": (body or {}).get("_all")}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_get_shards", requires_secrets=_secrets, metadata=_read)
 async def get_shards(
     context: Context,
     index: Annotated[str | None, "The index name. Defaults to every index."] = None,
@@ -393,7 +393,7 @@ async def get_shards(
 # --- Search ---------------------------------------------------------------------
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_search_by_text", requires_secrets=_secrets, metadata=_read)
 async def search_by_text(
     context: Context,
     index: Annotated[str, "The index to search."],
@@ -407,7 +407,7 @@ async def search_by_text(
     cursor: Annotated[str | None, "next_cursor from a previous page."] = None,
     include_system_indices: Annotated[bool, "Allow a system or hidden index."] = False,
 ) -> Annotated[dict[str, Any], "Hits ranked by keyword relevance: id, score and the document as source."]:
-    """Keyword search: finds documents containing the words, ranked by BM25 relevance. Use it when the exact words matter; use SemanticSearch to search by meaning."""
+    """Keyword search: finds documents containing the words, ranked by BM25 relevance. Use it when the exact words matter; use ElasticSemanticSearch to search by meaning."""
     _guard_system(index, include_system_indices)
     start = _offset(offset, cursor)
     searched = fields or (await _text_fields(context, index) if query_text else [])
@@ -424,7 +424,7 @@ async def search_by_text(
     return _hits(index, payload, start)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_semantic_search", requires_secrets=_secrets, metadata=_read)
 async def semantic_search(
     context: Context,
     index: Annotated[str, "The index to search."],
@@ -448,7 +448,7 @@ async def semantic_search(
     return _hits(index, payload, start)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_vector_search", requires_secrets=_secrets, metadata=_read)
 async def vector_search(
     context: Context,
     index: Annotated[str, "The index to search."],
@@ -463,7 +463,7 @@ async def vector_search(
     source_fields: Annotated[list[str] | None, "Only return these fields of each document."] = None,
     include_system_indices: Annotated[bool, "Allow a system or hidden index."] = False,
 ) -> Annotated[dict[str, Any], "The k nearest documents: id, score and the document as source."]:
-    """Approximate k-nearest-neighbour vector search. For plain-language questions over a semantic_text field, SemanticSearch is simpler."""
+    """Approximate k-nearest-neighbour vector search. For plain-language questions over a semantic_text field, ElasticSemanticSearch is simpler."""
     _guard_system(index, include_system_indices)
     top = _size(k)
     start = _offset(offset, None)
@@ -488,7 +488,7 @@ async def vector_search(
     return _hits(index, payload, start)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_hybrid_search", requires_secrets=_secrets, metadata=_read)
 async def hybrid_search(
     context: Context,
     index: Annotated[str, "The index to search."],
@@ -529,7 +529,7 @@ async def hybrid_search(
     return _hits(index, payload, start)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_search_documents", requires_secrets=_secrets, metadata=_read)
 async def search_documents(
     context: Context,
     index: Annotated[str, "The index to search."],
@@ -562,7 +562,7 @@ async def search_documents(
     return result
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_aggregate_documents", requires_secrets=_secrets, metadata=_read)
 async def aggregate_documents(
     context: Context,
     index: Annotated[str, "The index to aggregate over."],
@@ -587,7 +587,7 @@ async def aggregate_documents(
     }
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_count_documents", requires_secrets=_secrets, metadata=_read)
 async def count_documents(
     context: Context,
     index: Annotated[str, "The index to count."],
@@ -603,7 +603,7 @@ async def count_documents(
     return {"index": index, "count": payload.get("count")}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_get_document", requires_secrets=_secrets, metadata=_read)
 async def get_document(
     context: Context,
     index: Annotated[str, "The index."],
@@ -625,7 +625,7 @@ async def get_document(
 _ESQL_SOURCE = re.compile(r"^\s*FROM\s+([^\s|]+)", re.IGNORECASE)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_read)
+@app.tool(name="elastic_run_esql_query", requires_secrets=_secrets, metadata=_read)
 async def run_esql_query(
     context: Context,
     query: Annotated[str, "An ES|QL query, e.g. FROM deal-files | STATS total = SUM(amount) BY status. Use KEEP to name the columns you need."],
@@ -667,7 +667,7 @@ def _written(index: str, payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-@app.tool(requires_secrets=_secrets, metadata=_create)
+@app.tool(name="elastic_index_document", requires_secrets=_secrets, metadata=_create)
 async def index_document(
     context: Context,
     index: Annotated[str, "The index."],
@@ -690,7 +690,7 @@ async def index_document(
     return _written(index, payload)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_create)
+@app.tool(name="elastic_bulk_index_documents", requires_secrets=_secrets, metadata=_create)
 async def bulk_index_documents(
     context: Context,
     index: Annotated[str, "The index."],
@@ -727,7 +727,7 @@ async def bulk_index_documents(
     return {"index": index, "indexed": indexed, "failed": len(errors), "errors": errors[:20]}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_update)
+@app.tool(name="elastic_update_document", requires_secrets=_secrets, metadata=_update)
 async def update_document(
     context: Context,
     index: Annotated[str, "The index."],
@@ -751,7 +751,7 @@ async def update_document(
     return _written(index, payload)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_delete)
+@app.tool(name="elastic_delete_document", requires_secrets=_secrets, metadata=_delete)
 async def delete_document(
     context: Context,
     index: Annotated[str, "The index."],
@@ -767,7 +767,7 @@ async def delete_document(
     return _written(index, payload)
 
 
-@app.tool(requires_secrets=_secrets, metadata=_delete)
+@app.tool(name="elastic_delete_documents_by_query", requires_secrets=_secrets, metadata=_delete)
 async def delete_documents_by_query(
     context: Context,
     index: Annotated[str, "The index."],
@@ -792,7 +792,7 @@ async def delete_documents_by_query(
     }
 
 
-@app.tool(requires_secrets=_secrets, metadata=_create)
+@app.tool(name="elastic_create_index", requires_secrets=_secrets, metadata=_create)
 async def create_index(
     context: Context,
     index: Annotated[str, "The new index's name."],
@@ -810,7 +810,7 @@ async def create_index(
     return {"index": payload.get("index", index), "acknowledged": payload.get("acknowledged", False)}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_create)
+@app.tool(name="elastic_reindex_documents", requires_secrets=_secrets, metadata=_create)
 async def reindex_documents(
     context: Context,
     source_index: Annotated[str, "The index to copy from."],
@@ -839,7 +839,7 @@ async def reindex_documents(
     }
 
 
-@app.tool(requires_secrets=_secrets, metadata=_delete)
+@app.tool(name="elastic_delete_index", requires_secrets=_secrets, metadata=_delete)
 async def delete_index(
     context: Context,
     index: Annotated[str, "The one index to delete. Wildcards and lists are refused."],
@@ -850,7 +850,7 @@ async def delete_index(
     return {"index": index, "acknowledged": payload.get("acknowledged", False)}
 
 
-@app.tool(requires_secrets=_secrets, metadata=_update)
+@app.tool(name="elastic_refresh_index", requires_secrets=_secrets, metadata=_update)
 async def refresh_index(
     context: Context,
     index: Annotated[str, "The index."],

@@ -31,12 +31,12 @@ import { resolve } from "node:path";
 import { createEventBus } from "@cg/governance-core";
 import { GovernanceEvent } from "@cg/policy-schema";
 
-import { newEventId, record } from "../../lib/control-plane/audit-log.ts";
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { createPolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { loadSeed, openGovernance } from "../../lib/control-plane/policy-store.ts";
-import { addSubject } from "../../lib/control-plane/subjects.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import { newEventId, record } from "../../gate/service/audit-log.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { createPolicyCache } from "../../gate/service/policy-cache.ts";
+import { loadSeed, openGovernance } from "../../gate/service/policy-store.ts";
+import { addSubject } from "../../gate/service/subjects.ts";
+import { createServer } from "../../gate/service/server.ts";
 
 const DEFAULT_CLIENT_DIR = resolve(import.meta.dir, "../../lib/governance");
 const clientDir = resolve(process.argv[2] ?? DEFAULT_CLIENT_DIR);
@@ -49,7 +49,7 @@ if (!existsSync(clientEntry)) {
       `slice/21-control-panel:\n\n` +
       `  git worktree add /tmp/slice-21 origin/slice/21-control-panel\n` +
       `  mkdir -p /tmp/slice-21/node_modules/@cg\n` +
-      `  ln -s "$PWD/packages/policy-schema" /tmp/slice-21/node_modules/@cg/policy-schema\n` +
+      `  ln -s "$PWD/gate/schema" /tmp/slice-21/node_modules/@cg/policy-schema\n` +
       `  ln -s "$PWD/node_modules/zod" /tmp/slice-21/node_modules/zod\n` +
       `  bun scripts/control-plane/interop-21.ts -- /tmp/slice-21/lib/governance\n`,
   );

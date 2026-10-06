@@ -1,14 +1,14 @@
 /**
  * `/bank/…`: the loan module's HTTP API, the bank's system of record.
  *
- * Served by the loan module (`lib/loans/`), in-process, since #5 folded
+ * Served by the loan module (`api/`), in-process, since #5 folded
  * `apps/loan-app` into the app. Under `/bank` because the board page is
  * `/loans`: the service served `/loans`, `/loans/:deal_id`,
  * `/loans/:deal_id/approve`, `/loans/:deal_id/deny`, `/health` and
  * `/admin/reset` at its root, and `mountedFetch` hands the module that path.
  * This is what `mcp/deal_desk/deals.py` calls.
  */
-import { serve } from "../../../lib/loans/instance.ts";
+import { serve } from "../../../api/instance.ts";
 
 export const dynamic = "force-dynamic";
 

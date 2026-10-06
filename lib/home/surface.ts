@@ -29,7 +29,7 @@
  * reseal is `POST /api/chat`, and `lib/agent/tool-list.ts` states the bargain.
  */
 import { sessionTools, type SessionTools, type SessionToolsOptions } from "../agent/tool-list.ts";
-import type { Session } from "../identity/session.ts";
+import type { Session } from "../../auth/session.ts";
 
 export interface HomeSurface {
   /** #15's widget, as data. */

@@ -27,7 +27,7 @@ import { LoanFileCard } from "./LoanFileCard.tsx";
 /**
  * Where a reader with no usable sign-in is sent.
  *
- * Written out rather than imported from `lib/identity/handlers.ts`, which is a
+ * Written out rather than imported from `auth/handlers.ts`, which is a
  * server module: importing it into this component drags the OIDC client and the
  * sealing code into the browser bundle — `BankPane` is `"use client"`, so
  * everything under it is client code. The cost of a duplicated literal is

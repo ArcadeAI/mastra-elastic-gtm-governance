@@ -19,21 +19,21 @@
  *
  *   - the panel's status strip and its Reset button (`lib/governance/control-plane.ts`)
  *   - the approval page, and the chat's approval-status poll (`lib/approvals-store.ts`)
- *   - the loan module's bearer validation (`lib/loans/actor.ts`, `IDENTITY_HOST`)
+ *   - the loan module's bearer validation (`api/actor.ts`, `IDENTITY_HOST`)
  *   - the web sign-in's token exchange, userinfo and auth-method lookup,
- *     and the bank screens' token refresh (`lib/identity/oidc.ts`)
+ *     and the bank screens' token refresh (`auth/oidc.ts`)
  */
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { appOrigin, readIdentitySurface, readWebConfig } from "../lib/config.ts";
 import { fetchApproval, fetchRoster } from "../lib/approvals-store.ts";
 import { readControlPlane, resetToken, runReset } from "../lib/governance/control-plane.ts";
-import { signinCallback } from "../lib/identity/handlers.ts";
-import { identityLink, linkIdentity, type IdentityLink } from "../lib/identity/link.ts";
-import { refreshIdpToken } from "../lib/identity/oidc.ts";
-import { SIGNIN_COOKIE, writeLeg, type SigninLeg } from "../lib/identity/session.ts";
-import { actorFromRequest } from "../lib/loans/actor.ts";
-import { loanModuleConfig } from "../lib/loans/instance.ts";
+import { signinCallback } from "../auth/handlers.ts";
+import { identityLink, linkIdentity, type IdentityLink } from "../auth/link.ts";
+import { refreshIdpToken } from "../auth/oidc.ts";
+import { SIGNIN_COOKIE, writeLeg, type SigninLeg } from "../auth/session.ts";
+import { actorFromRequest } from "../api/actor.ts";
+import { loanModuleConfig } from "../api/instance.ts";
 
 /** A host that resolves nowhere, so a request to it could only be a mistake. */
 const PUBLIC_HOST = "app-public-host.invalid";

@@ -8,7 +8,7 @@ Two directions, and both matter:
     repo whole.
 
 The tests do reach out — they read the cross-language routing cases under
-`packages/policy-schema/contract/`, deliberately, because agreement with the
+`gate/schema/contract/`, deliberately, because agreement with the
 TypeScript router is the thing worth checking.
 """
 
@@ -33,7 +33,7 @@ APP_DIRS = ("app", "components", "lib", "scripts", "app-test")
 
 def _typescript_trees(root: Path) -> list[Path]:
     """Every directory holding a service's or package's TypeScript."""
-    return [root / "apps", root / "packages", *(root / name for name in APP_DIRS)]
+    return [root / "gate", root / "api", root / "auth", *(root / name for name in APP_DIRS)]
 
 
 def _sources(root: Path, suffixes: tuple[str, ...]) -> list[Path]:

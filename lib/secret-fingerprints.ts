@@ -4,7 +4,7 @@
  * The chat withholds every secret the app holds from what it shows of a tool
  * call (`lib/agent/withhold.ts`). One of them it may not read at all: the
  * identity provider's `BETTER_AUTH_SECRET`, which encrypts its signing key and
- * which only `lib/identity/provider/` may read
+ * which only `auth/provider/` may read
  * (`app-test/identity/only-identity-mints.test.ts`). So the provider
  * registers a fingerprint of it here when it reads its configuration, and the
  * chat matches against the fingerprint.

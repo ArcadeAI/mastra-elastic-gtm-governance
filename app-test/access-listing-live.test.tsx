@@ -38,7 +38,7 @@ import { ACCESS_GROUP_WINDOW_MS } from "../lib/governance/grouping.ts";
 import { homeSurface } from "../lib/home/surface.ts";
 import { sessionSurface } from "../lib/agent/tool-list.ts";
 import { appendEvents, emptyTimeline, type Timeline } from "../lib/governance/timeline.ts";
-import type { Session } from "../lib/identity/session.ts";
+import type { Session } from "../auth/session.ts";
 
 let harness: AgentHarness;
 

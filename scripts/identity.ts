@@ -24,7 +24,7 @@
  * exactly as `apps/idp` did: there is nothing else in this process to keep
  * serving.
  */
-import { openIdentityProvider } from "../lib/identity/provider/server.ts";
+import { openIdentityProvider } from "../auth/provider/server.ts";
 
 let provider: Awaited<ReturnType<typeof openIdentityProvider>>;
 try {

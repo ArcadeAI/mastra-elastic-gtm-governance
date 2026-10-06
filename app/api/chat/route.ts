@@ -1,6 +1,6 @@
 /**
  * One-line adapter onto `lib/agent/entry.ts`, the way every `app/api/**` route
- * in this service is. The reasoning is in `lib/identity/cookies.ts`: the
+ * in this service is. The reasoning is in `auth/cookies.ts`: the
  * handler is a plain function so the suite can mount it behind a real server
  * and drive it over real HTTP.
  *

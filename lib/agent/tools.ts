@@ -24,7 +24,7 @@
  */
 import { MCPClient } from "@mastra/mcp";
 
-import { mcpUrl } from "../identity/gateway.ts";
+import { mcpUrl } from "../../auth/gateway.ts";
 import type { NativeElicitationBridge } from "./native-elicitation.ts";
 
 /** The server key this client files the gateway under. One server, one key. */

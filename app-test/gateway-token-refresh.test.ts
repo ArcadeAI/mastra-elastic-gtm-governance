@@ -42,15 +42,15 @@ import {
   gatewayAuthorizeUrl,
   gatewayClient,
   mcpUrl,
-} from "../lib/identity/gateway.ts";
-import { liveGatewayToken } from "../lib/identity/handlers.ts";
-import { pkce } from "../lib/identity/oidc.ts";
+} from "../auth/gateway.ts";
+import { liveGatewayToken } from "../auth/handlers.ts";
+import { pkce } from "../auth/oidc.ts";
 import {
   readSessionFromCookies,
   withGatewayToken,
   writeSession,
   type Session,
-} from "../lib/identity/session.ts";
+} from "../auth/session.ts";
 import { GATEWAY_ID, parseForm, startArcadeStandIn, type ArcadeStandIn } from "./identity-harness.ts";
 import { scriptedModel, type Turn } from "./model.ts";
 
@@ -93,7 +93,7 @@ afterEach(() => {
  * Walk the gateway's authorization code flow and come back with the session a
  * finished hop 1 leaves behind.
  *
- * Every step is the production function `lib/identity/handlers.ts` calls —
+ * Every step is the production function `auth/handlers.ts` calls —
  * discovery, dynamic registration, the authorize URL, PKCE, the code exchange.
  * Nothing is minted by hand, which is what makes the access token in the
  * resulting session one the stand-in actually issued and can therefore stop

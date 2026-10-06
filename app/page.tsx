@@ -69,11 +69,11 @@ import { cookies, headers } from "next/headers";
 
 import { configurationProblems, readIdentitySurface } from "../lib/config.ts";
 import { originMismatch } from "../lib/origin.ts";
-import { readSessionFromCookies } from "../lib/identity/session.ts";
+import { readSessionFromCookies } from "../auth/session.ts";
 import { approvalStreamUrl } from "../lib/governance/stream-url.ts";
 import { homeSurface } from "../lib/home/surface.ts";
 import { readLoanBook } from "../lib/loan-context/read.ts";
-import { lookupPerson } from "../lib/identity/roster.ts";
+import { lookupPerson } from "../auth/roster.ts";
 import { PersonaToolList } from "../components/identity/PersonaToolList.tsx";
 import { ConfigurationBanner } from "../components/identity/ConfigurationBanner.tsx";
 import { OriginBanner } from "../components/identity/OriginBanner.tsx";

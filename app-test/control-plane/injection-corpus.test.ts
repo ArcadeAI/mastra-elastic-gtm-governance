@@ -34,10 +34,10 @@ import type { Database } from "bun:sqlite";
 
 import { PostHookResult, type RedactionRecord } from "@cg/policy-schema";
 
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { createPolicyCache, type PolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { openGovernance, readOutputRules } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { createPolicyCache, type PolicyCache } from "../../gate/service/policy-cache.ts";
+import { openGovernance, readOutputRules } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
 import corpus from "./fixtures/injection-corpus.json" with { type: "json" };
 import { seedDemoSubjects } from "../demo-cast.ts";
 

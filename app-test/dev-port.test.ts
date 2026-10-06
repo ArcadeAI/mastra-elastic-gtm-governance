@@ -151,7 +151,7 @@ test("no package script resolves PORT in the shell", async () => {
     // `tools/` holds Python toolkits today and no manifest, and a fork is
     // invited to delete it outright — so the group is skipped when absent
     // rather than making this sweep the thing that breaks.
-    ...["apps", "packages", "tools"]
+    ...["apps", "gate/engine", "gate/schema", "mcp"]
       .map((group) => join(REPO_ROOT, group))
       .filter((group) => existsSync(group))
       .flatMap((group) =>

@@ -27,9 +27,9 @@ import { chat } from "../lib/agent/handlers.ts";
 import { sessionTools } from "../lib/agent/tool-list.ts";
 import { gatewayClient, governedToolset, SERVER_KEY } from "../lib/agent/tools.ts";
 import { configurationProblems, readIdentitySurface, type IdentitySurface } from "../lib/config.ts";
-import { forgetGatewayClients, probeGatewayToken } from "../lib/identity/gateway.ts";
-import { GATEWAY_START_PATH, liveGatewayToken } from "../lib/identity/handlers.ts";
-import { readSessionFromCookies, writeSession, type Session } from "../lib/identity/session.ts";
+import { forgetGatewayClients, probeGatewayToken } from "../auth/gateway.ts";
+import { GATEWAY_START_PATH, liveGatewayToken } from "../auth/handlers.ts";
+import { readSessionFromCookies, writeSession, type Session } from "../auth/session.ts";
 import { SessionChrome } from "../components/identity/SessionChrome.tsx";
 
 const SESSION_SECRET = "gateway-rejection-suite-session-secret-0123456789";

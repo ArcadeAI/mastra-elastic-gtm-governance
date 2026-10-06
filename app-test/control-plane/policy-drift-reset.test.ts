@@ -32,14 +32,14 @@ import { join } from "node:path";
 
 import { AccessHookResult, PreHookResult } from "@cg/policy-schema";
 
-import type { HooksConfig } from "../../lib/control-plane/config.ts";
-import { fixtureDigest } from "../../lib/control-plane/fixture-drift.ts";
-import { createPolicyCache } from "../../lib/control-plane/policy-cache.ts";
-import { recoverStalePolicy } from "../../lib/control-plane/policy-recovery.ts";
-import { loadSeed, openGovernance, seed as seedInto, type Seed } from "../../lib/control-plane/policy-store.ts";
-import { createServer } from "../../lib/control-plane/server.ts";
-import { addSubject, removeSubject, subjectChanges } from "../../lib/control-plane/subjects.ts";
-import rawFixture from "../../lib/control-plane/fixtures/governance.json" with { type: "json" };
+import type { HooksConfig } from "../../gate/service/config.ts";
+import { fixtureDigest } from "../../gate/service/fixture-drift.ts";
+import { createPolicyCache } from "../../gate/service/policy-cache.ts";
+import { recoverStalePolicy } from "../../gate/service/policy-recovery.ts";
+import { loadSeed, openGovernance, seed as seedInto, type Seed } from "../../gate/service/policy-store.ts";
+import { createServer } from "../../gate/service/server.ts";
+import { addSubject, removeSubject, subjectChanges } from "../../gate/service/subjects.ts";
+import rawFixture from "../../gate/policies/governance.json" with { type: "json" };
 
 const SECRET = "test-secret";
 const RESET_TOKEN = "test-reset-token";

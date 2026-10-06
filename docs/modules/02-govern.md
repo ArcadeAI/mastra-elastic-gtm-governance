@@ -30,9 +30,9 @@ catches all four while the model never gets a vote.
 
 ## What to look at
 
-- `lib/control-plane/fixtures/governance.json`: every rule, keyed on `Toolkit.Tool` with
+- `gate/policies/governance.json`: every rule, keyed on `Toolkit.Tool` with
   the model-facing sentence in `Toolkit_Tool` spelling. The catalogue is a closed world.
-- `packages/governance-core/src/policy-engine.ts` and `redaction-engine.ts`: pure, no
+- `gate/engine/src/policy-engine.ts` and `redaction-engine.ts`: pure, no
   domain words, the same engine for every act.
 - `/panel`: one card per hook decision, with the audit row's reference on it.
 
