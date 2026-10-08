@@ -49,6 +49,12 @@ export const SECRET_ENV = [
   "ARCADE_HOOK_SIGNING_SECRET",
   "ANTHROPIC_API_KEY",
   "IDP_CLIENT_SECRET",
+  // The password `bun run workshop` gives the people it seeds. Added 2026-10-08:
+  // the .env.example sweep in chat-leak-probes.test.ts caught it missing.
+  "WORKSHOP_PASSWORD",
+  // Module 3's key, uploaded to Arcade as a project secret but also in this
+  // process's .env, so the chat must never echo it.
+  "ELASTICSEARCH_API_KEY",
 ] as const;
 
 /**
