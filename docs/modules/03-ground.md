@@ -18,17 +18,34 @@ through the same three hooks a write does.
        bun run users set-clearance <alice's email> 50000
        bun run users list
 
-   Alice at 50,000 and a user with role `cro` (Michael): the seed in step 4 runs as him.
-2. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), and an API key
-   scoped to `deal-files*`. If you started the sign-up at module 2's handoff, the project is
-   ready. `elastic/README.md` → Setup has the exact key request, and what Serverless leaves
-   out. Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
-   `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
-3. Four lines in `.env`:
+   Alice at 50,000 and a user with role `cro` (Michael): the seed in step 5 runs as him.
+2. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), the Elasticsearch
+   / search use case. If you started the sign-up at module 2's handoff, the project is ready.
+   Copy its **Elasticsearch endpoint** (not the Kibana URL): it is `ELASTICSEARCH_URL` in
+   step 4. `elastic/README.md` → Setup says what Serverless leaves out.
+3. A least-privilege API key. In Kibana → Dev Tools, run:
+
+   ```json
+   POST /_security/api_key
+   {
+     "name": "mcp4gtm-workshop",
+     "role_descriptors": {
+       "deal-files": {
+         "indices": [{ "names": ["deal-files*"], "privileges": ["manage", "read", "write", "view_index_metadata"] }],
+         "cluster": ["manage_inference"]
+       }
+     }
+   }
+   ```
+
+   Copy the `encoded` value from the response: it is `ELASTICSEARCH_API_KEY` in step 4. The
+   key can touch the `deal-files*` indices and nothing else, which is the boundary the hooks
+   sit on top of.
+4. Four lines in `.env`:
 
        ELASTIC_MODULE=on
-       ELASTICSEARCH_URL=<your project's Elasticsearch endpoint, with :443>
-       ELASTICSEARCH_API_KEY=<the encoded value the key request returned>
+       ELASTICSEARCH_URL=<the endpoint from step 2, with :443>
+       ELASTICSEARCH_API_KEY=<the encoded value from step 3>
        ELASTIC_SEED_USER=<Michael's email>
 
    Then `bun run setup-arcade <APP_PUBLIC_HOST>` again. It uploads the two Elasticsearch
@@ -38,9 +55,11 @@ through the same three hooks a write does.
    call. Restart the app (`bun run dev`, or `bun run up`). No new gateway, no new
    authorization. (You can set the two secrets in the Arcade dashboard instead; if you do,
    check the project switcher shows the project `arcade whoami` names, not "Default project".)
-4. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
+   Leave `ELASTIC_INFERENCE_ID` unset: `semantic_text` then uses the project's default,
+   `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
+5. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
    A refusal here is act 1 working — nobody else can see `ElasticCreateIndex`.
-5. As Alice:
+6. As Alice:
    > Which requests mention procurement?
 
    > Which accounts did the deal desk think were carried by a single team or product?

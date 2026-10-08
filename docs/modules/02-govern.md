@@ -61,4 +61,4 @@ Still `git checkout start`. Module 2 is Arcade state, not code: users, hooks on,
 ## Handoff
 
 To Elastic, when every laptop shows all four acts. **Start the Elastic Serverless signup now**,
-before the handoff: a project takes a few minutes to come up, and module 3 needs it at step 1.
+before the handoff: a project takes a few minutes to come up, and module 3 needs it at step 2.
