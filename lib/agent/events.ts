@@ -76,6 +76,8 @@ export type ChatEvent =
       request_id: string;
       approver: string;
       approver_id: string;
+      /** The approval page, off the tool's result, so the requester can hand it to the approver without Slack. */
+      approval_url?: string | undefined;
     }
   /**
    * This turn is a resume: an approval was decided and the UI started a new

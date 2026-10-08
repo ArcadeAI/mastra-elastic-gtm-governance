@@ -1081,6 +1081,15 @@ export function EventView({
             made on it. When the decision is recorded it arrives on the control plane&apos;s own
             stream and the agent is asked again.
           </p>
+          {event.approval_url === undefined ? null : (
+            <p style={{ margin: "0.4em 0 0" }}>
+              The approval page, the same link the Slack message carries:{" "}
+              <a href={event.approval_url} target="_blank" rel="noreferrer">
+                {event.approval_url}
+              </a>
+              . The approver opens it signed in as themselves; the requester cannot approve it.
+            </p>
+          )}
           <p style={{ margin: "0.4em 0 0", fontFamily: mono, fontSize: "0.85em", color: "var(--muted)" }}>
             {event.request_id}
           </p>

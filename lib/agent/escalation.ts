@@ -49,6 +49,8 @@ export interface ApprovalRequested {
   approver: string;
   /** The routed approver's address, for the card and for nothing else. */
   approver_id: string;
+  /** The approval page the tool returned, when it did: the link the DM and the channel post carry. */
+  approval_url?: string | undefined;
 }
 
 /**
@@ -77,10 +79,12 @@ export function approvalRequested(result: unknown): ApprovalRequested | null {
     const address = candidate["approver"];
     const display = candidate["approver_display_name"];
     const approverId = typeof address === "string" ? address : "";
+    const url = candidate["approval_url"];
     return {
       request_id: id,
       approver: typeof display === "string" && display !== "" ? display : approverId,
       approver_id: approverId,
+      ...(typeof url === "string" && /^https?:\/\//.test(url) ? { approval_url: url } : {}),
     };
   }
   return null;
