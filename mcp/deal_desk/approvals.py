@@ -109,6 +109,17 @@ SLACK_APPROVALS_CHANNEL_SECRET = "SLACK_APPROVALS_CHANNEL"
 
 _request_secrets = [*_secrets, SLACK_APPROVALS_CHANNEL_SECRET]
 
+# The Slack notice is a deploy-time choice: `SLACK_NOTICE=off` in `.env` makes
+# `bun run workshop` write `deal_desk/_config.py` with `SLACK_NOTICE = False`
+# before the deploy, and the tool then declares no Slack authorization at all.
+# The request is still recorded and routed, and the approval page still works;
+# only the DM and the channel post are skipped. For a room where not everyone
+# can join the Slack workspace. Absent file: on, as the template ships.
+try:
+    from deal_desk._config import SLACK_NOTICE
+except ImportError:  # pragma: no cover - the file is generated, not shipped
+    SLACK_NOTICE = True
+
 
 class Decision(str, Enum):
     APPROVED = "approved"
@@ -153,7 +164,7 @@ def describe_rule(
     )
 
 
-@app.tool(requires_auth=_requires_slack, requires_secrets=_request_secrets)
+@app.tool(requires_auth=_requires_slack if SLACK_NOTICE else None, requires_secrets=_request_secrets)
 async def request_approval(
     context: Context,
     action: Annotated[
@@ -253,6 +264,20 @@ async def request_approval(
     )
 
     slack_token = context.get_auth_token_or_empty()
+    if not SLACK_NOTICE or slack_token == "":
+        # No Slack on this deployment: the record and the routing stand, the
+        # approval page is live, and the result says the notice did not go.
+        return {
+            "request_id": str(request_id),
+            "status": str(record.get("status", "pending")),
+            "approver": approver.user_id,
+            "approver_display_name": approver.display_name or approver.user_id,
+            "required_clearance": routed.required_clearance,
+            "candidate_approvers": [s.user_id for s in routed.candidates],
+            "approval_url": message.approval_url,
+            "slack_message_ts": "",
+            "slack_notice": "off: this deployment sends no Slack message; hand the approval_url to the approver",
+        }
     try:
         # The three calls spike #3 exercised, in that order: resolve the
         # approver's email to a Slack id, open the DM, post to the channel that

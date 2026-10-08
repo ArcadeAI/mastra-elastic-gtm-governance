@@ -102,6 +102,7 @@ module: nothing here escalates.
 | It | Do |
 |---|---|
 | Slack notice fails for someone | the link is on the chat card and in `#deal-desk-approvals`; open it as Charlie |
+| Someone could not join Slack at all | `SLACK_NOTICE=off` in `.env`, `bun run workshop` (redeploys once); act 2 runs, link on the card |
 | The model will not retry after the approval | new chat, `bun run reset`, act 2 again with the exact prompt |
 | "The gateway advertised … none belong to DealDesk" | stale `governance.db` from an older layout: `bun run reset` |
 | Setup says the hooks are inactive | run `bun run setup-arcade <host>` again |

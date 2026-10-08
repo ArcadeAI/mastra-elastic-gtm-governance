@@ -31,6 +31,9 @@ No Python setup of your own: the Arcade CLI brings what the one deploy needs.
    free static domain under *Domains*. Keep its host, like `my-name.ngrok-free.app`.
 3. **Slack.** Accept the host's invite to the workshop workspace with the same email. You
    should land in `#deal-desk-approvals`. If you did not, join it.
+   **Cannot join?** Put `SLACK_NOTICE=off` in `.env` before the first `bun run workshop`.
+   Everything runs; the escalation in module 2 then sends no Slack message, and the approval
+   link is on the chat card instead.
 4. **Elastic** (module 3, you can do it the morning of). Sign up for
    [Elastic Cloud Serverless](https://ela.st/arcade). The project itself is created in
    module 3, so stop at the account.
@@ -54,6 +57,7 @@ Six lines in `.env`:
 | `SLACK_APPROVALS_CHANNEL` | the host, on a slide |
 | `WORKSHOP_EMAIL` | you, the same email as everywhere above |
 | `WORKSHOP_APPROVER` | the host, on a slide |
+| `SLACK_NOTICE=off` | only if you could not join the Slack workspace |
 
 Then one command, and you are at module 1 step 4:
 

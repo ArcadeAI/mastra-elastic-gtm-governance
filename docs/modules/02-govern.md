@@ -25,9 +25,10 @@ chat, and the four prompts below. That is the whole module from the keyboard.
    profile. Nobody else's Charlie is involved.
 
    If Slack refuses the notice (the approver's email is not in the workspace, or you are not in
-   the channel), the request is still recorded and routed, and the tool says so. Open
-   `/approvals/<request id>` on your app as Charlie, with the id from the agent's reply, and the
-   act finishes without the DM.
+   the channel), the request is still recorded and routed, and the tool says so. The approval
+   link is on the *Approval requested* card in the chat; open it as Charlie and the act finishes
+   without the DM. No Slack at all? `SLACK_NOTICE=off` in `.env` (00-setup.md) deploys the
+   escalation tool without Slack, and act 2 runs the same way, link on the card.
 
    **Behind?** The seed keeps anyone who already exists and adds the rest, so run it as
    many times as you like. Missed module 1 entirely? `bun run setup-arcade <APP_PUBLIC_HOST>`

@@ -23,6 +23,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 
 const env = process.env;
 const host = (env.APP_PUBLIC_HOST ?? "").trim();
@@ -31,6 +32,10 @@ const approver = (env.WORKSHOP_APPROVER ?? "").trim();
 // The cast's one password on this laptop's own sign-in and nowhere else: "password" unless set.
 const password = (env.WORKSHOP_PASSWORD ?? "").trim() || "password";
 const elastic = ["on", "true", "yes", "1"].includes((env.ELASTIC_MODULE ?? "").trim().toLowerCase());
+// `SLACK_NOTICE=off`: the escalation tool is deployed without Slack authorization
+// (mcp/deal_desk/approvals.py). Baked into the package before the deploy, since the
+// deployed server has no .env of its own.
+const slackNotice = !(["off", "false", "no", "0"].includes((env.SLACK_NOTICE ?? "").trim().toLowerCase()));
 
 const missing = [
   ["ANTHROPIC_API_KEY", env.ANTHROPIC_API_KEY],
@@ -86,8 +91,16 @@ while (!(await appAnswers())) {
 say("the app answers through the tunnel");
 
 // 2. Arcade: every registration, the one deploy, the gateway. The pause is answered with Enter.
-say("registering with Arcade (the first run deploys, about three minutes)");
-const setup = await run("setup-arcade", ["bun", "--no-env-file", "scripts/setup-arcade.ts", host], "\n", { CG_SETUP_ARCADE_TTY: "1" });
+// The Slack choice is written into the package first; when it changed since the last
+// deploy, the server is deployed again, which is the one thing setup skips on its own.
+const configPath = "mcp/deal_desk/_config.py";
+const wanted = slackNotice ? null : "# Written by `bun run workshop` from SLACK_NOTICE in .env. Not committed.\nSLACK_NOTICE = False\n";
+const had = existsSync(configPath) ? readFileSync(configPath, "utf8") : null;
+if (wanted === null && had !== null) unlinkSync(configPath);
+if (wanted !== null && had !== wanted) writeFileSync(configPath, wanted);
+const redeploy = (had ?? null) !== (wanted ?? null);
+say(slackNotice ? "registering with Arcade (the first run deploys, about three minutes)" : "registering with Arcade, Slack notice OFF: the escalation tool asks for no Slack");
+const setup = await run("setup-arcade", ["bun", "--no-env-file", "scripts/setup-arcade.ts", host, ...(redeploy ? ["--redeploy"] : [])], "\n", { CG_SETUP_ARCADE_TTY: "1" });
 if (setup !== 0) { console.error("[workshop] setup-arcade did not finish; its output is above. Fix that and run this again."); stop(setup); await new Promise(() => {}); }
 
 // 3. The cast. Existing people are kept.
