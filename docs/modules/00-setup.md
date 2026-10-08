@@ -14,7 +14,8 @@ have to agree on who you are.
 | [ngrok](https://ngrok.com/download) | `brew install ngrok` (or the download) | `ngrok version` |
 | git | you have it | `git --version` |
 
-No Python setup of your own: the Arcade CLI brings what the one deploy needs.
+No Python setup of your own: the Arcade CLI brings what the one deploy needs. Already have
+the Arcade CLI? Run `arcade update` first.
 
 ## 2. Accounts, one email
 
@@ -24,9 +25,11 @@ No Python setup of your own: the Arcade CLI brings what the one deploy needs.
        arcade login
        arcade project list
        arcade project set <that project's id>
-       arcade whoami          # shows your org and that project
+       arcade whoami          # shows your email, your org and that project
 
-   If your account has more than one org, `arcade org set <org_id>` first.
+   If your account has more than one org, `arcade org set <org_id>` first. The email
+   `arcade whoami` shows has to be the one you use everywhere else; if the CLI is still
+   signed in as another account, `arcade logout && arcade login`.
 2. **ngrok.** Sign up, add your authtoken (`ngrok config add-authtoken …`), and claim your
    free static domain under *Domains*. Keep its host, like `my-name.ngrok-free.app`.
 3. **Slack.** Accept the host's invite to the workshop workspace with the same email. You
@@ -59,6 +62,9 @@ Six lines in `.env`:
 | `WORKSHOP_APPROVER` | the host, on a slide |
 | `SLACK_NOTICE=off` | only if you could not join the Slack workspace |
 
+The first three are blank at the top of `.env`. The rest ship commented out further down,
+under *Optional*: delete the leading `# ` on each line you fill in, or its value is ignored.
+
 Then one command, and you are at module 1 step 4:
 
     bun run workshop
@@ -76,6 +82,10 @@ gateway when asked. That is the whole setup.
 | `ERR_NGROK_334 … already online` | an older tunnel of yours is up: `pkill -f "ngrok http"` |
 | the deploy fails | run `bun run workshop` again; it resumes from what exists |
 | the sign-in page says the password did not match | it is `password` unless you set `WORKSHOP_PASSWORD` |
+| `bun install` ends with `Failed to install N packages` | run `bun install` again; it fetches only what is missing |
+| an `arcade` command says `Failed to refresh token … 400 Bad Request`, while `arcade login` says you are already logged in | the saved session is stale: `arcade logout && arcade login` |
+| `Port 3000 is already in use` | another app has it: uncomment `PORT=` in `.env`, set it to `3001`, and run `bun run workshop` again |
+| the browser shows `MCPClient errored connecting to MCP server`, or the app logs `access FAILED CLOSED … hook budget` | a slow connection: Arcade's call to your laptop through the tunnel took too long, and the hook refuses rather than guess. Reload, or send the message again. On a phone hotspot, expect it now and then |
 
 Behind at any point in the day: `bun run workshop`, then `bun run reset`.
 
