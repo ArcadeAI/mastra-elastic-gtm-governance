@@ -23,9 +23,17 @@ catches all four while the model never gets a vote.
    the channel), the request is still recorded and routed, and the tool says so. Open
    `/approvals/<request id>` on your app as Charlie, with the id from the agent's reply, and the
    act finishes without the DM.
+
+   **Behind?** The seed keeps anyone who already exists and adds the rest, so run it as
+   many times as you like. Missed module 1 entirely? `bun run setup-arcade <APP_PUBLIC_HOST>`
+   first, then this seed, then `bun run up`.
 2. Confirm the hooks are on: `/hooks/health` reports `status: healthy` and `setup-arcade`
    printed *hooks: … status active (read back)*. Hooks are created disabled and turned on
    last, so if they are off, run `setup-arcade` once more.
+
+   **Behind?** `bun run reset` before each act puts DL-2291 back to pending and clears
+   grants, requests and the audit log, in two seconds, keeping everyone signed in. Each act
+   below starts from that state and a **new chat**.
 3. Run the four acts, in the words `README.md` → Try it out uses:
    - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
      tool list. Nothing was refused; the tool was never offered.
@@ -34,12 +42,20 @@ catches all four while the model never gets a vote.
      calls it, Charlie gets a Slack DM from Alice's own account and the request appears in
      `#deal-desk-approvals` with the link and no buttons, Alice's turn ends. Charlie approves
      on the signed-in page; Alice's retry passes on a single-use grant.
+
+     *Behind?* `bun run reset`, new chat, the same prompt. If the model will not retry after
+     the approval, that is the fix too. If Slack did not deliver, the link is on the
+     *Approval requested* card in the chat.
    - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both
      come back `[REDACTED]`. As Charlie they come through.
    - **Act 4.** Any read of DL-2291 strips the pasted instruction from `crm_notes` before the
      model sees it, for everyone. `INJECTION_DETECTION=off` shows what was prevented.
 4. Edit a rule live. Raise Alice's clearance with `bun run users set-clearance` and watch the
    same prompt pass within one policy poll, with no restart.
+
+   **Behind?** `bun run reset` first, so DL-2291 is pending, then
+   `bun run users set-clearance <your-email> 100000`, then the $95K prompt in a new chat. And
+   put it back before module 3: `bun run users set-clearance <your-email> 50000`.
 
 ## What to look at
 

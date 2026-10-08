@@ -34,12 +34,22 @@ minutes, so this is the host's first question to the room.
    (`mcp`: the Deals, Approvals and Elasticsearch tools together), mints the OAuth clients, registers the identity provider and the hooks, and
    creates the gateway. Read what it prints; every name it reports is a name a rule is
    keyed on later.
+
+   **Behind?** Run it again. It checks every registration and fills in only what is missing,
+   and it never creates a second gateway or rotates a client it did not mint.
 3. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000 --password <one you choose>`.
    Without `--password` the seed prints a random one once, and a room loses those.
+
+   **Behind?** `bun run users list` shows who exists; `users add` refuses a duplicate and changes
+   nothing, so it is safe to run twice.
 4. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
    The agent calls `DealDesk_SearchDeals` and lists the eight requests.
+
+   **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
+   denying everything or the gateway is stale: `bun run setup-arcade <APP_PUBLIC_HOST>` again,
+   then `bun run reset`, then restart `bun run up`.
 5. Open Studio: `bun run studio`, sign in at `localhost:4111/arcade/authorize`, and send the
    same prompt. Same agent, same gateway, every step visible.
 
