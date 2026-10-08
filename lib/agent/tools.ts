@@ -156,6 +156,12 @@ export function gatewayClient(options: GatewayToolsOptions): MCPClient {
         // denial would become invisible to it.
         onToolError: "throw",
         ...(options.timeoutMs === undefined ? {} : { timeout: options.timeoutMs }),
+        // The connection phase, which Mastra caps at 3s by default. It is not a
+        // TCP connect: the MCP initialize makes Arcade call this app's access hook
+        // back through the tunnel, measured at up to 3.5s on a room's Wi-Fi on
+        // 2026-10-08, so 3s tripped on setups that were fine. Match the request
+        // timeout, or 20s, which is still well inside a page load.
+        connectTimeout: options.timeoutMs ?? 20_000,
       },
     },
   });
