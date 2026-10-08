@@ -1,6 +1,6 @@
 # Studio's thread memory
 
-In Mastra Studio the loan-operations agent remembers earlier turns of a thread, so "get me the 95k loan" followed by "do it" acts on DL-2291. Studio sends one message and a thread id per turn and relies on the agent's memory for the rest. The web UI works differently: the browser sends its bounded history with every request (`lib/agent/conversation.ts`), so the chat route's agent has no memory. Added on #36.
+In Mastra Studio the deal-desk agent remembers earlier turns of a thread, so "get me the 95k discount" followed by "do it" acts on DL-2291. Studio sends one message and a thread id per turn and relies on the agent's memory for the rest. The web UI works differently: the browser sends its bounded history with every request (`lib/agent/conversation.ts`), so the chat route's agent has no memory. Added on #36.
 
 ## The storage choice
 

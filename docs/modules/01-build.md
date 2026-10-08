@@ -61,8 +61,9 @@ walks you through all three modules.
    **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
    denying everything or the gateway is stale: `bun run setup-arcade <APP_PUBLIC_HOST>` again,
    then `bun run reset`, then restart `bun run up`.
-5. Open Studio: `bun run studio`, sign in at `localhost:4111/arcade/authorize`, and send the
-   same prompt. Same agent, same gateway, every step visible.
+5. Open Studio: `bun run studio`, sign in as Alice at `localhost:4111/arcade/authorize`, then
+   open `localhost:4111`, select the **deal-desk** agent and send the same prompt. Same agent,
+   same gateway, every step visible. This step is the module's checkpoint, not an extra.
 
 ## What to look at
 

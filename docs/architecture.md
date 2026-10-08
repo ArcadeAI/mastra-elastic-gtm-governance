@@ -45,7 +45,7 @@ Neither mechanism moves the other. Arcade's default verifier demands an Arcade a
 One TypeScript app at the repo root (Next.js plus `src/mastra`, running on Bun) and two Python toolkits:
 
 ```
-src/mastra/index.ts        The Mastra entry. Registers the loan-operations agent, the same one the chat runs.
+src/mastra/index.ts        The Mastra entry. Registers the deal-desk agent, the same one the chat runs.
 lib/agent/                 The agent: instructions, the governed toolset, Studio's own gateway authorization
                            and thread memory (memory.db).
 gate/service/              /hooks/access, /hooks/pre, /hooks/post: the policy engine, audit log and event
