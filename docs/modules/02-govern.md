@@ -37,9 +37,17 @@ If the agent stops after the denial to ask how to justify the request:
 
 Then, as Charlie, open the approval link and press **Approve**.
 
-**Act 3**, as Alice, then the same as Charlie:
+**Act 3**, as Alice:
 
 > Read DL-2291 and show me every field on the record.
+
+The bank account number and tax ID are `[REDACTED]` on the `DealDesk_GetDeal` card.
+
+**Act 3 again**, as Charlie (`hello@brisedemer.io`, or the approver address the host announced), new chat:
+
+> Read DL-2291 and show me every field on the record.
+
+The same card now carries the values.
 
 **Act 4**, as Alice:
 
