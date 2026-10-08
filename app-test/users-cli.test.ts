@@ -288,14 +288,18 @@ describe("users add", () => {
 });
 
 describe("the Arcade invite reminder", () => {
-  test("names the email for every role that can request an approval", async () => {
-    const roles = { account_executive: "5", sdr: "0", vp_sales: "5", cro: "5" };
+  test("names the email for every role that can request an approval, and not the SDR", async () => {
+    const roles = { account_executive: "5", vp_sales: "5", cro: "5" };
     for (const [role, clearance] of Object.entries(roles)) {
       const email = `req.${role}@example.com`;
       const run = await ok(["add", email, "--name", "R", "--role", role, "--clearance", clearance]);
       expect(run.stdout).toContain(`${INVITE} ${email}`);
       expect(run.stdout).toContain(`${email} can request approvals`);
     }
+    // Since 2026-10-08 `access.sdr-cannot-request-approval` hides the request
+    // tool from an SDR, so an SDR never reaches Slack and needs no Arcade seat.
+    const sdr = await ok(["add", "req.sdr@example.com", "--name", "R", "--role", "sdr"]);
+    expect(sdr.stdout).not.toContain(`${INVITE} req.sdr@example.com`);
   });
 
   test("is not printed for a role the policy hides the request tool from", async () => {
@@ -443,7 +447,9 @@ describe("users seed-demo", () => {
       expect(person(email)?.name).toBe(name);
       expect(subject(email)).toEqual({ user_id: email, display_name: name, role, clearance });
       expect(changes(email).map((row) => row.action)).toEqual(["add"]);
-      expect(run.stdout).toContain(`${INVITE} ${email}`);
+      // Bob, the SDR, cannot request an approval, so he needs no Arcade seat.
+      if (role === "sdr") expect(run.stdout).not.toContain(`${INVITE} ${email}`);
+      else expect(run.stdout).toContain(`${INVITE} ${email}`);
     }
     expect(run.stdout.match(/^ {2}password {3}\S+$/gm)).toHaveLength(4);
   });
@@ -454,9 +460,10 @@ describe("users seed-demo", () => {
     const again = await ok(["seed-demo", ...FLAGS]);
     expect(counts()).toEqual(before);
     expect(again.stdout).not.toMatch(/password/);
-    for (const [email] of CAST) {
+    for (const [email, , role] of CAST) {
       expect(again.stdout).toContain(`${email} already present`);
-      expect(again.stdout).toContain(`${INVITE} ${email}`);
+      if (role === "sdr") expect(again.stdout).not.toContain(`${INVITE} ${email}`);
+      else expect(again.stdout).toContain(`${INVITE} ${email}`);
     }
   });
 

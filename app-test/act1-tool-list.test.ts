@@ -48,6 +48,9 @@ const DEMO_PROMPT =
 const APPROVE_WIRE = "DealDesk_ApproveDiscount";
 const APPROVE_FRAME = "DealDesk.ApproveDiscount";
 const ACCESS_RULE = "access.analysts-cannot-see-approve";
+const REQUEST_RULE = "access.sdr-cannot-request-approval";
+const REQUEST_WIRE = "DealDesk_RequestApproval";
+const REQUEST_FRAME = "DealDesk.RequestApproval";
 
 let harness: AgentHarness;
 let web: ReturnType<typeof Bun.serve>;
@@ -153,11 +156,11 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // checked `toHaveLength(3)` would pass if the gateway swapped one tool for
     // another.
     expect(names).not.toContain(APPROVE_WIRE);
+    expect(names).not.toContain(REQUEST_WIRE);
     expect(names).toEqual([
       "DealDesk_SearchDeals",
       "DealDesk_GetDeal",
       "DealDesk_DenyDiscount",
-      "DealDesk_RequestApproval",
       "DealDesk_Decide",
     ]);
   });
@@ -251,8 +254,9 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     const samLists = harness.lists.filter((list) => list.user_id === SAM);
     expect(samLists.length).toBeGreaterThan(0);
     for (const list of samLists) {
-      expect(list.hidden).toEqual([APPROVE_WIRE]);
+      expect(list.hidden).toEqual([APPROVE_WIRE, REQUEST_WIRE]);
       expect(list.advertised).not.toContain(APPROVE_WIRE);
+      expect(list.advertised).not.toContain(REQUEST_WIRE);
     }
 
     const danaLists = harness.lists.filter((list) => list.user_id === DANA);
@@ -318,7 +322,14 @@ describe("who the /access frame names", () => {
     // over.
     expect(hidden?.rule_id).toBe(ACCESS_RULE);
 
-    for (const row of rows.filter((row) => row.tool !== APPROVE_FRAME)) {
+    // The other half of act 1 (2026-10-08): the escalation tool is hidden from
+    // him too, by its own rule, so his agent cannot file a request it could
+    // never complete.
+    const request = rows.find((row) => row.tool === REQUEST_FRAME);
+    expect(request?.decision).toBe("deny");
+    expect(request?.rule_id).toBe(REQUEST_RULE);
+
+    for (const row of rows.filter((row) => row.tool !== APPROVE_FRAME && row.tool !== REQUEST_FRAME)) {
       expect(row.decision).toBe("allow");
     }
   });
@@ -359,14 +370,14 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     expect(result.status).toBe(200);
     expect(lastSurface?.advertised).not.toContain(APPROVE_WIRE);
     expect(lastSurface?.governed).not.toContain(APPROVE_WIRE);
-    // Everything except the one tool act 1 hides. Bob keeps the approvals tools
-    // — nothing in the policy takes them from him, and act 1's claim is about
-    // `ApproveDiscount` specifically, not about a narrower surface in general.
+    // Everything except the two tools act 1 hides: the approval, and since
+    // 2026-10-08 the escalation, which an SDR cannot complete either. Bob
+    // keeps the rest; nothing in the policy takes them from him.
+    expect(lastSurface?.advertised).not.toContain(REQUEST_WIRE);
     expect(lastSurface?.governed).toEqual([
       "DealDesk_SearchDeals",
       "DealDesk_GetDeal",
       "DealDesk_DenyDiscount",
-      "DealDesk_RequestApproval",
       "DealDesk_Decide",
     ]);
   });

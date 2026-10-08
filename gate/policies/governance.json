@@ -243,7 +243,7 @@
   "policy_rules": [
     {
       "id": "access.analysts-cannot-see-approve",
-      "description": "Act 1. A SDR never sees the approval tool: it is absent from tools/list, not merely refused.",
+      "description": "Act 1. An SDR never sees the approval tool: it is absent from tools/list, not merely refused.",
       "hook": "access",
       "match": {
         "toolkit": "$TOOLKIT",
@@ -255,7 +255,24 @@
         ]
       },
       "effect": "deny",
-      "reason": "Credit analysts do not hold approval authority; the tool is hidden from this role.",
+      "reason": "An SDR does not hold approval authority; the tool is hidden from this role.",
+      "priority": 10
+    },
+    {
+      "id": "access.sdr-cannot-request-approval",
+      "description": "Act 1, the other half. An SDR has no say in a discount, so the escalation tool is hidden too: with it visible, Bob's agent filed a request it could not complete and stopped on a Slack consent that was never his to give (2026-10-08).",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "RequestApproval"
+      },
+      "subjects": {
+        "roles": [
+          "sdr"
+        ]
+      },
+      "effect": "deny",
+      "reason": "An SDR does not own a discount decision and cannot escalate one; the tool is hidden from this role.",
       "priority": 10
     },
     {

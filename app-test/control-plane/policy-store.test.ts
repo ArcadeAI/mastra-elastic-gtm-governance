@@ -150,7 +150,7 @@ describe("seeding", () => {
       // 6 loan-book tools plus the 26 the Elasticsearch toolkit serves (elastic/README.md).
       catalogue: 32,
       // The template's 6, the 9 Elastic access rules, the 3 Elastic pre rules.
-      policy_rules: 18,
+      policy_rules: 19,
       // Act 3 and act 4, once over the deal book and once over the index.
       output_rules: 4,
       grants: 0,

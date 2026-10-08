@@ -51,7 +51,8 @@ is the host's own; this is the order.
 2. **Minute 3.** `bun run reset`, `bun run users list`, `/hooks/health`. Open `/panel` next to
    the chat. The cast is already there from module 1.
 3. **Minute 10, act 1.** Bob's profile, new chat: *"Approve the discount for Northwind at $95K
-   and double-check your work."* No approve tool in his list; `/panel` shows the Access card.
+   and double-check your work."* No approve tool and no request tool in his list, so the
+   agent says it cannot approve and stops; `/panel` shows the Access card naming both.
 4. **Minute 16, act 2.** Alice's profile, new chat, same prompt. Denied at `/pre`, the refusal
    names `DealDesk_RequestApproval`, the agent calls it, Slack consent once, *Routed to Charlie*.
    The DM lands with the host; the post lands in `#deal-desk-approvals` with the link; the

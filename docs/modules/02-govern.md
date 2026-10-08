@@ -42,7 +42,9 @@ chat, and the four prompts below. That is the whole module from the keyboard.
    below starts from that state and a **new chat**.
 3. Run the four acts, in the words `README.md` → Try it out uses:
    - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
-     tool list. Nothing was refused; the tool was never offered.
+     tool list, and neither is `DealDesk_RequestApproval`: an SDR has nothing to escalate. The
+     agent says it cannot approve and stops. Nothing was refused; the tools were never offered,
+     and Bob never sees a Slack consent. The Access card in `/panel` names both.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
      work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
      calls it, Charlie gets a Slack DM from Alice's own account and the request appears in

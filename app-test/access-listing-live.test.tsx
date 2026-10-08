@@ -160,7 +160,9 @@ describe("one page load's listing, through the real control plane", () => {
     expect(cards[0]).toContain(SAM);
     expect(cards[0]).toContain("DealDesk.ApproveDiscount");
     expect(cards[0]).toContain("access.analysts-cannot-see-approve");
-    expect(cards[0]).toContain("1 tool hidden");
+    expect(cards[0]).toContain("DealDesk.RequestApproval");
+    expect(cards[0]).toContain("access.sdr-cannot-request-approval");
+    expect(cards[0]).toContain("2 tools hidden");
   });
 
   test("the hidden tool is the one the gateway actually withheld from him", async () => {
@@ -172,7 +174,7 @@ describe("one page load's listing, through the real control plane", () => {
     const list = harness.lists[before];
 
     expect(list?.user_id).toBe(SAM);
-    expect(list?.hidden).toEqual(["DealDesk_ApproveDiscount"]);
+    expect(list?.hidden).toEqual(["DealDesk_ApproveDiscount", "DealDesk_RequestApproval"]);
   });
 
   test("the account executive's listing is one card too, and hides nothing", async () => {
