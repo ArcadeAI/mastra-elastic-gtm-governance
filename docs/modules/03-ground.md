@@ -1,6 +1,9 @@
 # Module 3 — Ground it, governed (Elastic)
 
-**Start from:** `git checkout module-3-ground`, with modules 1 and 2 done. **Owner:** Elastic. **45 minutes.**
+**Start from:** where module 2 left off, with modules 1 and 2 done. There is nothing to check
+out: the Elastic module has been in the code since module 1, switched off. **Joining late?**
+`git checkout module-3-ground` gives you the code; see "If you are behind". **Owner:** Elastic.
+**45 minutes.**
 
 You leave with the deal book indexed in Elasticsearch, the agent searching it by keyword
 and by meaning and running aggregations from chat, and every one of those results passing
@@ -8,20 +11,55 @@ through the same three hooks a write does.
 
 ## What you build
 
-1. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), and an API key scoped to `deal-files*`.
-   `elastic/README.md` → Setup has the exact key request, and what Serverless leaves out.
-   Leave `ELASTIC_INFERENCE_ID` blank: `semantic_text` then uses the project's default,
+1. Put Alice back where module 3 needs her. Module 2 ends by raising her clearance; above
+   250,000 she sees customer identifiers, and the search redaction this module shows never
+   fires for her. Set her back, and check the cast:
+
+       bun run users set-clearance <alice's email> 50000
+       bun run users list
+
+   Alice at 50,000 and a user with role `cro` (Michael): the seed in step 5 runs as him.
+2. An Elasticsearch Serverless project ([sign up](https://ela.st/arcade)), the Elasticsearch
+   / search use case. If you started the sign-up at module 2's handoff, the project is ready.
+   Copy its **Elasticsearch endpoint** (not the Kibana URL): it is `ELASTICSEARCH_URL` in
+   step 4. `elastic/README.md` → Setup says what Serverless leaves out.
+3. A least-privilege API key. In Kibana → Dev Tools, run:
+
+   ```json
+   POST /_security/api_key
+   {
+     "name": "mcp4gtm-workshop",
+     "role_descriptors": {
+       "deal-files": {
+         "indices": [{ "names": ["deal-files*"], "privileges": ["manage", "read", "write", "view_index_metadata"] }],
+         "cluster": ["manage_inference"]
+       }
+     }
+   }
+   ```
+
+   Copy the `encoded` value from the response: it is `ELASTICSEARCH_API_KEY` in step 4. The
+   key can touch the `deal-files*` indices and nothing else, which is the boundary the hooks
+   sit on top of.
+4. Four lines in `.env`:
+
+       ELASTIC_MODULE=on
+       ELASTICSEARCH_URL=<the endpoint from step 2, with :443>
+       ELASTICSEARCH_API_KEY=<the encoded value from step 3>
+       ELASTIC_SEED_USER=<Michael's email>
+
+   Then `bun run setup-arcade <APP_PUBLIC_HOST>` again. It uploads the two Elasticsearch
+   secrets to your Arcade project, and adds the 26 Elasticsearch tools to the gateway modules
+   1 and 2 made, keeping its six and its User Source, and reads it back. Nothing to deploy:
+   the tools shipped in module 1's one `arcade deploy` and have sat idle without a cluster to
+   call. Restart the app (`bun run dev`, or `bun run up`). No new gateway, no new
+   authorization. (You can set the two secrets in the Arcade dashboard instead; if you do,
+   check the project switcher shows the project `arcade whoami` names, not "Default project".)
+   Leave `ELASTIC_INFERENCE_ID` unset: `semantic_text` then uses the project's default,
    `.jina-embeddings-v5-text-small` on the Elastic Inference Service.
-2. Its two secrets on your Arcade project, in the dashboard: `ELASTICSEARCH_URL` and
-   `ELASTICSEARCH_API_KEY`. Nothing to deploy: the Elasticsearch tools shipped in module 1's
-   one `arcade deploy`, and have sat idle without a cluster to call.
-3. In `.env`: `ELASTIC_MODULE=on` and `ELASTIC_SEED_USER=<Michael's email>`, then
-   `bun run setup-arcade <APP_PUBLIC_HOST>` again. It adds the 26 Elasticsearch tools to the
-   gateway modules 1 and 2 made, keeping its six and its User Source, and reads it back.
-   Restart `bun run dev`. No new gateway, no new authorization.
-4. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
+5. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
    A refusal here is act 1 working — nobody else can see `ElasticCreateIndex`.
-5. As Alice:
+6. As Alice:
    > Which requests mention procurement?
 
    > Which accounts did the deal desk think were carried by a single team or product?
@@ -30,18 +68,22 @@ through the same three hooks a write does.
 
    > Use ES|QL to show me the ten most recent requests.
 
-   Keyword search finds the word; semantic search on `crm_notes_semantic` (Jina embeddings) finds the meaning;
+   Keyword search finds the word; semantic search on `crm_notes_semantic` (Jina embeddings)
+   finds the meaning, and ranks `DL-2296`, *"Product-led growth carries the account"*, first;
    ES|QL answers the aggregate; and an ES|QL query with no `KEEP` clause is refused at
    `/hooks/pre` until the model adds one, which it does on the retry. (A model that writes
    the `KEEP` first time, as it often does once it knows the fields, is never refused: the
-   rule checked and had nothing to object to.)
+   rule checked and had nothing to object to.) Which search tool the agent picks varies from
+   run to run; every one of them goes through the same rules.
 
 ## What to look at
 
-- The diff from `start` to `module-3-ground`. Nothing under `packages/` moved: retrieval
-  needed no new primitive, only rules. `git diff start module-3-ground --stat`.
-- `governance.json` → the `$TOOLKIT` rules: nine access rules on the write tools, three
-  pre rules on ES|QL and aggregations, two post rules on `hits[].source`.
+- `elastic/seed.ts` → `MAPPINGS`: `copy_to` writes each CRM note once and indexes it twice,
+  as BM25 text and as a `semantic_text` field that names no model.
+- `mcp/deal_desk/elasticsearch.py`: each of the 26 tools is one Elasticsearch REST call.
+- `gate/policies/governance.json` → the `$TOOLKIT` `Elastic…` rules: nine access rules on the
+  write tools, three pre rules on ES|QL and aggregations, two post rules on `hits[].source`.
+  Nothing in `gate/engine` changed for retrieval: it needed no new primitive, only rules.
 - `app-test/control-plane/elastic-post.test.ts`: the four acts over a search result,
   measured against the seeded rules.
 
@@ -52,8 +94,11 @@ Charlie, the pasted note gone for everyone.
 
 ## If you are behind
 
-`git checkout module-3-ground` gives you the code. The index needs your own cluster; a TA
-can lend a read-only key to a shared one for the rest of the session, but seeding is yours.
+`git checkout module-3-ground` gives you the code. Then re-run
+`bun run setup-arcade <APP_PUBLIC_HOST>`, which checks every step and fills in only what is
+missing; check `bun run users list` as in step 1; and restart the app. The index needs your
+own cluster; a TA can lend a read-only key to a shared one for the rest of the session, but
+seeding is yours.
 
 ## Handoff
 
