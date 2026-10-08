@@ -23,7 +23,7 @@ import { ControlPlanePanel } from "../../components/governance/ControlPlanePanel
 import { PanelStreamError } from "../../components/governance/PanelStreamError.tsx";
 import { resolvePanelStream } from "../../lib/governance/stream-url.ts";
 
-export const metadata: Metadata = { title: "Control plane — Contextual Governance" };
+export const metadata: Metadata = { title: "Control plane: Contextual Governance" };
 
 // The stream address comes from the environment at request time; a statically
 // rendered page would bake in whatever the build machine had.

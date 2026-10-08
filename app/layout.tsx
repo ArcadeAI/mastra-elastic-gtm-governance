@@ -5,7 +5,7 @@ import "./globals.css";
 import { Frame } from "./Frame.tsx";
 
 export const metadata: Metadata = {
-  title: "Contextual Governance — Mastra × Arcade",
+  title: "Contextual Governance: Mastra, Arcade, Elastic",
   description:
     "An agent doing real work in a real business system, with Arcade enforcing deterministic control on every tool call.",
 };

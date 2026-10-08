@@ -29,7 +29,7 @@
  * separator (vertical divider), and the partner's logo"*, shown as
  * `Arcade | Partner Logo`. So the order is Arcade, divider, Mastra — the
  * guideline's, not a preference, and it reads against `layout.tsx`'s title
- * ("Contextual Governance — Mastra × Arcade"), which the gate left alone.
+ * ("Contextual Governance: Mastra, Arcade, Elastic"), which the gate left alone.
  *
  * Both files are used exactly as their owners drew them. `mastra-wordmark.svg`
  * already contains the glyph — its first two paths are `mastra.svg`'s two paths
@@ -70,6 +70,8 @@ import "./frame.css";
  */
 const ARCADE_WORDMARK = "/arcade-wordmark-white.svg";
 const MASTRA_WORDMARK = "/mastra-wordmark.svg";
+/** Elastic's own white logo, as served from elastic.co, byte for byte (2026-10-08). */
+const ELASTIC_LOGO = "/elastic-logo-white.svg";
 
 export function Frame({ children }: { children: ReactNode }) {
   return (
@@ -87,8 +89,8 @@ export function Frame({ children }: { children: ReactNode }) {
             width={1206}
             height={320}
           />
-          {/* Decorative: the lockup already says "Arcade" and "Mastra" to a
-              screen reader, and a divider it also read would be noise. */}
+          {/* Decorative: the lockup already says "Arcade", "Mastra" and "Elastic"
+              to a screen reader, and a divider it also read would be noise. */}
           <span className="frame-divider" aria-hidden="true" />
           <img
             className="frame-mark frame-mark-mastra"
@@ -96,6 +98,14 @@ export function Frame({ children }: { children: ReactNode }) {
             alt="Mastra"
             width={1708}
             height={267}
+          />
+          <span className="frame-divider" aria-hidden="true" />
+          <img
+            className="frame-mark frame-mark-elastic"
+            src={ELASTIC_LOGO}
+            alt="Elastic"
+            width={117}
+            height={40}
           />
         </span>
       </header>

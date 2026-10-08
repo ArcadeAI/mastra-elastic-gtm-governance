@@ -28,6 +28,12 @@
   --frame-cap: 18px;
   --frame-arcade-height: calc(var(--frame-cap) / 0.9843);
   --frame-mastra-height: calc(var(--frame-cap) / 0.9963);
+  /*
+   * Elastic (third mark, 2026-10-08): `elastic-logo-white.svg` is 117:40 with
+   * the cluster mark and a lowercase wordmark whose ascender is the tall
+   * element, about 0.72 of the box. Sized so that ascender matches the cap.
+   */
+  --frame-elastic-height: calc(var(--frame-cap) / 0.66);
 
   /*
    * The spacing measure, from `brand-kit` → `references/logo.md`: a partner
@@ -91,6 +97,10 @@
 
 .frame-mark-mastra {
   height: var(--frame-mastra-height);
+}
+
+.frame-mark-elastic {
+  height: var(--frame-elastic-height);
 }
 
 .frame-divider {

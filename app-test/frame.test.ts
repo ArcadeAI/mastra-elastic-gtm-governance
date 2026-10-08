@@ -324,15 +324,15 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
           },
         });
 
-        // Both marks, from the files their owners drew, in the order
-        // `brand-kit` specifies: Arcade, separator, Mastra.
+        // The three marks, from the files their owners drew, in the order
+        // `brand-kit` specifies: Arcade, separator, partner; Elastic third (2026-10-08).
         const lockup = await evaluate<string[]>(
           browser.cdp,
           `[...document.querySelectorAll('.frame-lockup > *')].map((node) => node.getAttribute('src') ?? node.className)`,
         );
         expect({ path, lockup }).toEqual({
           path,
-          lockup: ["/arcade-wordmark-white.svg", "frame-divider", "/mastra-wordmark.svg"],
+          lockup: ["/arcade-wordmark-white.svg", "frame-divider", "/mastra-wordmark.svg", "frame-divider", "/elastic-logo-white.svg"],
         });
 
         // Nothing scrolls. A frame that had been added to a `100dvh` surface
