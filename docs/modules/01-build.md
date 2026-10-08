@@ -40,6 +40,9 @@ at any point in the day: run it again, then `bun run reset`.
 
 The steps below are what it does, one at a time, for anyone who wants to see each piece.
 
+Working with a coding agent? [`AGENT-PROMPT.md`](./AGENT-PROMPT.md) is a prompt to paste in that
+walks you through all three modules.
+
 ## What you build
 
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:
