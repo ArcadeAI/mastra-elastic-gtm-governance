@@ -17,7 +17,8 @@ hand, add the other three now:
 
     bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password password
 
-It keeps anyone who already exists. Then `bun run reset` before each act, a new chat, and the
+It keeps anyone who already exists. Every command in this module goes in the second terminal;
+the first keeps the app running. Then `bun run reset` before each act, a new chat, and the
 prompts below. That is the whole module from the keyboard.
 
 Sign each person in from their own browser profile. Each one authorizes twice the first time,

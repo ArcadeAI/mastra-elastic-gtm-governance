@@ -48,7 +48,8 @@ walks you through all three modules.
 2. Start the app and the tunnel, in a terminal you leave open: `bun run up`. It serves the app
    on port 3000 and ngrok on your `APP_PUBLIC_HOST`; Ctrl-C stops both. Arcade reaches the
    hooks through that tunnel, so this comes before the registration.
-3. Register with Arcade: `bun run setup-arcade <APP_PUBLIC_HOST>`. It runs one `arcade deploy`
+3. Register with Arcade, in a second terminal (the first keeps `up` running):
+   `bun run setup-arcade <APP_PUBLIC_HOST>`. It runs one `arcade deploy`
    (`mcp`: the Deals, Approvals and Elasticsearch tools together), mints the OAuth clients, registers the identity provider and the hooks, and
    creates the gateway. Read what it prints; every name it reports is a name a rule is
    keyed on later.
@@ -69,7 +70,7 @@ walks you through all three modules.
    **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
    denying everything or the gateway is stale: `bun run setup-arcade <APP_PUBLIC_HOST>` again,
    then `bun run reset`, then restart `bun run up`.
-6. Open Studio: `bun run studio`, sign in as Alice at `localhost:4111/arcade/authorize`, then
+6. Open Studio, in the second terminal: `bun run studio`, sign in as Alice at `localhost:4111/arcade/authorize`, then
    open `localhost:4111`, select the **deal-desk** agent and send the same prompt. Same agent,
    same gateway, every step visible. This step is the module's checkpoint, not an extra.
 

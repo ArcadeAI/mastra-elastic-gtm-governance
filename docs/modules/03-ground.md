@@ -77,7 +77,7 @@ index. Then step 1 if Alice's clearance was raised, and the prompts in step 6.
    the agent later says it has no search tool, the gateway was not updated: look for
    *added the 26 Elasticsearch tools* in its output, or add them in the dashboard with the
    hooks disabled, as the warning says.
-5. `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
+5. In the second terminal, `bun run seed:elastic`: the eight deals into `deal-files`, through Arcade, as Michael.
    A refusal here is act 1 working — nobody else can see `ElasticCreateIndex`.
 
    **Behind?** `bun run seed:elastic` again is safe: it keeps the index and rewrites the eight
