@@ -54,3 +54,7 @@ Charlie, the pasted note gone for everyone.
 
 `git checkout module-3-ground` gives you the code. The index needs your own cluster; a TA
 can lend a read-only key to a shared one for the rest of the session, but seeding is yours.
+
+## Handoff
+
+To the capstone, when every laptop has the four search prompts answering through the hooks.

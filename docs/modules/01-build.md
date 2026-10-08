@@ -19,6 +19,11 @@ Four things, each one signup, all with the **same email**:
 
 The Anthropic key is the host's, shared in the room.
 
+**Before the first command, check five things:** `arcade whoami` shows your project; `ngrok config check`
+passes and you know your static domain; you can open the Slack workspace; `bun --version` prints;
+the repo is cloned and `bun install` has run. Anyone missing one of these loses the first twenty
+minutes, so this is the host's first question to the room.
+
 ## What you build
 
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:
@@ -29,7 +34,8 @@ The Anthropic key is the host's, shared in the room.
    (`mcp`: the Deals, Approvals and Elasticsearch tools together), mints the OAuth clients, registers the identity provider and the hooks, and
    creates the gateway. Read what it prints; every name it reports is a name a rule is
    keyed on later.
-3. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000`.
+3. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000 --password <one you choose>`.
+   Without `--password` the seed prints a random one once, and a room loses those.
 4. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
@@ -56,3 +62,8 @@ You can name the six tools on the wire (`DealDesk_SearchDeals`, `DealDesk_GetDea
 
 Nothing in this module changes the code. `git checkout start` is the whole state; the work
 is the Arcade registration, and `bun run setup-arcade` is idempotent, so run it again.
+
+## Handoff
+
+To Arcade, when every laptop has made the one tool call and seen it in Studio. The Slack
+invite should be accepted by now; module 2 needs it at act 2.

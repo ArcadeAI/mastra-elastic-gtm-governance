@@ -11,13 +11,18 @@ catches all four while the model never gets a vote.
 1. Add the rest of the cast: Bob the SDR with no clearance, Charlie the VP Sales at $250,000,
    Michael the CRO at $5,000,000:
 
-       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com
+       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password <one you choose>
 
    Charlie's email is the one thing that has to be real: the escalation finds the approver in
    Slack by it. In the room, everyone's Charlie is the host's address, so every DM lands with
    the host and every request is posted in `#deal-desk-approvals`. Approving is still yours:
    Charlie signs in on *your* app, with the password the seed printed, in a second browser
    profile. Nobody else's Charlie is involved.
+
+   If Slack refuses the notice (the approver's email is not in the workspace, or you are not in
+   the channel), the request is still recorded and routed, and the tool says so. Open
+   `/approvals/<request id>` on your app as Charlie, with the id from the agent's reply, and the
+   act finishes without the DM.
 2. Confirm the hooks are on: `/hooks/health` reports `status: healthy` and `setup-arcade`
    printed *hooks: … status active (read back)*. Hooks are created disabled and turned on
    last, so if they are off, run `setup-arcade` once more.
@@ -52,3 +57,8 @@ All four acts on your own deployment, and one rule edited live.
 
 Still `git checkout start`. Module 2 is Arcade state, not code: users, hooks on, Slack.
 `bun run reset` puts the deal book and the control plane back between attempts.
+
+## Handoff
+
+To Elastic, when every laptop shows all four acts. **Start the Elastic Serverless signup now**,
+before the handoff: a project takes a few minutes to come up, and module 3 needs it at step 1.
