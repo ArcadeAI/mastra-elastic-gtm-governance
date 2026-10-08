@@ -25,7 +25,6 @@ build
 *.sqlite
 
 # local agent scratch
-.orca/local/
 
 docs
 mcp

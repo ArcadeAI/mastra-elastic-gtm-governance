@@ -22,7 +22,7 @@ build/
 # app-test/dev-port.test.ts's throwaway Next project, removed after the run.
 /.test-fixtures/
 
-# env — per-worktree ports, written by scripts/orca-setup.sh
+# env — per-worktree ports
 .env
 .env.local
 .env.*.local
@@ -37,14 +37,9 @@ build/
 *.db-shm
 *.sqlite
 
-# Orca — role prompts in .orca/ are committed and public-safe. Everything under
-# local/ is machine-specific: env.md holds the Orca repo UUID and Run id,
-# human/ is the operator's gate briefs, state/ is the driver's journal and DAG.
-.orca/local/
 
 # local agent config
-.claude/settings.local.json
-.claude/worktrees/
+.claude/
 .mcp.json
 
 # os

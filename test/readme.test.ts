@@ -21,7 +21,7 @@ const REPO = join(import.meta.dir, "..");
 const README = readFileSync(join(REPO, "README.md"), "utf8");
 const ENV_EXAMPLE = readFileSync(join(REPO, ".env.example"), "utf8");
 
-/** Mastra's required outline (`.orca/local/human/mastra-contributing-guide.md`), before any contributor section. */
+/** Mastra's required outline, from their contributing guide, before any contributor section. */
 const REQUIRED_H2 = ["Why we built this", "Demo", "Prerequisites", "Quickstart 🚀", "Try it out", "Customization"];
 const LAST_H2 = "About Mastra templates";
 const DEMO_PLACEHOLDER = [

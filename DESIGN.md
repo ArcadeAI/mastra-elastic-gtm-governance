@@ -402,8 +402,8 @@ Tracked on issue #1.
    allows it.
 6. The README in Mastra's exact outline.
 7. Submission cleanup: what ships. Done by #11 (`render.yaml`, `docs/spikes` and
-   `docs/evidence` removed), except `.orca/` and the harness, which are the last commit
-   before submission, after #7.
+   `docs/evidence` removed); `.orca/` and the Orca skills followed on 2026-10-08, when the
+   repo became the workshop's.
 8. The human records the 2 to 3 minute video and sends the repo to Alex Booker.
 
 **Process (the human's rule, 2026-09-25):** fixes for live-test (#7) failures get no agent
