@@ -6,6 +6,11 @@ You leave with the four acts running on your own build: an account executive ask
 $95K discount and "double-check your work", four things go wrong, and the control plane
 catches all four while the model never gets a vote.
 
+## The short way
+
+`bun run workshop` already seeded the cast in module 1. `bun run reset` before each act, a new
+chat, and the four prompts below. That is the whole module from the keyboard.
+
 ## What you build
 
 1. Add the rest of the cast: Bob the SDR with no clearance, Charlie the VP Sales at $250,000,
@@ -71,15 +76,14 @@ All four acts on your own deployment, and one rule edited live.
 
 ## If you are behind
 
-Module 2 is Arcade state, not code: users, hooks on, Slack. Three commands, each safe to run
+Module 2 is Arcade state, not code: users, hooks on, Slack. Two commands, each safe to run
 again, put all of it in place and bring you to act 1:
 
-    bun run setup-arcade <APP_PUBLIC_HOST>
-    bun run users seed-demo --alice <your-email> --charlie <the host's approver email> --bob bob@example.com --michael michael@example.com --password <one you choose>
+    bun run workshop
     bun run reset
 
-The first checks every registration and fills in only what is missing; the second keeps anyone
-who already exists; the third puts the deal book and the control plane back. `bun run reset`
+The first checks every registration and fills in only what is missing and keeps anyone who
+already exists; the second puts the deal book and the control plane back. `bun run reset`
 keeps a real user's clearance as it is, so after raising Alice's, put it back yourself:
 `bun run users set-clearance <your-email> 50000`.
 

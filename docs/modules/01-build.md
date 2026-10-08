@@ -24,6 +24,21 @@ passes and you know your static domain; you can open the Slack workspace; `bun -
 the repo is cloned and `bun install` has run. Anyone missing one of these loses the first twenty
 minutes, so this is the host's first question to the room.
 
+## The short way
+
+Copy `.env.example` to `.env` and fill seven lines: `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`,
+`APP_PUBLIC_HOST`, `SLACK_APPROVALS_CHANNEL`, `WORKSHOP_EMAIL` (you), `WORKSHOP_APPROVER` (the
+address the host announces), `WORKSHOP_PASSWORD` (one you choose). Then:
+
+    bun run workshop
+
+It starts the app and the tunnel, registers everything with Arcade in one `arcade deploy`,
+seeds the cast, and leaves the app running. About four minutes the first time, under a
+minute after. Open the URL it prints, sign in as yourself, authorize the gateway once. Behind
+at any point in the day: run it again, then `bun run reset`.
+
+The steps below are what it does, one at a time, for anyone who wants to see each piece.
+
 ## What you build
 
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:

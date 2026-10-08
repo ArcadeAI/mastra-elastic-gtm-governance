@@ -9,6 +9,16 @@ You leave with the deal book indexed in Elasticsearch, the agent searching it by
 and by meaning and running aggregations from chat, and every one of those results passing
 through the same three hooks a write does.
 
+## The short way
+
+Steps 2 and 3 below are Elastic's: the project and the key. Then four lines in `.env`
+(`ELASTIC_MODULE=on`, `ELASTICSEARCH_URL`, `ELASTICSEARCH_API_KEY`, `ELASTIC_SEED_USER`), and:
+
+    bun run workshop
+
+It uploads the secrets, adds the 26 tools to your gateway, restarts the app and seeds the
+index. Then step 1 if Alice's clearance was raised, and the prompts in step 6.
+
 ## What you build
 
 1. Put Alice back where module 3 needs her. Module 2 ends by raising her clearance; above

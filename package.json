@@ -13,6 +13,7 @@
     "dev:web": "bun run dev",
     "gate": "bun scripts/gate.ts",
     "up": "bun scripts/up.ts",
+    "workshop": "bun scripts/workshop.ts",
     "studio": "bun --no-env-file scripts/studio.ts",
     "dev:idp-stub": "bun scripts/dev-idp.ts",
     "loans": "bun scripts/loans.ts",
