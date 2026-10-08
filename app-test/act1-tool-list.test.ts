@@ -342,7 +342,7 @@ describe("who the /access frame names", () => {
     expect(decide?.rule_id).toBe(DECIDE_RULE);
 
     const hiddenFrames = [APPROVE_FRAME, REQUEST_FRAME, DENY_FRAME, DECIDE_FRAME];
-    for (const row of rows.filter((row) => !hiddenFrames.includes(row.tool))) {
+    for (const row of rows.filter((row) => !hiddenFrames.includes(String(row.tool)))) {
       expect(row.decision).toBe("allow");
     }
   });
