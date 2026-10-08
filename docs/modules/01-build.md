@@ -42,9 +42,7 @@ walks you through all three modules.
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:
    `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`, `APP_PUBLIC_HOST`. A fourth for the room:
    `SLACK_APPROVALS_CHANNEL=C0C83CW2CDN`, the workspace's `#deal-desk-approvals`, so every approval
-   request you raise in module 2 is posted where everyone sees it. A fifth, because every
-   "Behind?" below leans on `bun run reset`: uncomment `RESET_TOKEN=` and give it any value
-   (`bun run workshop` writes one for you; by hand, you do).
+   request you raise in module 2 is posted where everyone sees it.
 2. Start the app and the tunnel, in a terminal you leave open: `bun run up`. It serves the app
    on port 3000 and ngrok on your `APP_PUBLIC_HOST`; Ctrl-C stops both. Arcade reaches the
    hooks through that tunnel, so this comes before the registration.

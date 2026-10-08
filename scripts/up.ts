@@ -15,6 +15,23 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 
+import { fillBlanks, readEnvFile, writeEnvFile } from "./setup-arcade/env-file.ts";
+
+// `bun run reset` needs RESET_TOKEN on the app, and the app only mounts the reset
+// routes when it starts with one. Blank is the template's safe default for a hosted
+// deployment; on a laptop it is minted here, once, blanks only, before the app starts.
+// `bun run workshop` does the same before it calls this, so the by-hand path and the
+// one-command path both end up with a reset that works (2026-10-08).
+if ((process.env.RESET_TOKEN ?? "").trim() === "") {
+  const envPath = new URL("../.env", import.meta.url).pathname;
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const text = readEnvFile(envPath);
+  const commented = /^# ?RESET_TOKEN=\s*$/m;
+  writeEnvFile(envPath, commented.test(text) ? text.replace(commented, `RESET_TOKEN=${token}`) : fillBlanks(text, { RESET_TOKEN: token }).text);
+  process.env.RESET_TOKEN = token;
+  console.log("[up] RESET_TOKEN was blank: wrote one to .env, so `bun run reset` works");
+}
+
 const host = process.env.APP_PUBLIC_HOST?.trim() ?? "";
 const port = process.env.PORT?.trim() || "3000";
 
