@@ -10,10 +10,15 @@ catches all four while the model never gets a vote.
 
 ## The short way
 
-`bun run workshop` already seeded the cast in module 1: you as Alice, the host's address as
-Charlie, Bob as `bob@example.com` and Michael as `michael@example.com`, everyone with the
-password `password` (`bun run users list` shows them). `bun run reset` before each act, a new
-chat, and the prompts below. That is the whole module from the keyboard.
+The cast: you as Alice, the host's address as Charlie, Bob as `bob@example.com` and Michael
+as `michael@example.com`, everyone with the password `password`. If you ran `bun run workshop`
+in module 1 they are already there (`bun run users list` shows them). If you did module 1 by
+hand, add the other three now:
+
+    bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password password
+
+It keeps anyone who already exists. Then `bun run reset` before each act, a new chat, and the
+prompts below. That is the whole module from the keyboard.
 
 Sign each person in from their own browser profile. Each one authorizes twice the first time,
 as you did in module 1: the gateway on sign-in, then the app's own provider on their first deal
@@ -65,12 +70,10 @@ in module 3, and it takes a few minutes to come up, so start it while Elastic se
 
 ## What you build
 
-1. The cast is already there: `bun run workshop` seeded it in module 1. Check with
-   `bun run users list`: you as Alice (account executive, $50,000), Bob the SDR with no
-   clearance, Charlie the VP Sales at $250,000 (`WORKSHOP_APPROVER`, the host's address), and
-   Michael the CRO at $5,000,000. Every password is `password`. Doing it by hand instead:
-
-       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password password
+1. The cast, as in "The short way": you as Alice (account executive, $50,000), Bob the SDR
+   with no clearance, Charlie the VP Sales at $250,000 (the host's address), and Michael the
+   CRO at $5,000,000, every password `password`. `bun run users list` shows who is there;
+   the `seed-demo` line above adds whoever is missing.
 
    Charlie's email is the one thing that has to be real: the escalation finds the approver in
    Slack by it. In the room, everyone's Charlie is the host's address, so every DM lands with
