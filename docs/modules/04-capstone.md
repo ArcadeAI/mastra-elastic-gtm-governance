@@ -1,5 +1,7 @@
 # Capstone — All four acts, over live retrieval
 
+[Setup](./00-setup.md) · [Module 1 · Build](./01-build.md) · [Module 2 · Govern](./02-govern.md) · [Module 3 · Ground](./03-ground.md) · **Capstone** · [Presenters](./PRESENTERS.md) · [Agent prompt](./AGENT-PROMPT.md)
+
 **Start from:** `git checkout capstone`. **20 minutes, then show and tell.**
 
 Run the whole story on your own build, end to end, with the deal book and the index both

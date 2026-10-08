@@ -1,5 +1,7 @@
 # Module 1 — Build the agent (Mastra)
 
+[Setup](./00-setup.md) · **Module 1 · Build** · [Module 2 · Govern](./02-govern.md) · [Module 3 · Ground](./03-ground.md) · [Capstone](./04-capstone.md) · [Presenters](./PRESENTERS.md) · [Agent prompt](./AGENT-PROMPT.md)
+
 **Start from:** `git checkout start`. **Owner:** Mastra. **45 minutes.**
 
 You leave this module with a Mastra agent running on your laptop, connected over MCP to
@@ -90,3 +92,7 @@ is the Arcade registration, and `bun run setup-arcade` is idempotent, so run it 
 
 To Arcade, when every laptop has made the one tool call and seen it in Studio. The Slack
 invite should be accepted by now; module 2 needs it at act 2.
+
+---
+
+**Next:** [Module 2 · Govern](./02-govern.md)

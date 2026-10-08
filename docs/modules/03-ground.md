@@ -1,5 +1,7 @@
 # Module 3 — Ground it, governed (Elastic)
 
+[Setup](./00-setup.md) · [Module 1 · Build](./01-build.md) · [Module 2 · Govern](./02-govern.md) · **Module 3 · Ground** · [Capstone](./04-capstone.md) · [Presenters](./PRESENTERS.md) · [Agent prompt](./AGENT-PROMPT.md)
+
 **Start from:** where module 2 left off, with modules 1 and 2 done. There is nothing to check
 out: the Elastic module has been in the code since module 1, switched off. **Joining late?**
 `git checkout module-3-ground` gives you the code; see "If you are behind". **Owner:** Elastic.
@@ -125,3 +127,7 @@ seeding is yours.
 ## Handoff
 
 To the capstone, when every laptop has the four search prompts answering through the hooks.
+
+---
+
+**Next:** [Capstone](./04-capstone.md)

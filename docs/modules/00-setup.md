@@ -1,5 +1,7 @@
 # Before the workshop: setup
 
+**Setup** · [Module 1 · Build](./01-build.md) · [Module 2 · Govern](./02-govern.md) · [Module 3 · Ground](./03-ground.md) · [Capstone](./04-capstone.md) · [Presenters](./PRESENTERS.md) · [Agent prompt](./AGENT-PROMPT.md)
+
 Do this before you arrive. It is about twenty minutes, most of it signups, and every
 account is yours. Use **one email for everything**: the Slack lookup and your Arcade project
 have to agree on who you are.
@@ -100,3 +102,7 @@ makes the reset seed the policy you just checked out: a running app reseeds the 
 started with.
 
 Working with a coding agent? [`AGENT-PROMPT.md`](./AGENT-PROMPT.md) walks you through all of it.
+
+---
+
+**Next:** [Module 1 · Build](./01-build.md)

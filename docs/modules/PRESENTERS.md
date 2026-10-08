@@ -1,5 +1,7 @@
 # Presenters: who does what, in order
 
+[Setup](./00-setup.md) · [Module 1 · Build](./01-build.md) · [Module 2 · Govern](./02-govern.md) · [Module 3 · Ground](./03-ground.md) · [Capstone](./04-capstone.md) · **Presenters** · [Agent prompt](./AGENT-PROMPT.md)
+
 Three speakers, one laptop each, one shared Slack. The attendee pages (`01-build.md` to
 `04-capstone.md`) say what the room does; this page says what the person at the front does.
 Every command here is one the room runs too, so when you type, they type.

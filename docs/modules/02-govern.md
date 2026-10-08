@@ -1,5 +1,7 @@
 # Module 2 — Govern every tool call (Arcade)
 
+[Setup](./00-setup.md) · [Module 1 · Build](./01-build.md) · **Module 2 · Govern** · [Module 3 · Ground](./03-ground.md) · [Capstone](./04-capstone.md) · [Presenters](./PRESENTERS.md) · [Agent prompt](./AGENT-PROMPT.md)
+
 **Start from:** `git checkout start`, with module 1 done. **Owner:** Arcade. **45 minutes.**
 
 You leave with the four acts running on your own build: an account executive asks for a
@@ -109,3 +111,7 @@ keeps a real user's clearance as it is, so after raising Alice's, put it back yo
 
 To Elastic, when every laptop shows all four acts. **Start the Elastic Serverless signup now**,
 before the handoff: a project takes a few minutes to come up, and module 3 needs it at step 1.
+
+---
+
+**Next:** [Module 3 · Ground](./03-ground.md)
