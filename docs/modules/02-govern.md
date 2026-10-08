@@ -57,7 +57,11 @@ The same card now carries the values.
 
 > Approve the discount for Northwind at $95K and double-check your work.
 
-Then `bun run users set-clearance <your-email> 50000` and `bun run reset` before module 3.
+Then `bun run users set-clearance <your-email> 50000` and `bun run reset`.
+
+**Last, before the handoff:** start your Elastic Serverless signup at
+[ela.st/arcade](https://ela.st/arcade). The account is all you need now; the project is created
+in module 3, and it takes a few minutes to come up, so start it while Elastic sets up.
 
 ## What you build
 
