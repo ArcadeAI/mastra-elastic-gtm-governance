@@ -8,9 +8,10 @@ Every command here is one the room runs too, so when you type, they type.
 
 - The recovery slide up, and left up all day:
 
-      bun run setup-arcade <your-ngrok-host>
-      bun run users seed-demo --alice <you> --charlie <host's approver email> --bob bob@example.com --michael michael@example.com --password <one you choose>
+      bun run workshop
       bun run reset
+
+  (`workshop` needs seven lines in `.env`; module 1 → The short way lists them.)
 
 - The host's approver email on the same slide. Every attendee's Charlie is that address.
 - The Slack invite accepted by every speaker, `#deal-desk-approvals` open on the host's screen.
@@ -25,12 +26,11 @@ one call.
 
 1. **Minute 0.** Ask the five pre-start questions from `01-build.md` → "Before the first
    command". Anyone short on one works on it while you talk; do not wait.
-2. **Minute 5.** Everyone runs `bun run setup-arcade <host>`. It takes three to four minutes,
-   most of it the one `arcade deploy`. Talk through what it registers while it runs: the custom
-   provider, the hooks (created disabled), the one server, the User Source, the gateway, the
-   hooks turned on. Say out loud that it will pause and ask them to start the app and the
-   tunnel: `bun run up` in a second terminal, then Enter in the first.
-3. **Minute 15.** `bun run users add <your-email> --name Alice --role account_executive --clearance 50000 --password <yours>`.
+2. **Minute 5.** Everyone runs `bun run workshop`. It takes about four minutes, most of it the
+   one `arcade deploy`. Talk through what it does while it runs: starts the app and the
+   tunnel, registers the custom provider, the hooks (created disabled), the one server, the
+   User Source, the gateway, turns the hooks on, seeds the cast. No pause, no second terminal.
+3. **Minute 15.** `bun run users list`: Alice, Bob, Charlie, Michael.
 4. **Minute 18.** Open the ngrok URL, sign in as Alice, authorize the gateway. Ask
    *"Which discount requests are pending?"* Eight requests come back through `DealDesk_SearchDeals`.
 5. **Minute 25.** `bun run studio`, sign in at `localhost:4111/arcade/authorize`, same prompt.
@@ -47,8 +47,8 @@ is the host's own; this is the order.
 
 1. **Minute 0.** Frame: a tool the agent *can* call is not a tool it is *allowed* to call.
    Four places to enforce that: see, connect, execute, read back.
-2. **Minute 3.** Everyone seeds the cast (the recovery slide's second line), then
-   `bun run users list` and `/hooks/health`. Open `/panel` next to the chat.
+2. **Minute 3.** `bun run reset`, `bun run users list`, `/hooks/health`. Open `/panel` next to
+   the chat. The cast is already there from module 1.
 3. **Minute 10, act 1.** Bob's profile, new chat: *"Approve the discount for Northwind at $95K
    and double-check your work."* No approve tool in his list; `/panel` shows the Access card.
 4. **Minute 16, act 2.** Alice's profile, new chat, same prompt. Denied at `/pre`, the refusal
@@ -78,11 +78,11 @@ module: nothing here escalates.
 2. **Minute 3.** Serverless project up (started at the handoff): copy the Elasticsearch
    endpoint. In Kibana Dev Tools, the API key request from `03-ground.md` step 3; copy `encoded`.
 3. **Minute 10.** Four lines in `.env`: `ELASTIC_MODULE=on`, `ELASTICSEARCH_URL`,
-   `ELASTICSEARCH_API_KEY`, `ELASTIC_SEED_USER=michael@example.com`. Then
-   `bun run setup-arcade <host>` again: it uploads the two secrets and adds the 26 tools to the
-   gateway. Restart the app (Ctrl-C, `bun run up`).
-4. **Minute 18.** `bun run seed:elastic`: eight documents, as Michael, through Arcade. A refusal
-   here is act 1 again: only the CRO can write the index.
+   `ELASTICSEARCH_API_KEY`, `ELASTIC_SEED_USER=michael@example.com`. Then Ctrl-C the running
+   `workshop` and `bun run workshop` again: it uploads the two secrets, adds the 26 tools to
+   the gateway, restarts the app and seeds the index as Michael, through Arcade.
+4. **Minute 18.** Read the seed's last line: *8 documents in "deal-files"*. A refusal there is
+   act 1 again: only the CRO can write the index.
 5. **Minute 22.** As Alice, new chat, the four prompts from `03-ground.md` step 6: procurement
    (keyword), single team or product (semantic, DL-2296 first), total by status (aggregate),
    *"Use ES|QL to show me the ten most recent requests"* (ES|QL; a query with no `KEEP` is
