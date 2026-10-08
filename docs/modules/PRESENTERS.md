@@ -62,8 +62,8 @@ is the host's own; this is the order.
    The DM lands with the host; the post lands in `#deal-desk-approvals` with the link; the
    chat card shows the same link. Optional: open it as Alice, refused. Open it in Charlie's
    profile, Approve. Alice's chat resumes, retries, recorded. This is the fourteen minutes.
-5. **Minute 30, act 3.** Alice, new chat: *"Read DL-2291 and quote its bank account number and
-   tax ID."* Both redacted. Charlie, same prompt: both through. Point at the opened
+5. **Minute 30, act 3.** Alice, new chat: *"Read DL-2291 and show me every
+   field on the record."* Both redacted. Charlie, same prompt: both through. Point at the opened
    `DealDesk_GetDeal` card in each chat, not the model's sentence: the model may decline to
    quote the identifiers for Charlie too, and then the two replies look alike.
 6. **Minute 35, act 4.** Alice, **new chat**: *"Read DL-2291 and summarize its CRM notes."*

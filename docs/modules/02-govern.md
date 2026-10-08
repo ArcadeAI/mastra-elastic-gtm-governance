@@ -66,8 +66,8 @@ tool call, followed by **Continue**.
      *Approval requested* card in the chat. With Arcade's built-in Slack app the requester has
      to be a member of your Arcade project (dashboard, your project, Members); the project's
      owner already is ([`docs/faq.md`](../faq.md)).
-   - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both
-     come back `[REDACTED]`. As Charlie they come through. Show it on the `DealDesk_GetDeal`
+   - **Act 3.** As Alice: *"Read DL-2291 and show me every field on the record."* Both
+     come back `[REDACTED]` on the `DealDesk_GetDeal` card. As Charlie they come through. Asked to *quote* the identifiers, the model refuses before any tool runs (0 tool calls, nothing on the panel), so ask for the record. Show it on the `DealDesk_GetDeal`
      card in each chat, opened: it is the result exactly as the model received it after
      `/post`. The model often declines to quote a bank account or tax ID even for Charlie, so
      its sentence can read the same for both; the card, and `/panel`'s Post lane, do not.
