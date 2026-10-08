@@ -51,15 +51,21 @@ is the host's own; this is the order.
 2. **Minute 3.** `bun run reset`, `bun run users list`, `/hooks/health`. Open `/panel` next to
    the chat. The cast is already there from module 1.
 3. **Minute 10, act 1.** Bob's profile, new chat: *"Approve the discount for Northwind at $95K
-   and double-check your work."* No approve tool and no request tool in his list, so the
-   agent says it cannot approve and stops; `/panel` shows the Access card naming both.
+   and double-check your work."* Only the two read tools in his list (no approve, request,
+   deny or decide), so the agent says it cannot approve and stops; `/panel` shows the Access
+   card naming the four hidden tools.
 4. **Minute 16, act 2.** Alice's profile, new chat, same prompt. Denied at `/pre`, the refusal
    names `DealDesk_RequestApproval`, the agent calls it, Slack consent once, *Routed to Charlie*.
+   If the agent stops first to ask how to justify the request, that is the model being careful
+   about the CRM notes, not a failure: *"Yes, request approval for the full $95,000, citing the
+   three-year prepay and eight years as a customer."*
    The DM lands with the host; the post lands in `#deal-desk-approvals` with the link; the
    chat card shows the same link. Optional: open it as Alice, refused. Open it in Charlie's
    profile, Approve. Alice's chat resumes, retries, recorded. This is the fourteen minutes.
 5. **Minute 30, act 3.** Alice, new chat: *"Read DL-2291 and quote its bank account number and
-   tax ID."* Both redacted. Charlie, same prompt: both through.
+   tax ID."* Both redacted. Charlie, same prompt: both through. Point at the opened
+   `DealDesk_GetDeal` card in each chat, not the model's sentence: the model may decline to
+   quote the identifiers for Charlie too, and then the two replies look alike.
 6. **Minute 35, act 4.** Alice, **new chat**: *"Read DL-2291 and summarize its CRM notes."*
    The pasted instruction is gone. Show the detection-off comparison as a screenshot.
 7. **Minute 39.** `bun run reset`, then `bun run users set-clearance <you> 100000`, same $95K
@@ -105,6 +111,8 @@ module: nothing here escalates.
 | Slack notice fails for someone | the link is on the chat card and in `#deal-desk-approvals`; open it as Charlie |
 | Someone could not join Slack at all | `SLACK_NOTICE=off` in `.env`, `bun run workshop` (redeploys once); act 2 runs, link on the card |
 | The model will not retry after the approval | new chat, `bun run reset`, act 2 again with the exact prompt |
+| The agent asks how to justify the request | answer it: the full $95,000, the three-year prepay, eight years as a customer |
+| Charlie's agent will not quote the identifiers | open the `DealDesk_GetDeal` card in both chats: Alice's shows `[REDACTED]`, Charlie's the values |
 | "The gateway advertised … none belong to DealDesk" | stale `governance.db` from an older layout: `bun run reset` |
 | Setup says the hooks are inactive | run `bun run setup-arcade <host>` again |
 | Anything else | the recovery slide, then rejoin at the current act |

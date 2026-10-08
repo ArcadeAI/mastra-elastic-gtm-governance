@@ -259,6 +259,40 @@
       "priority": 10
     },
     {
+      "id": "access.sdr-cannot-decide",
+      "description": "Act 1, the rest of it. Deciding an approval request is an approver's act; with Decide visible, Bob's agent tried it on an unknown request and the refusal put a denial card into the act that promises nothing is refused (2026-10-08).",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "Decide"
+      },
+      "subjects": {
+        "roles": [
+          "sdr"
+        ]
+      },
+      "effect": "deny",
+      "reason": "An SDR is never an approver; the tool is hidden from this role.",
+      "priority": 10
+    },
+    {
+      "id": "access.sdr-cannot-deny",
+      "description": "Act 1, the rest of it. An SDR has no say in a discount either way: with DenyDiscount visible, Bob's agent probed it (deal_id PLACEHOLDER) once approve and request were hidden, and a real deal id would have committed a denial to the deal book as him (2026-10-08).",
+      "hook": "access",
+      "match": {
+        "toolkit": "$TOOLKIT",
+        "tool": "DenyDiscount"
+      },
+      "subjects": {
+        "roles": [
+          "sdr"
+        ]
+      },
+      "effect": "deny",
+      "reason": "An SDR does not own a discount decision and cannot decline one; the tool is hidden from this role.",
+      "priority": 10
+    },
+    {
       "id": "access.sdr-cannot-request-approval",
       "description": "Act 1, the other half. An SDR has no say in a discount, so the escalation tool is hidden too: with it visible, Bob's agent filed a request it could not complete and stopped on a Slack consent that was never his to give (2026-10-08).",
       "hook": "access",

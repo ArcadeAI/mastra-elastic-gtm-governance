@@ -51,6 +51,12 @@ const ACCESS_RULE = "access.analysts-cannot-see-approve";
 const REQUEST_RULE = "access.sdr-cannot-request-approval";
 const REQUEST_WIRE = "DealDesk_RequestApproval";
 const REQUEST_FRAME = "DealDesk.RequestApproval";
+const DENY_RULE = "access.sdr-cannot-deny";
+const DENY_WIRE = "DealDesk_DenyDiscount";
+const DENY_FRAME = "DealDesk.DenyDiscount";
+const DECIDE_RULE = "access.sdr-cannot-decide";
+const DECIDE_WIRE = "DealDesk_Decide";
+const DECIDE_FRAME = "DealDesk.Decide";
 
 let harness: AgentHarness;
 let web: ReturnType<typeof Bun.serve>;
@@ -157,12 +163,9 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     // another.
     expect(names).not.toContain(APPROVE_WIRE);
     expect(names).not.toContain(REQUEST_WIRE);
-    expect(names).toEqual([
-      "DealDesk_SearchDeals",
-      "DealDesk_GetDeal",
-      "DealDesk_DenyDiscount",
-      "DealDesk_Decide",
-    ]);
+    expect(names).not.toContain(DENY_WIRE);
+    expect(names).not.toContain(DECIDE_WIRE);
+    expect(names).toEqual(["DealDesk_SearchDeals", "DealDesk_GetDeal"]);
   });
 
   /**
@@ -254,7 +257,7 @@ describe("the tool list comes from the gateway, per signed-in persona", () => {
     const samLists = harness.lists.filter((list) => list.user_id === SAM);
     expect(samLists.length).toBeGreaterThan(0);
     for (const list of samLists) {
-      expect(list.hidden).toEqual([APPROVE_WIRE, REQUEST_WIRE]);
+      expect(list.hidden).toEqual([APPROVE_WIRE, DENY_WIRE, REQUEST_WIRE, DECIDE_WIRE]);
       expect(list.advertised).not.toContain(APPROVE_WIRE);
       expect(list.advertised).not.toContain(REQUEST_WIRE);
     }
@@ -329,7 +332,17 @@ describe("who the /access frame names", () => {
     expect(request?.decision).toBe("deny");
     expect(request?.rule_id).toBe(REQUEST_RULE);
 
-    for (const row of rows.filter((row) => row.tool !== APPROVE_FRAME && row.tool !== REQUEST_FRAME)) {
+    // And the rest of it (2026-10-08): an SDR has no say in a discount either
+    // way, so the denial and the approver's decision are hidden too.
+    const deny = rows.find((row) => row.tool === DENY_FRAME);
+    expect(deny?.decision).toBe("deny");
+    expect(deny?.rule_id).toBe(DENY_RULE);
+    const decide = rows.find((row) => row.tool === DECIDE_FRAME);
+    expect(decide?.decision).toBe("deny");
+    expect(decide?.rule_id).toBe(DECIDE_RULE);
+
+    const hiddenFrames = [APPROVE_FRAME, REQUEST_FRAME, DENY_FRAME, DECIDE_FRAME];
+    for (const row of rows.filter((row) => !hiddenFrames.includes(row.tool))) {
       expect(row.decision).toBe("allow");
     }
   });
@@ -370,16 +383,13 @@ describe("the $95K prompt, as Bob, who has no approval authority at all", () => 
     expect(result.status).toBe(200);
     expect(lastSurface?.advertised).not.toContain(APPROVE_WIRE);
     expect(lastSurface?.governed).not.toContain(APPROVE_WIRE);
-    // Everything except the two tools act 1 hides: the approval, and since
-    // 2026-10-08 the escalation, which an SDR cannot complete either. Bob
-    // keeps the rest; nothing in the policy takes them from him.
+    // Everything except the four tools act 1 hides: the approval, the
+    // escalation, the denial and the approver's decision (2026-10-08). Bob
+    // keeps the two reads.
     expect(lastSurface?.advertised).not.toContain(REQUEST_WIRE);
-    expect(lastSurface?.governed).toEqual([
-      "DealDesk_SearchDeals",
-      "DealDesk_GetDeal",
-      "DealDesk_DenyDiscount",
-      "DealDesk_Decide",
-    ]);
+    expect(lastSurface?.advertised).not.toContain(DENY_WIRE);
+    expect(lastSurface?.advertised).not.toContain(DECIDE_WIRE);
+    expect(lastSurface?.governed).toEqual(["DealDesk_SearchDeals", "DealDesk_GetDeal"]);
   });
 
   test("no denied tool call appears in the audit log, because no call was attempted", () => {
