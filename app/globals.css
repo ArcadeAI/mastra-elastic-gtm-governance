@@ -21,8 +21,15 @@
   --neutral: #cdcdcd;
   /* The one non-brand value: a hairline that reads on black without becoming
      a grey box. Brand black plus 14% white. */
-  --line: #242424;
-  --line-strong: #3d3d3d;
+  --line: #262626;
+  --line-strong: #3a3a3a;
+  /* Dashboard surfaces (2026-10-08): the page is brand black, a lane sits one
+     step above it and a card one step above that, the way the Arcade
+     dashboard stacks its panels. Hairlines, not glows, separate them. */
+  --surface: #0c0c0c;
+  --surface-2: #121212;
+  --radius: 12px;
+  --radius-sm: 8px;
 
   --allow: #00ff67;
   --deny: #ff0037;
@@ -66,9 +73,13 @@
      it is gone entirely. Lightening the background also bought contrast: the
      decision label is the tightest pair on this panel and `--deny` on
      `--deny-tint` went from 4.83:1 to 5.11:1. */
-  --allow-tint: rgba(0, 255, 103, 0.08);
-  --deny-tint: rgba(255, 0, 55, 0.09);
-  --modify-tint: rgba(255, 183, 0, 0.08);
+  --allow-tint: rgba(0, 255, 103, 0.07);
+  --deny-tint: rgba(255, 0, 55, 0.08);
+  --modify-tint: rgba(255, 183, 0, 0.07);
+  /* A decision pill's own fill, a touch stronger than the card under it. */
+  --allow-pill: rgba(0, 255, 103, 0.14);
+  --deny-pill: rgba(255, 0, 55, 0.16);
+  --modify-pill: rgba(255, 183, 0, 0.14);
   /* The one edge that survived the cut, and it is not on a card: the badge for
      a panel watching nothing. */
   --deny-edge: rgba(255, 0, 55, 0.45);
@@ -113,7 +124,9 @@ body {
   /* Larger than #21's clamp(17px, 1.32vw, 26px). #158's instruction was that
      larger type beats more rows, and the chrome this file no longer draws is
      what paid for it: 21.7px at 1440×900 and 28.8px at 1920×1080. */
-  font-size: clamp(18px, 1.5vw, 30px);
+  /* 2026-10-08: brought down from clamp(18px, 1.5vw, 30px) to a dashboard
+     density; 24px at 1920 and 18px at 1440. Rows beat posters. */
+  font-size: clamp(16px, 1.25vw, 24px);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -159,8 +172,9 @@ body {
   align-items: center;
   gap: 0.6em 1em;
   flex-wrap: wrap;
-  padding: 0.45em 1em;
-  border-bottom: 2px solid var(--chartreuse);
+  padding: 0.6em 1.1em;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
 }
 
 /* Deliberately quiet, and deliberately not the display face. The page says what
@@ -169,33 +183,33 @@ body {
   margin: 0;
   flex: none;
   font-family: var(--font-ui);
-  font-size: 0.92em;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 1em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   line-height: 1;
-  color: var(--neutral);
+  color: var(--white);
 }
 
 .cg-connection {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.6em;
   /* Pinned to the trailing edge whether or not a health strip sits between it
      and the title — a fixture replay has no strip, and the badge must not
      wander to the middle of the row when it does not. */
   margin-left: auto;
   flex: none;
-  font-size: 0.8em;
+  font-size: 0.78em;
   color: var(--neutral);
 }
 
 .cg-dot {
-  width: 0.62em;
-  height: 0.62em;
+  width: 0.55em;
+  height: 0.55em;
   border-radius: 50%;
   background: var(--neutral);
   flex: none;
+  margin-left: 0.3em;
 }
 
 /* Lit, not pulsing. #158: no attention pulses. A dot that breathes forever is
@@ -224,15 +238,17 @@ body {
   font-family: var(--font-mono);
   font-size: 0.78em;
   letter-spacing: 0.04em;
-  padding: 0.15em 0.5em;
+  padding: 0.3em 0.75em;
+  border-radius: 999px;
   color: var(--neutral);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
 }
 
 .cg-mode[data-mode="hooks"] {
-  color: var(--ink);
-  background: var(--chartreuse);
-  box-shadow: none;
+  color: var(--chartreuse);
+  background: rgba(195, 255, 0, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(195, 255, 0, 0.45);
 }
 
 .cg-mode[data-mode="unconfigured"] {
@@ -300,9 +316,11 @@ body {
   flex: 1 1 22em;
   min-width: 0;
   margin: 0;
-  padding: 0.2em 0.7em;
-  border-left: 0.3em solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.03);
+  padding: 0.3em 0.8em;
+  border: 1px solid var(--line);
+  border-left: 0.25em solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -388,7 +406,8 @@ body {
   font-family: var(--font-ui);
   font-size: 0.95em;
   letter-spacing: 0.03em;
-  padding: 0.2em 0.8em;
+  padding: 0.25em 0.9em;
+  border-radius: 999px;
   color: var(--white);
   background: transparent;
   border: 1px solid var(--line-strong);
@@ -438,25 +457,32 @@ body {
 .cg-lanes {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8em;
+  padding: 0.8em 1.1em 1em;
   flex: 1;
   min-height: 0;
 }
 
+/* A lane is a panel: one step above the page, a hairline, rounded. */
 .cg-lane {
   position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  border-left: 1px solid var(--line);
-}
-
-.cg-lane:first-child {
-  border-left: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .cg-lane-head {
-  padding: 0.5em 0.8em 0.45em;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name counts" "gloss counts" "behind behind";
+  align-items: center;
+  column-gap: 0.8em;
+  padding: 0.7em 0.9em 0.6em;
   border-bottom: 1px solid var(--line);
 }
 
@@ -464,17 +490,19 @@ body {
    that claims the display face. The three control points are the structure; a
    card is a detail inside one of them. */
 .cg-lane-name {
+  grid-area: name;
   margin: 0;
   font-family: var(--font-display);
-  font-size: 2.05em;
+  font-size: 1.5em;
   font-weight: 400;
-  line-height: 1;
-  color: var(--chartreuse);
+  line-height: 1.05;
+  color: var(--white);
 }
 
 .cg-lane-gloss {
-  margin: 0.2em 0 0;
-  font-size: 0.82em;
+  grid-area: gloss;
+  margin: 0.15em 0 0;
+  font-size: 0.78em;
   color: var(--neutral);
 }
 
@@ -484,28 +512,46 @@ body {
 /* The only decision counters on the panel since #158 dropped the global row.
    They count every decision a lane ever received, drawn or not. */
 .cg-lane-counts {
+  grid-area: counts;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.9em;
-  margin: 0.35em 0 0;
-  font-size: 0.82em;
+  justify-content: flex-end;
+  gap: 0.4em;
+  margin: 0;
+  font-size: 0.74em;
   color: var(--neutral);
 }
 
+/* One pill per decision the lane has made: the count in the decision colour,
+   the word beside it, on that colour's own faint fill. */
 .cg-lane-count {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
-  gap: 0.3em;
+  gap: 0.35em;
+  padding: 0.25em 0.7em;
+  border-radius: 999px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  white-space: nowrap;
 }
 
 .cg-lane-count-value {
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 1.25em;
+  font-size: 1.1em;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
+.cg-lane-count[data-decision="allow"] {
+  background: var(--allow-tint);
+}
+.cg-lane-count[data-decision="deny"] {
+  background: var(--deny-tint);
+}
+.cg-lane-count[data-decision="modify"] {
+  background: var(--modify-tint);
+}
 .cg-lane-count[data-decision="allow"] .cg-lane-count-value {
   color: var(--allow);
 }
@@ -528,10 +574,10 @@ body {
   overflow-y: auto;
   scrollbar-gutter: stable;
   overscroll-behavior: contain;
-  padding: 0.6em 0.8em 1em;
+  padding: 0.7em 0.8em 1em;
   display: flex;
   flex-direction: column;
-  gap: 0.5em;
+  gap: 0.55em;
   /* A card clipped by the bottom of the lane should read as "there is more",
      not as a rendering fault. The lane's header already says how many more. */
   mask-image: linear-gradient(to bottom, #000 calc(100% - 3em), transparent 100%);
@@ -543,14 +589,16 @@ body {
 }
 
 .cg-lane-empty {
-  font-size: 0.9em;
+  margin: 0.2em 0 0;
+  font-size: 0.88em;
   color: var(--neutral);
 }
 
 .cg-lane-behind {
-  margin: 0.35em 0 0;
+  grid-area: behind;
+  margin: 0.4em 0 0;
   font-family: var(--font-mono);
-  font-size: 0.78em;
+  font-size: 0.72em;
   color: var(--neutral);
 }
 
@@ -565,8 +613,9 @@ body {
  */
 .cg-flash {
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 0.3em;
+  inset: 0 0 auto 0;
+  height: 3px;
+  z-index: 1;
   pointer-events: none;
   animation: cg-flash 900ms ease-out forwards;
 }
@@ -604,9 +653,11 @@ body {
  * `prefers-reduced-motion` takes it away at the bottom of this file.
  */
 .cg-event {
-  border-left: 0.4em solid var(--line-strong);
+  border: 1px solid var(--line);
+  border-left: 0.3em solid var(--line-strong);
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.035);
-  padding: 0.5em 0.7em 0.6em;
+  padding: 0.55em 0.8em 0.65em;
   flex: none;
   animation: cg-settle 250ms ease-out both;
 }
@@ -650,9 +701,9 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.75em;
-  margin: 0 0 0.15em;
+  margin: 0 0 0.25em;
   font-family: var(--font-mono);
-  font-size: 0.72em;
+  font-size: 0.68em;
   color: var(--neutral);
 }
 
@@ -705,9 +756,9 @@ body {
 .cg-tool {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 1.28em;
+  font-size: 1.08em;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.2;
   word-break: break-word;
   overflow-wrap: anywhere;
 }
@@ -717,25 +768,36 @@ body {
    be the display face, which #158 narrowed to the lane titles alone. Weight and
    colour carry the distinction the serif used to. */
 .cg-decision {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
   gap: 0.35em;
-  margin: 0.2em 0 0;
+  margin: 0.4em 0.5em 0 0;
+  padding: 0.22em 0.7em;
+  border-radius: 999px;
   font-family: var(--font-ui);
-  font-size: 1.12em;
+  font-size: 0.82em;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.1;
+  vertical-align: middle;
 }
 
+/* The decision as a status pill, the way a dashboard marks a row: the colour
+   as text on its own faint fill, inside a hairline of the same hue. */
 .cg-event[data-decision="allow"] .cg-decision {
   color: var(--allow);
+  background: var(--allow-pill);
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 103, 0.35);
 }
 .cg-event[data-decision="deny"] .cg-decision {
   color: var(--deny);
+  background: var(--deny-pill);
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 55, 0.4);
 }
 .cg-event[data-decision="modify"] .cg-decision {
   color: var(--modify);
+  background: var(--modify-pill);
+  box-shadow: inset 0 0 0 1px rgba(255, 183, 0, 0.4);
 }
 
 /* Every decision carries a glyph and a word as well as a colour, so the state
@@ -754,16 +816,18 @@ body {
  */
 .cg-rule {
   display: inline-block;
-  margin: 0.35em 0 0;
-  padding: 0.12em 0.5em;
+  margin: 0.4em 0 0;
+  padding: 0.22em 0.6em;
+  border-radius: 999px;
+  vertical-align: middle;
   font-family: var(--font-mono);
-  font-size: 0.82em;
+  font-size: 0.74em;
   color: var(--chartreuse);
   /* Punched out on near-black rather than tinted, so the chip reads the same
      on all three card colours. A chartreuse-on-chartreuse-tint chip would sit
      too close in hue to the green of an allow. */
   background: rgba(0, 0, 0, 0.62);
-  box-shadow: inset 0 0 0 1px rgba(195, 255, 0, 0.62);
+  box-shadow: inset 0 0 0 1px rgba(195, 255, 0, 0.45);
   overflow-wrap: anywhere;
 }
 
@@ -776,8 +840,8 @@ body {
  * or Space, and given the panel's focus ring below. Nothing here is a hover.
  */
 .cg-why {
-  margin: 0.35em 0 0;
-  font-size: 0.88em;
+  margin: 0.4em 0 0;
+  font-size: 0.8em;
   color: var(--neutral);
 }
 
@@ -827,25 +891,31 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.2em 1em;
-  margin: 0.2em 0 0;
+  gap: 0.4em 0.5em;
+  margin: 0.4em 0 0;
   font-family: var(--font-ui);
   font-weight: 700;
-  font-size: 1.05em;
+  font-size: 0.82em;
   line-height: 1.1;
 }
 
 .cg-listing-tally {
-  display: flex;
+  display: inline-flex;
   align-items: baseline;
   gap: 0.35em;
+  padding: 0.22em 0.7em;
+  border-radius: 999px;
 }
 
 .cg-listing-tally[data-decision="allow"] {
   color: var(--allow);
+  background: var(--allow-pill);
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 103, 0.35);
 }
 .cg-listing-tally[data-decision="deny"] {
   color: var(--deny);
+  background: var(--deny-pill);
+  box-shadow: inset 0 0 0 1px rgba(255, 0, 55, 0.4);
 }
 
 /* A tool this person cannot see, and the rule that took it. The name is
@@ -860,7 +930,7 @@ body {
 .cg-listing-hidden-tool {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: 1.05em;
+  font-size: 0.95em;
   font-weight: 700;
   line-height: 1.15;
   overflow-wrap: anywhere;

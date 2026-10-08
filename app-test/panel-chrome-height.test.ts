@@ -53,9 +53,12 @@ if (chromeResolution.path === null && !REQUIRED) console.warn(missingBrowserMess
  * one person has ever seen is not.
  */
 const EXPECTED: Record<string, Record<string, number>> = {
-  "fixture-replay": { "1920x1080": 62.47, "1440x900": 47.36 },
-  "live-healthy-no-reset": { "1920x1080": 69.45, "1440x900": 52.58 },
-  "live-healthy-reset": { "1920x1080": 81.27, "1440x900": 62.42 },
+  // Re-measured 2026-10-08 after the dashboard restyle: the header is a
+  // toolbar with pill badges and the lanes sit inside a padded grid, so the
+  // first lane starts lower than #158's flush layout, at a smaller type scale.
+  "fixture-replay": { "1920x1080": 79.63, "1440x900": 59.97 },
+  "live-healthy-no-reset": { "1920x1080": 90.02, "1440x900": 67.77 },
+  "live-healthy-reset": { "1920x1080": 100.61, "1440x900": 75.95 },
 };
 
 /** Twice the spread a font substitution was measured to account for. */
@@ -102,7 +105,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
       // The panel is measured at the size it was asked for, not at whatever
       // headless Chrome defaulted to. `clamp(18px, 1.5vw, 30px)` is the panel's
       // root, and it is the reason the two viewports differ at all.
-      expect(measurement.panelFontSize).toBe(measurement.viewport.width === 1920 ? "28.8px" : "21.6px");
+      expect(measurement.panelFontSize).toBe(measurement.viewport.width === 1920 ? "24px" : "18px");
 
       // The lanes are what the chrome is being measured against; a panel that
       // drew no cards would make every figure above meaningless.
