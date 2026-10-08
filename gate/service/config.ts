@@ -150,7 +150,9 @@ export function readConfig(env: Record<string, string | undefined> = process.env
     signingSecret: secret || DEV_SECRET,
     approvalsStoreToken: storeToken || DEV_STORE_TOKEN,
     toolkit: env.ARCADE_TOOLKIT?.trim() || "DealDesk",
-    deadlineMs: Number(env.HOOK_DEADLINE_MS ?? 2500),
+    // 4000 since 2026-10-08, inside Arcade's own 5s: a hook answered through a
+    // tunnel on a room's Wi-Fi measured up to 2.2s, and 2500 failed one closed.
+    deadlineMs: Number(env.HOOK_DEADLINE_MS ?? 4000),
     policyPollMs: Number(env.POLICY_POLL_MS ?? 250),
     grantTtlSeconds: Number(env.GRANT_TTL_SECONDS ?? 900),
     injectionDetection: readScannerSetting(env.INJECTION_DETECTION),

@@ -89,8 +89,14 @@ export type ToolsListed = Extract<SessionTools, { ok: true }>;
 /** It did not, and this is why. */
 export type ToolsUnavailable = Extract<SessionTools, { ok: false }>;
 
-/** A page render should not sit on a cold gateway for a whole turn's worth of time. */
-const LIST_TIMEOUT_MS = 15_000;
+/**
+ * A page render should not sit on a cold gateway for a whole turn's worth of
+ * time. 30s rather than 15s since 2026-10-08: the first listing makes Arcade call
+ * the access hook back through the tunnel, and on a room's Wi-Fi that round
+ * trip was measured at up to 2.2s per check, so a cold list on a slow network
+ * ran past 15s and the page showed an error for a setup that was fine.
+ */
+const LIST_TIMEOUT_MS = 30_000;
 
 export interface SessionToolsOptions {
   config?: IdentitySurface;
