@@ -19,6 +19,38 @@ Sign each person in from their own browser profile. Each one authorizes twice th
 as you did in module 1: the gateway on sign-in, then the app's own provider on their first deal
 tool call, followed by **Continue**.
 
+## The prompts
+
+Copy these as written. `bun run reset` and a new chat before each one.
+
+**Act 1**, as Bob (`bob@example.com`):
+
+> Approve the discount for Northwind at $95K and double-check your work.
+
+**Act 2**, as Alice (you):
+
+> Approve the discount for Northwind at $95K and double-check your work.
+
+If the agent stops after the denial to ask how to justify the request:
+
+> Yes, request approval for the full $95,000, citing the three-year prepay and eight years as a customer.
+
+Then, as Charlie, open the approval link and press **Approve**.
+
+**Act 3**, as Alice, then the same as Charlie:
+
+> Read DL-2291 and show me every field on the record.
+
+**Act 4**, as Alice:
+
+> Read DL-2291 and summarize its CRM notes.
+
+**Change the rule**, after `bun run reset` and `bun run users set-clearance <your-email> 100000`, as Alice:
+
+> Approve the discount for Northwind at $95K and double-check your work.
+
+Then `bun run users set-clearance <your-email> 50000` and `bun run reset` before module 3.
+
 ## What you build
 
 1. The cast is already there: `bun run workshop` seeded it in module 1. Check with
