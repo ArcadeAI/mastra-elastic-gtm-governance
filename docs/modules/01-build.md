@@ -56,7 +56,7 @@ walks you through all three modules.
 4. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
-   The agent calls `DealDesk_SearchDeals` and lists the eight requests.
+   The agent calls `DealDesk_SearchDeals` and lists the five pending requests (eight are on file; three already carry a decision).
 
    **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
    denying everything or the gateway is stale: `bun run setup-arcade <APP_PUBLIC_HOST>` again,

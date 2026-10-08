@@ -33,7 +33,7 @@ one call.
    User Source, the gateway, turns the hooks on, seeds the cast. No pause, no second terminal.
 3. **Minute 15.** `bun run users list`: Alice, Bob, Charlie, Michael.
 4. **Minute 18.** Open the ngrok URL, sign in as Alice, authorize the gateway. Ask
-   *"Which discount requests are pending?"* Eight requests come back through `DealDesk_SearchDeals`.
+   *"Which discount requests are pending?"* Five pending requests come back through `DealDesk_SearchDeals` (eight are on file; three already carry a decision).
 5. **Minute 25.** `bun run studio`, sign in at `localhost:4111/arcade/authorize`, same prompt.
    Same agent, same gateway, every step visible. This is the Mastra half of the story.
 6. **Minute 40.** Checkpoint: name the six tools on the wire. Hand to Arcade.
