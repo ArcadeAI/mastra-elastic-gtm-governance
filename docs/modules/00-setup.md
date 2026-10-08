@@ -89,8 +89,14 @@ That is the whole setup.
 | `Port 3000 is already in use` | another app has it: uncomment `PORT=` in `.env`, set it to `3001`, and run `bun run workshop` again |
 | `bun run reset` says `RESET_TOKEN is unset` | your `.env` predates the workshop writing one: run `bun run workshop` again, which writes it and restarts the app with it, then `bun run reset` |
 | the app logs `authorization challenge requires URL elicitation` | expected, not a failure: a tool needs an authorization this person has not given yet, and the chat shows **Authorize** and **Continue** |
-| the browser shows `MCPClient errored connecting to MCP server`, or the app logs `access FAILED CLOSED … hook budget` | a slow connection: Arcade's call to your laptop through the tunnel took too long, and the hook refuses rather than guess. Reload, or send the message again. On a phone hotspot, expect it now and then |
+| the chat says *tool access policy service could not be reached*, the browser shows `MCPClient errored connecting to MCP server`, or the app logs `access FAILED CLOSED … hook budget` | a slow connection: Arcade's call to your laptop through the tunnel took too long, and the hook refuses rather than guess. Reload, or send the message again. On a phone hotspot, expect it now and then |
 
 Behind at any point in the day: `bun run workshop`, then `bun run reset`.
+
+Catching up to a module's tag: `git fetch --tags --force`, `git checkout <tag>`, `bun install`,
+`bun run workshop`, then `bun run reset`. The hosts move the tags when they ship a fix, and a
+plain `git fetch` keeps the tags you cloned. `bun run workshop` restarts the app, which is what
+makes the reset seed the policy you just checked out: a running app reseeds the one it
+started with.
 
 Working with a coding agent? [`AGENT-PROMPT.md`](./AGENT-PROMPT.md) walks you through all of it.

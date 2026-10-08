@@ -118,7 +118,9 @@ describe("one /access call, one row per governed tool plus one summary", () => {
     // And the allows are there too: a rule that matches nothing has to look
     // different from a rule that permits, which is the whole reason B was not
     // taken.
-    expect(events.filter((e) => e.tool.startsWith("DealDesk.") && e.decision === "allow")).toHaveLength(3);
+    // Since 2026-10-08 an SDR keeps only the two reads: approve, request, deny
+    // and decide are all hidden from the role.
+    expect(events.filter((e) => e.tool.startsWith("DealDesk.") && e.decision === "allow")).toHaveLength(2);
   });
 
   test("the summary row says how many it stands for, and what happened to them", () => {

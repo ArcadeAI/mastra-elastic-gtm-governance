@@ -48,12 +48,16 @@ tool call, followed by **Continue**.
    below starts from that state and a **new chat**.
 3. Run the four acts, in the words `README.md` → Try it out uses:
    - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
-     tool list, and neither is `DealDesk_RequestApproval`: an SDR has nothing to escalate. The
-     agent says it cannot approve and stops. Nothing was refused; the tools were never offered,
-     and Bob never sees a Slack consent. The Access card in `/panel` names both.
+     tool list, and neither is `DealDesk_RequestApproval`: an SDR has nothing to escalate. Nor
+     are `DealDesk_DenyDiscount` and `DealDesk_Decide`: an SDR has no say in a discount either
+     way, so Bob sees only `DealDesk_SearchDeals` and `DealDesk_GetDeal`. The agent says it
+     cannot approve and stops. Nothing was refused; the tools were never offered, and Bob never
+     sees a Slack consent. The Access card in `/panel` names all four.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
      work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
-     calls it, Charlie gets a Slack DM from Alice's own account and the request appears in
+     calls it (it may first stop and ask how to justify the request, citing the risks in the
+     CRM notes; answer *"Yes, request approval for the full $95,000, citing the three-year
+     prepay and eight years as a customer"*), Charlie gets a Slack DM from Alice's own account and the request appears in
      `#deal-desk-approvals` with the link and no buttons, Alice's turn ends. Charlie approves
      on the signed-in page; Alice's retry passes on a single-use grant.
 
@@ -63,7 +67,10 @@ tool call, followed by **Continue**.
      to be a member of your Arcade project (dashboard, your project, Members); the project's
      owner already is ([`docs/faq.md`](../faq.md)).
    - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both
-     come back `[REDACTED]`. As Charlie they come through.
+     come back `[REDACTED]`. As Charlie they come through. Show it on the `DealDesk_GetDeal`
+     card in each chat, opened: it is the result exactly as the model received it after
+     `/post`. The model often declines to quote a bank account or tax ID even for Charlie, so
+     its sentence can read the same for both; the card, and `/panel`'s Post lane, do not.
    - **Act 4.** Any read of DL-2291 strips the pasted instruction from `crm_notes` before the
      model sees it, for everyone. `INJECTION_DETECTION=off` shows what was prevented.
 4. Edit a rule live. Raise Alice's clearance with `bun run users set-clearance` and watch the

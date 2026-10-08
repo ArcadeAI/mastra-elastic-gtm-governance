@@ -22,11 +22,14 @@ file on your disk. There is no hosted policy store and nothing to sign up for.
 Every rule lives in `policies/governance.json`, keyed on `$TOOLKIT`, which `ARCADE_TOOLKIT`
 fills in (`DealDesk`). Three of them carry the workshop, one per hook:
 
-1. **`/hooks/access` — `access.analysts-cannot-see-approve`** and
-   **`access.sdr-cannot-request-approval`.** An SDR does not see `ApproveDiscount` or
-   `RequestApproval` in the tool list at all. A tool that is not offered cannot be called,
-   and the model never has to be told not to. The second rule is why Bob's agent never
-   reaches a Slack consent: an SDR has no discount decision to escalate.
+1. **`/hooks/access` — `access.analysts-cannot-see-approve`,
+   `access.sdr-cannot-request-approval`, `access.sdr-cannot-deny` and
+   `access.sdr-cannot-decide`.** An SDR sees only `SearchDeals` and `GetDeal`:
+   `ApproveDiscount`, `RequestApproval`, `DenyDiscount` and `Decide` are not in the tool list
+   at all. A tool that is not offered cannot be called, and the model never has to be told
+   not to. The request rule is why Bob's agent never reaches a Slack consent; the deny and
+   decide rules are why it cannot decline a discount, or try to decide a request, once the
+   approval is out of reach. An SDR has no say in a discount either way.
 2. **`/hooks/pre` — `pre.approve-within-clearance`.** An account executive with $50K of
    authority asking to approve $95K is refused before the call runs, and the refusal tells
    the model what to do instead: `DealDesk_RequestApproval`. That is act 2.
