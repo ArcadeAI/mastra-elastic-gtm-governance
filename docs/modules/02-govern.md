@@ -55,8 +55,17 @@ All four acts on your own deployment, and one rule edited live.
 
 ## If you are behind
 
-Still `git checkout start`. Module 2 is Arcade state, not code: users, hooks on, Slack.
-`bun run reset` puts the deal book and the control plane back between attempts.
+Module 2 is Arcade state, not code: users, hooks on, Slack. Three commands, each safe to run
+again, put all of it in place and bring you to act 1:
+
+    bun run setup-arcade <APP_PUBLIC_HOST>
+    bun run users seed-demo --alice <your-email> --charlie <the host's approver email> --bob bob@example.com --michael michael@example.com --password <one you choose>
+    bun run reset
+
+The first checks every registration and fills in only what is missing; the second keeps anyone
+who already exists; the third puts the deal book and the control plane back. `bun run reset`
+keeps a real user's clearance as it is, so after raising Alice's, put it back yourself:
+`bun run users set-clearance <your-email> 50000`.
 
 ## Handoff
 
