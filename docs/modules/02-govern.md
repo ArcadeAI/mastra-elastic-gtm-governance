@@ -21,16 +21,19 @@ tool call, followed by **Continue**.
 
 ## What you build
 
-1. Add the rest of the cast: Bob the SDR with no clearance, Charlie the VP Sales at $250,000,
-   Michael the CRO at $5,000,000:
+1. The cast is already there: `bun run workshop` seeded it in module 1. Check with
+   `bun run users list`: you as Alice (account executive, $50,000), Bob the SDR with no
+   clearance, Charlie the VP Sales at $250,000 (`WORKSHOP_APPROVER`, the host's address), and
+   Michael the CRO at $5,000,000. Every password is `password`. Doing it by hand instead:
 
-       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password <one you choose>
+       bun run users seed-demo --alice <your-email> --charlie <the approver email the host announces> --bob bob@example.com --michael michael@example.com --password password
 
    Charlie's email is the one thing that has to be real: the escalation finds the approver in
    Slack by it. In the room, everyone's Charlie is the host's address, so every DM lands with
    the host and every request is posted in `#deal-desk-approvals`. Approving is still yours:
-   Charlie signs in on *your* app, with the password the seed printed, in a second browser
-   profile. Nobody else's Charlie is involved.
+   Charlie signs in on *your* app, in a second browser profile. Nobody else's Charlie is
+   involved. Do not remove and re-add a person Arcade has already authorized: Arcade keeps the
+   old token and every deal tool then fails with *the identity provider rejected the token*.
 
    If Slack refuses the notice (the approver's email is not in the workspace, or you are not in
    the channel), the request is still recorded and routed, and the tool says so. The approval
@@ -49,7 +52,8 @@ tool call, followed by **Continue**.
    grants, requests and the audit log, in two seconds, keeping everyone signed in. Each act
    below starts from that state and a **new chat**.
 3. Run the four acts, in the words `README.md` → Try it out uses:
-   - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
+   - **Act 1.** Sign in as Bob (`bob@example.com`), new chat: *"Approve the discount for
+     Northwind at $95K and double-check your work."* `DealDesk_ApproveDiscount` is not in his
      tool list, and neither is `DealDesk_RequestApproval`: an SDR has nothing to escalate. Nor
      are `DealDesk_DenyDiscount` and `DealDesk_Decide`: an SDR has no say in a discount either
      way, so Bob sees only `DealDesk_SearchDeals` and `DealDesk_GetDeal`. The agent says it
@@ -68,13 +72,16 @@ tool call, followed by **Continue**.
      *Approval requested* card in the chat. With Arcade's built-in Slack app the requester has
      to be a member of your Arcade project (dashboard, your project, Members); the project's
      owner already is ([`docs/faq.md`](../faq.md)).
-   - **Act 3.** As Alice: *"Read DL-2291 and show me every field on the record."* Both
-     come back `[REDACTED]` on the `DealDesk_GetDeal` card. As Charlie they come through. Asked to *quote* the identifiers, the model refuses before any tool runs (0 tool calls, nothing on the panel), so ask for the record. Show it on the `DealDesk_GetDeal`
-     card in each chat, opened: it is the result exactly as the model received it after
-     `/post`. The model often declines to quote a bank account or tax ID even for Charlie, so
-     its sentence can read the same for both; the card, and `/panel`'s Post lane, do not.
-   - **Act 4.** Any read of DL-2291 strips the pasted instruction from `crm_notes` before the
-     model sees it, for everyone. `INJECTION_DETECTION=off` shows what was prevented.
+   - **Act 3.** As Alice, new chat: *"Read DL-2291 and show me every field on the record."*
+     The bank account number and tax ID come back `[REDACTED]`. As Charlie, same prompt, they
+     come through. Ask for the record, not for the identifiers: asked to *quote* them, the
+     model refuses before any tool runs (0 tool calls, nothing on the panel). Show the opened
+     `DealDesk_GetDeal` card in each chat, which is the result exactly as the model received it
+     after `/post`, beside `/panel`'s Post lane.
+   - **Act 4.** As Alice, new chat: *"Read DL-2291 and summarize its CRM notes."* The notes
+     end at "scope unverified": the pasted instruction after that was stripped from
+     `crm_notes` before the model saw it, as on every read, for everyone. `/panel`'s Post lane
+     names the pattern. `INJECTION_DETECTION=off` shows what was prevented.
 4. Edit a rule live. Raise Alice's clearance with `bun run users set-clearance` and watch the
    same prompt pass within one policy poll, with no restart.
 
