@@ -42,20 +42,26 @@ walks you through all three modules.
 1. Install and configure: the README's Quickstart steps 1 to 3. Three values in `.env`:
    `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`, `APP_PUBLIC_HOST`. A fourth for the room:
    `SLACK_APPROVALS_CHANNEL=C0C83CW2CDN`, the workspace's `#deal-desk-approvals`, so every approval
-   request you raise in module 2 is posted where everyone sees it.
-2. Register with Arcade: `bun run setup-arcade <APP_PUBLIC_HOST>`. It runs one `arcade deploy`
+   request you raise in module 2 is posted where everyone sees it. A fifth, because every
+   "Behind?" below leans on `bun run reset`: uncomment `RESET_TOKEN=` and give it any value
+   (`bun run workshop` writes one for you; by hand, you do).
+2. Start the app and the tunnel, in a terminal you leave open: `bun run up`. It serves the app
+   on port 3000 and ngrok on your `APP_PUBLIC_HOST`; Ctrl-C stops both. Arcade reaches the
+   hooks through that tunnel, so this comes before the registration.
+3. Register with Arcade: `bun run setup-arcade <APP_PUBLIC_HOST>`. It runs one `arcade deploy`
    (`mcp`: the Deals, Approvals and Elasticsearch tools together), mints the OAuth clients, registers the identity provider and the hooks, and
    creates the gateway. Read what it prints; every name it reports is a name a rule is
    keyed on later.
 
    **Behind?** Run it again. It checks every registration and fills in only what is missing,
    and it never creates a second gateway or rotates a client it did not mint.
-3. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000 --password <one you choose>`.
-   Without `--password` the seed prints a random one once, and a room loses those.
+4. Add yourself: `bun run users add <your-email> --name Alice --role account_executive --clearance 50000 --password password`.
+   The same password as every other persona in the room; without `--password` the command
+   prints a random one once, and a room loses those.
 
    **Behind?** `bun run users list` shows who exists; `users add` refuses a duplicate and changes
    nothing, so it is safe to run twice.
-4. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
+5. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
    The agent calls `DealDesk_SearchDeals` and lists the five pending requests (eight are on file; three already carry a decision).
@@ -63,7 +69,7 @@ walks you through all three modules.
    **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
    denying everything or the gateway is stale: `bun run setup-arcade <APP_PUBLIC_HOST>` again,
    then `bun run reset`, then restart `bun run up`.
-5. Open Studio: `bun run studio`, sign in as Alice at `localhost:4111/arcade/authorize`, then
+6. Open Studio: `bun run studio`, sign in as Alice at `localhost:4111/arcade/authorize`, then
    open `localhost:4111`, select the **deal-desk** agent and send the same prompt. Same agent,
    same gateway, every step visible. This step is the module's checkpoint, not an extra.
 
