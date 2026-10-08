@@ -95,6 +95,7 @@ The internals live in `docs/`, one page per question:
 - [`auth/PROVIDERS.md`](./auth/PROVIDERS.md): the three identities and what each needs in the Arcade dashboard: the User Source, the custom `app-identity` provider for the loan API, Slack.
 - [`api/`](./api/server.ts): the loan REST API, the bank's system of record, served under `/bank`.
 - [`elastic/README.md`](./elastic/README.md): the Elastic module, Elasticsearch through the same gateway and the same hooks.
+- [`docs/modules/00-setup.md`](./docs/modules/00-setup.md): what to install and sign up for before the workshop, and the one command that sets everything up.
 - [`docs/modules/01-build.md`](./docs/modules/01-build.md): the workshop, paced by tags. `start` for modules 1 and 2, `module-3-ground` for Elastic, `capstone` for the finish; each module page says what you build, what to look at, and where to pick up if you are behind. Pacing a workshop with tags is Mateo Torres's method, from his [tool-building workshop](https://github.com/ArcadeAI/tool-building-workshop).
 - [`app/walkthrough/page.tsx`](./app/walkthrough/page.tsx): `/walkthrough`, the four acts as five diagrams from Arcade's outreach library with one line each, for the livestream and the recap.
 - [`docs/DOMAIN-SWAP.md`](./docs/DOMAIN-SWAP.md) walks through pointing the template at your own business system.

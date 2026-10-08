@@ -8,16 +8,8 @@ and watched it in Mastra Studio.
 
 ## Before the workshop
 
-Four things, each one signup, all with the **same email**:
-
-- An [Arcade](https://api.arcade.dev/dashboard) account and one project in it, with an API key. The project is yours; everything the
-  workshop registers lands there.
-- The Slack invite the host sent, to the workshop workspace. Accept it with the same email. The escalation in
-  module 2 is sent from your own Slack account, so you have to be in the workspace.
-- An [ngrok](https://ngrok.com) account and its free static domain. Arcade reaches your laptop through it.
-- An [Elastic Serverless](https://ela.st/arcade) account, for module 3.
-
-The Anthropic key is the host's, shared in the room.
+[`00-setup.md`](./00-setup.md): the tools, the four accounts on one email, the repo, the six
+`.env` lines, and `bun run workshop`. Done before you arrive.
 
 **Before the first command, check five things:** `arcade whoami` shows your project; `ngrok config check`
 passes and you know your static domain; you can open the Slack workspace; `bun --version` prints;
