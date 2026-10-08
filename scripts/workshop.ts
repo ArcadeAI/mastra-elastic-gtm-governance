@@ -3,6 +3,7 @@
  *
  * Reads `.env` and does, in order:
  *
+ *   0. writes a RESET_TOKEN to `.env` if it is blank, so `bun run reset` works;
  *   1. starts the app and the tunnel (`bun run up`), and waits until the app answers
  *      through the tunnel;
  *   2. `bun run setup-arcade <APP_PUBLIC_HOST>`, answering its one pause itself: the
@@ -24,6 +25,8 @@
 
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+
+import { fillBlanks, readEnvFile, writeEnvFile } from "./setup-arcade/env-file.ts";
 
 const env = process.env;
 const host = (env.APP_PUBLIC_HOST ?? "").trim();
@@ -50,6 +53,21 @@ if (missing.length > 0) {
 }
 
 const say = (line: string) => console.log(`\n[workshop] ${line}`);
+
+// `bun run reset`, which every module page uses between acts, needs RESET_TOKEN on the
+// app and in this .env, and the app only mounts the reset routes when it starts with
+// one. Blank is the template's safe default for a deployment; on a workshop laptop it
+// is minted here, once, blanks only, before the app starts, so the first reset works.
+if ((env.RESET_TOKEN ?? "").trim() === "") {
+  const envPath = new URL("../.env", import.meta.url).pathname;
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => b.toString(16).padStart(2, "0")).join("");
+  const text = readEnvFile(envPath);
+  // `.env.example` ships it commented out: uncomment that line where it stands.
+  const commented = /^# ?RESET_TOKEN=\s*$/m;
+  writeEnvFile(envPath, commented.test(text) ? text.replace(commented, `RESET_TOKEN=${token}`) : fillBlanks(text, { RESET_TOKEN: token }).text);
+  env.RESET_TOKEN = token;
+  say("RESET_TOKEN was blank: wrote one to .env, so `bun run reset` works");
+}
 
 function run(label: string, cmd: string[], input?: string, extra: Record<string, string> = {}): Promise<number> {
   return new Promise((resolve) => {

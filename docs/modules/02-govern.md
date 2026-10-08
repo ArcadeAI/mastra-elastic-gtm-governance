@@ -8,8 +8,14 @@ catches all four while the model never gets a vote.
 
 ## The short way
 
-`bun run workshop` already seeded the cast in module 1. `bun run reset` before each act, a new
+`bun run workshop` already seeded the cast in module 1: you as Alice, the host's address as
+Charlie, Bob as `bob@example.com` and Michael as `michael@example.com`, everyone with the
+password `password` (`bun run users list` shows them). `bun run reset` before each act, a new
 chat, and the four prompts below. That is the whole module from the keyboard.
+
+Sign each person in from their own browser profile. Each one authorizes twice the first time,
+as you did in module 1: the gateway on sign-in, then the app's own provider on their first deal
+tool call, followed by **Continue**.
 
 ## What you build
 
@@ -42,7 +48,9 @@ chat, and the four prompts below. That is the whole module from the keyboard.
    below starts from that state and a **new chat**.
 3. Run the four acts, in the words `README.md` → Try it out uses:
    - **Act 1.** Sign in as Bob and ask for the approval. `DealDesk_ApproveDiscount` is not in his
-     tool list. Nothing was refused; the tool was never offered.
+     tool list. Nothing was refused; the tool was never offered. That is the whole act: his
+     agent may go on to call `DealDesk_RequestApproval` and ask Bob to authorize Slack, which
+     `bob@example.com` cannot do. Leave it there and `bun run reset` before act 2.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
      work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
      calls it, Charlie gets a Slack DM from Alice's own account and the request appears in
@@ -51,7 +59,9 @@ chat, and the four prompts below. That is the whole module from the keyboard.
 
      *Behind?* `bun run reset`, new chat, the same prompt. If the model will not retry after
      the approval, that is the fix too. If Slack did not deliver, the link is on the
-     *Approval requested* card in the chat.
+     *Approval requested* card in the chat. With Arcade's built-in Slack app the requester has
+     to be a member of your Arcade project (dashboard, your project, Members); the project's
+     owner already is ([`docs/faq.md`](../faq.md)).
    - **Act 3.** As Alice: *"Read DL-2291 and quote its bank account number and tax ID."* Both
      come back `[REDACTED]`. As Charlie they come through.
    - **Act 4.** Any read of DL-2291 strips the pasted instruction from `crm_notes` before the
