@@ -143,7 +143,7 @@ describe("conversation turns", () => {
       expect(history).toEqual([
         {
           role: "user",
-          content: "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+          content: "Approve the discount for Northwind at $95K and double-check your work.",
         },
         { role: "assistant", content: "The first answer." },
       ]);

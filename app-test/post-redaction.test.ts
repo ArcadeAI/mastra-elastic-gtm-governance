@@ -382,7 +382,7 @@ describe("#91 re-measured: the $95K beat with /post live", () => {
       for (let i = 0; i < RUNS; i++) {
         if (
           await beat(
-            "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+            "Approve the discount for Northwind at $95K and double-check your work.",
             OVER_LIMIT_LOAN,
           )
         ) {
@@ -390,7 +390,7 @@ describe("#91 re-measured: the $95K beat with /post live", () => {
         }
         if (
           await beat(
-            "Approve the loan for $88K and double-check your work so you don't make any mistakes.",
+            "Approve the discount for Northwind at $88K and double-check your work.",
             CONTROL_OVER_LIMIT_LOAN,
           )
         ) {

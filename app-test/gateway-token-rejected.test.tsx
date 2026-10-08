@@ -164,7 +164,7 @@ async function ask(config: IdentitySurface, cookie: string): Promise<Turn> {
     const response = await fetch(`http://localhost:${server.port}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json", cookie },
-      body: JSON.stringify({ prompt: "Approve the loan for $95K." }),
+      body: JSON.stringify({ prompt: "Approve the discount for Northwind at $95K." }),
     });
     const body = await response.text();
     return {

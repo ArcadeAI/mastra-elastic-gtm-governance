@@ -245,7 +245,7 @@ function samePersona(requesterId: string, signedInAs: string | null): boolean {
 
 export function Chat({ signedInAs, approvalStreamUrl = null, sessionStale = false }: ChatProps) {
   const [prompt, setPrompt] = useState(
-    "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+    "Approve the discount for Northwind at $95K and double-check your work.",
   );
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [running, setRunning] = useState(false);

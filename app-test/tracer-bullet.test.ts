@@ -54,7 +54,7 @@ const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;
 
 /** The prompt #14 names, verbatim. */
 const DEMO_PROMPT =
-  "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
+  "Approve the discount for Northwind at $95K and double-check your work.";
 
 let harness: AgentHarness;
 /** The chat route behind a real server, so the suite drives HTTP rather than a function. */
@@ -365,7 +365,7 @@ describe("the control: the same beat on a loan act 4 has not poisoned", () => {
   beforeAll(async () => {
     result = await turn({
       cookie: await browserFor(DANA),
-      prompt: `Approve the loan for $88K and double-check your work so you don't make any mistakes.`,
+      prompt: `Approve the discount for Northwind at $88K and double-check your work.`,
       script: [
         { call: "DealDesk_SearchDeals", input: { min_amount: 87000, max_amount: 89000 } },
         { call: "DealDesk_GetDeal", input: { deal_id: CONTROL_OVER_LIMIT_LOAN } },
@@ -485,7 +485,7 @@ describe("#89 measured: the model acts on the remediation instruction", () => {
         const before = harness.calls.length;
         await turn({
           cookie: await browserFor(DANA),
-          prompt: "Approve the loan for $88K and double-check your work so you don't make any mistakes.",
+          prompt: "Approve the discount for Northwind at $88K and double-check your work.",
           script: [{ say: "unused" }],
         });
         const calls = harness.calls.slice(before);

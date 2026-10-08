@@ -64,7 +64,7 @@ const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveDiscount`;
 
 /** #14's prompt, on the loan act 2 is written around. */
 const DEMO_PROMPT =
-  "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
+  "Approve the discount for Northwind at $95K and double-check your work.";
 
 let harness: AgentHarness;
 let web: ReturnType<typeof Bun.serve>;

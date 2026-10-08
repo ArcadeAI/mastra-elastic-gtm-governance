@@ -62,7 +62,7 @@ const outDir = resolve(flag("out"));
 const paceMs = Number(flag("pace-ms", "450"));
 const VIEWPORT = { width: 1440, height: 900 } as const;
 const REPO = resolve(import.meta.dir, "..");
-const DEMO_PROMPT = "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
+const DEMO_PROMPT = "Approve the discount for Northwind at $95K and double-check your work.";
 const APPROVE_LOAN = `${LOAN_TOOLKIT}_ApproveDiscount`;
 const GET_LOAN = `${LOAN_TOOLKIT}_GetDeal`;
 

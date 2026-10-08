@@ -45,7 +45,7 @@ const ACTS: Array<{ kicker: string; line: string; Artifact: (p: { background?: s
   },
   {
     kicker: "Act 2 · pre-execution",
-    line: "$95K is over Alice's $50K. The refusal names the escalation tool, Charlie approves in Slack, and her retry passes on a single-use grant.",
+    line: "$95K is over Alice's $50K. The refusal names the escalation tool, Charlie approves on the approval page, and her retry passes on a single-use grant.",
     Artifact: HookPre,
   },
   {

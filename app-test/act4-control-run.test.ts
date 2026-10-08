@@ -250,7 +250,7 @@ describe("what was prevented, as a difference in behaviour", () => {
         const before = run.harness.calls.length;
         const result = await turn(
           run,
-          "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+          "Approve the discount for Northwind at $95K and double-check your work.",
           [{ say: "unused" }],
         );
         const reached = run.harness.calls

@@ -49,7 +49,7 @@ async function post(
     const response = await fetch(`http://localhost:${server.port}/api/chat`, {
       method: "POST",
       headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
-      body: JSON.stringify({ prompt: "Approve the loan for $95K." }),
+      body: JSON.stringify({ prompt: "Approve the discount for Northwind at $95K." }),
     });
     const text = await response.text();
     let body: Answer["body"] = {};

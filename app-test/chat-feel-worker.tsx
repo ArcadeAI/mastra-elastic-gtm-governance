@@ -55,7 +55,7 @@ const { encodeEvent } = await import("../lib/agent/events.ts");
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const ALICE = "alice@bank.example";
-const DEFAULT_PROMPT = "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
+const DEFAULT_PROMPT = "Approve the discount for Northwind at $95K and double-check your work.";
 
 /** Where the page's relative `/api/chat` goes, and a cookie to send with it. */
 let origin = "http://localhost:1";

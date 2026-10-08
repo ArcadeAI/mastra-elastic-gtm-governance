@@ -103,7 +103,7 @@ const HYDRATION_DELAY_MS = Number(process.env.CG_HYDRATION_DELAY_MS ?? "0");
  * — whose `preventDefault` lives in React — submits natively. Holding the
  * client chunks back makes that certain; the failure state is exact:
  *
- *     {"prompt":"Approve the loan for $95K and double-check your work…",
+ *     {"prompt":"Approve the discount for Northwind at $95K and double-check your work.",
  *      "documentReplaced":true,"screenHydrated":true,
  *      "navigationEntries":["http://127.0.0.1:51472/?"]}
  *
@@ -345,7 +345,7 @@ test.skipIf(chromeResolution.path === null && !REQUIRED)(
           return { textarea: textarea.value, assistants: document.querySelectorAll('[data-role="assistant"]').length };
         })()`,
       );
-      expect(initialState.textarea).toContain("Approve the loan for $95K");
+      expect(initialState.textarea).toContain("Approve the discount for Northwind at $95K");
       await evaluate<void>(
         cdp,
         `(() => {

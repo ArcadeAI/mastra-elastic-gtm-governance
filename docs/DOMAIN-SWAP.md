@@ -462,7 +462,7 @@ the leftover this guide exists to prevent.
 | | |
 |---|---|
 | `app/chat/page.tsx` | the page heading, `Deals operations` |
-| `components/chat/Chat.tsx` | the placeholder prompt (`Approve the loan for $95K…`) and a denial caption naming the deal book |
+| `components/chat/Chat.tsx` | the placeholder prompt (`Approve the discount for Northwind at $95K…`) and a denial caption naming the deal book |
 | `components/governance/ControlPlaneStatus.tsx` | the Reset confirmation, which names `loans.db` |
 | `lib/governance/control-plane.ts` | the Reset result sentence |
 

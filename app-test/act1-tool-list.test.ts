@@ -42,7 +42,7 @@ const TURN_TIMEOUT_MS = LIVE_KEY ? 240_000 : 30_000;
 
 /** The prompt the demo is built on, verbatim — the same one #14 drives as Alice. */
 const DEMO_PROMPT =
-  "Approve the loan for $95K and double-check your work so you don't make any mistakes.";
+  "Approve the discount for Northwind at $95K and double-check your work.";
 
 /** `DealDesk.ApproveDiscount` in the hook frame's spelling; `DealDesk_ApproveDiscount` on the wire. */
 const APPROVE_WIRE = "DealDesk_ApproveDiscount";

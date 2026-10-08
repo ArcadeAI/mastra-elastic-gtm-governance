@@ -151,7 +151,7 @@ describe("a Deals tool that needs authorizing, in Studio", () => {
     const script = scriptedModel([{ call: "DealDesk_ApproveDiscount", input: { deal_id: OVER_LIMIT_LOAN, amount: 95_000 } }, { say: "Noted." }]);
     const agent = studioAgent({ port: 4999 });
     agent.__updateModel({ model: script.model as never });
-    const streamed = await agent.stream("Approve the loan for $95K.");
+    const streamed = await agent.stream("Approve the discount for Northwind at $95K.");
     const outcomes: Array<{ type: string; shown: string }> = [];
     for await (const chunk of streamed.fullStream as AsyncIterable<{ type: string; payload: Record<string, unknown> }>) {
       if (chunk.payload?.toolName === "DealDesk_ApproveDiscount" && /^tool-(error|result)$/.test(chunk.type)) {

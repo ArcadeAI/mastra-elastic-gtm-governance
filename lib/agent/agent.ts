@@ -33,7 +33,7 @@
  *   back, and the review was right to name both.
  *
  * What is left is only what the model could not otherwise know: who it is
- * acting for, what its tools are for, that a request naming a loan by amount
+ * acting for, what its tools are for, that a request naming a deal by amount
  * can be resolved by searching, and that a report should quote rather than
  * paraphrase. Nothing about refusing, escalating, retrying or confirming.
  * Nothing about whether to make a call at all.
@@ -84,7 +84,7 @@ import { Agent } from "@mastra/core/agent";
 import { createAnthropic } from "@ai-sdk/anthropic";
 
 /**
- * What the model is told: role, tools, how a loan gets named, how to report.
+ * What the model is told: role, tools, how a request gets named, how to report.
  *
  * Read the header before changing it. Every sentence here is a fact the model
  * could not otherwise know; none of them is an instruction about whether or how

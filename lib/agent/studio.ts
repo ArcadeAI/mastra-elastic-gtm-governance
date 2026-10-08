@@ -482,7 +482,7 @@ function authorizationText(tool: string, url: string | undefined, webUiOrigin: s
   }
   return (
     `${tool} did not run: Arcade needs you to authorize the ${toolkit} toolkit first, and sent Studio no link to show. ` +
-    `Authorize it in the web UI: open ${webUiOrigin}, sign in as the same person, ask for a loan, and authorize when the chat asks. ` +
+    `Authorize it in the web UI: open ${webUiOrigin}, sign in as the same person, ask for a discount approval, and authorize when the chat asks. ` +
     "Then send your message here again."
   );
 }

@@ -7,9 +7,9 @@ call. It is cut from the stage demo `ArcadeAI-labs/mastra-contextual-governance`
 reshaped into **one TypeScript app plus the two Python toolkits**, so a developer can run it
 from Mastra's Quickstart.
 
-**The story is act 2.** A account executive asks the agent to approve a $95K loan. The control
+**The story is act 2.** An account executive asks the agent to approve a $95K discount. The control
 plane refuses it as over her limit and routes it to the one approver with enough authority,
-who approves in Slack, and her retry succeeds. The model never gets a vote. Acts 1, 3 and 4
+who approves from the link Slack delivers, and her retry succeeds. The model never gets a vote. Acts 1, 3 and 4
 still run, and every policy that drives them stays in force. They are not what the README,
 the Studio first run or the demo video lead with.
 

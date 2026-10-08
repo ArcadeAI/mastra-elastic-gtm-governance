@@ -332,7 +332,7 @@ describe("a turn that ends waiting", () => {
     // One POST. No second request, no poll, no timer — the turn is over.
     expect(harness.posts).toHaveLength(1);
     expect(harness.posts[0]).toEqual({
-      prompt: "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+      prompt: "Approve the discount for Northwind at $95K and double-check your work.",
     });
 
     // And a full second of doing nothing stays nothing.
@@ -390,7 +390,7 @@ describe("approval.granted starts the next turn", () => {
     const resume = harness.posts[1]?.resume as Record<string, unknown>;
     expect(resume?.request_id).toBe(REQUEST_ID);
     // Context, and only context: the turn that ended waiting.
-    expect(resume?.prompt).toContain("Approve the loan for $95K");
+    expect(resume?.prompt).toContain("Approve the discount for Northwind at $95K");
     expect(String(resume?.reply)).toContain("Approval requested from Charlie");
     // Nothing this browser could have made up about the decision itself.
     expect(Object.keys(resume ?? {}).sort()).toEqual(["prompt", "reply", "request_id"]);
@@ -407,7 +407,7 @@ describe("approval.granted starts the next turn", () => {
     expect(harness.posts[2]?.history).toEqual([
       {
         role: "user",
-        content: "Approve the loan for $95K and double-check your work so you don't make any mistakes.",
+        content: "Approve the discount for Northwind at $95K and double-check your work.",
       },
       { role: "assistant", content: "Approval requested from Charlie, VP Sales. Waiting." },
       { role: "user", content: RESUME_MESSAGE },
