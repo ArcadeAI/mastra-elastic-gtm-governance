@@ -18,7 +18,7 @@ No Python setup of your own: the Arcade CLI brings what the one deploy needs.
 
 ## 2. Accounts, one email
 
-1. **Arcade.** Sign up at [api.arcade.dev](https://api.arcade.dev/dashboard), create a
+1. **Arcade.** Sign up at [arcade.dev/free](https://arcade.dev/free), create a
    project of your own (not the default), create an API key in it. Then in a terminal:
 
        arcade login
