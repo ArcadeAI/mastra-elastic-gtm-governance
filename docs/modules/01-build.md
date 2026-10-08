@@ -26,15 +26,16 @@ minutes, so this is the host's first question to the room.
 
 ## The short way
 
-Copy `.env.example` to `.env` and fill seven lines: `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`,
+Copy `.env.example` to `.env` and fill six lines: `ANTHROPIC_API_KEY`, `ARCADE_API_KEY`,
 `APP_PUBLIC_HOST`, `SLACK_APPROVALS_CHANNEL`, `WORKSHOP_EMAIL` (you), `WORKSHOP_APPROVER` (the
-address the host announces), `WORKSHOP_PASSWORD` (one you choose). Then:
+address the host announces). Then:
 
     bun run workshop
 
 It starts the app and the tunnel, registers everything with Arcade in one `arcade deploy`,
 seeds the cast, and leaves the app running. About four minutes the first time, under a
-minute after. Open the URL it prints, sign in as yourself, authorize the gateway once. Behind
+minute after. Open the URL it prints, sign in as yourself with the password `password` (every
+persona's, on your laptop only), authorize the gateway once. Behind
 at any point in the day: run it again, then `bun run reset`.
 
 The steps below are what it does, one at a time, for anyone who wants to see each piece.

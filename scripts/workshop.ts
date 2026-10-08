@@ -9,8 +9,9 @@
  *      deploy, the provider, the hooks, the User Source, the gateway, the hooks on.
  *      With `ELASTIC_MODULE=on` that same run uploads the Elastic secrets and adds
  *      the 26 tools to the gateway;
- *   3. the demo cast, from `WORKSHOP_EMAIL` (you, Alice), `WORKSHOP_APPROVER`
- *      (Charlie, the host's address) and `WORKSHOP_PASSWORD`; anyone who exists is kept;
+ *   3. the demo cast, from `WORKSHOP_EMAIL` (you, Alice) and `WORKSHOP_APPROVER`
+ *      (Charlie, the host's address), password `WORKSHOP_PASSWORD` or "password";
+ *      anyone who exists is kept;
  *   4. with `ELASTIC_MODULE=on`, `bun run seed:elastic`;
  *
  * then leaves the app and the tunnel running in this terminal. Ctrl-C stops both.
@@ -27,7 +28,8 @@ const env = process.env;
 const host = (env.APP_PUBLIC_HOST ?? "").trim();
 const me = (env.WORKSHOP_EMAIL ?? "").trim();
 const approver = (env.WORKSHOP_APPROVER ?? "").trim();
-const password = (env.WORKSHOP_PASSWORD ?? "").trim();
+// The cast's one password on this laptop's own sign-in and nowhere else: "password" unless set.
+const password = (env.WORKSHOP_PASSWORD ?? "").trim() || "password";
 const elastic = ["on", "true", "yes", "1"].includes((env.ELASTIC_MODULE ?? "").trim().toLowerCase());
 
 const missing = [
@@ -36,7 +38,6 @@ const missing = [
   ["APP_PUBLIC_HOST", host],
   ["WORKSHOP_EMAIL", me],
   ["WORKSHOP_APPROVER", approver],
-  ["WORKSHOP_PASSWORD", password],
 ].filter(([, value]) => !(value ?? "").trim()).map(([key]) => key);
 if (missing.length > 0) {
   console.error(`workshop: fill these in .env first: ${missing.join(", ")}`);
@@ -100,5 +101,5 @@ if (elastic) {
   if (seeded !== 0) console.error("[workshop] the Elastic seed did not finish; see above. The rest is ready.");
 }
 
-say(`ready. Open https://${host}, sign in as ${me} with your password, authorize the gateway once.`);
+say(`ready. Open https://${host}, sign in as ${me}, password "${password}", and authorize the gateway once.`);
 say("Behind later? Run this again, then `bun run reset`. Ctrl-C stops the app and the tunnel.");

@@ -11,7 +11,8 @@ Every command here is one the room runs too, so when you type, they type.
       bun run workshop
       bun run reset
 
-  (`workshop` needs seven lines in `.env`; module 1 → The short way lists them.)
+  (`workshop` needs six lines in `.env`; module 1 → The short way lists them. Every persona's
+  password is `password`, on each laptop's own sign-in only.)
 
 - The host's approver email on the same slide. Every attendee's Charlie is that address.
 - The Slack invite accepted by every speaker, `#deal-desk-approvals` open on the host's screen.
