@@ -89,7 +89,7 @@ That is the whole setup.
 | `bun install` ends with `Failed to install N packages` | run `bun install` again; it fetches only what is missing |
 | an `arcade` command says `Failed to refresh token … 400 Bad Request`, while `arcade login` says you are already logged in | the saved session is stale: `arcade logout && arcade login` |
 | `Port 3000 is already in use` | another app has it: uncomment `PORT=` in `.env`, set it to `3001`, and run `bun run workshop` again |
-| `bun run reset` says `RESET_TOKEN is unset` | your `.env` predates the workshop writing one: run `bun run workshop` again, which writes it and restarts the app with it, then `bun run reset` |
+| `bun run reset` says `RESET_TOKEN is unset` | the app started before `.env` had a token: Ctrl-C it, `bun run up` (or `bun run workshop`) again, which writes one and starts the app with it, then `bun run reset` |
 | the app logs `authorization challenge requires URL elicitation` | expected, not a failure: a tool needs an authorization this person has not given yet, and the chat shows **Authorize** and **Continue** |
 | the chat says *tool access policy service could not be reached*, the browser shows `MCPClient errored connecting to MCP server`, or the app logs `access FAILED CLOSED … hook budget` | a slow connection: Arcade's call to your laptop through the tunnel took too long, and the hook refuses rather than guess. Reload, or send the message again. On a phone hotspot, expect it now and then |
 
