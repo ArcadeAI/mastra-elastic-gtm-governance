@@ -96,10 +96,7 @@ That is the whole setup.
 Behind at any point in the day: `bun run workshop`, then `bun run reset`.
 
 Catching up to a module's tag: `git fetch --tags --force`, `git checkout <tag>`, `bun install`,
-`bun run workshop`, then `bun run reset`. The hosts move the tags when they ship a fix, and a
-plain `git fetch` keeps the tags you cloned. `bun run workshop` restarts the app, which is what
-makes the reset seed the policy you just checked out: a running app reseeds the one it
-started with.
+`bun run workshop`, then `bun run reset`, in that order.
 
 Working with a coding agent? [`AGENT-PROMPT.md`](./AGENT-PROMPT.md) walks you through all of it.
 

@@ -91,8 +91,7 @@ You can name the six tools on the wire (`DealDesk_SearchDeals`, `DealDesk_GetDea
 ## If you are behind
 
 Nothing in this module changes the code. `git fetch --tags --force && git checkout start` is
-the whole state (the tag moves when the hosts ship a fix); the work
-is the Arcade registration, and `bun run setup-arcade` is idempotent, so run it again.
+the whole state; the work is the Arcade registration, and `bun run setup-arcade` is idempotent, so run it again.
 
 ## Handoff
 

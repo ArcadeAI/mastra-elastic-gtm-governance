@@ -117,4 +117,5 @@ module: nothing here escalates.
 | Charlie's agent will not quote the identifiers | open the `DealDesk_GetDeal` card in both chats: Alice's shows `[REDACTED]`, Charlie's the values |
 | "The gateway advertised … none belong to DealDesk" | stale `governance.db` from an older layout: `bun run reset` |
 | Setup says the hooks are inactive | run `bun run setup-arcade <host>` again |
+| Every deal tool fails with `the identity provider rejected the token` | someone removed and re-added a user Arcade had already authorized; revoke that user's `app-identity` connection in the Arcade dashboard (Auth, connections) and the next call asks for consent again |
 | Anything else | the recovery slide, then rejoin at the current act |

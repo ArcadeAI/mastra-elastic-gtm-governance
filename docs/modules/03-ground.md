@@ -117,8 +117,7 @@ Charlie, the pasted note gone for everyone.
 
 ## If you are behind
 
-`git fetch --tags --force && git checkout module-3-ground` gives you the code (a plain fetch
-keeps an old tag). Then re-run
+`git fetch --tags --force && git checkout module-3-ground` gives you the code. Then re-run
 `bun run setup-arcade <APP_PUBLIC_HOST>`, which checks every step and fills in only what is
 missing; check `bun run users list` as in step 1; and restart the app. The index needs your
 own cluster; a TA can lend a read-only key to a shared one for the rest of the session, but

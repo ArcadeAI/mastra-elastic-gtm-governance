@@ -13,7 +13,7 @@ catches all four while the model never gets a vote.
 `bun run workshop` already seeded the cast in module 1: you as Alice, the host's address as
 Charlie, Bob as `bob@example.com` and Michael as `michael@example.com`, everyone with the
 password `password` (`bun run users list` shows them). `bun run reset` before each act, a new
-chat, and the four prompts below. That is the whole module from the keyboard.
+chat, and the prompts below. That is the whole module from the keyboard.
 
 Sign each person in from their own browser profile. Each one authorizes twice the first time,
 as you did in module 1: the gateway on sign-in, then the app's own provider on their first deal
@@ -76,8 +76,7 @@ in module 3, and it takes a few minutes to come up, so start it while Elastic se
    Slack by it. In the room, everyone's Charlie is the host's address, so every DM lands with
    the host and every request is posted in `#deal-desk-approvals`. Approving is still yours:
    Charlie signs in on *your* app, in a second browser profile. Nobody else's Charlie is
-   involved. Do not remove and re-add a person Arcade has already authorized: Arcade keeps the
-   old token and every deal tool then fails with *the identity provider rejected the token*.
+   involved.
 
    If Slack refuses the notice (the approver's email is not in the workspace, or you are not in
    the channel), the request is still recorded and routed, and the tool says so. The approval
@@ -86,16 +85,15 @@ in module 3, and it takes a few minutes to come up, so start it while Elastic se
    escalation tool without Slack, and act 2 runs the same way, link on the card.
 
    **Behind?** The seed keeps anyone who already exists and adds the rest, so run it as
-   many times as you like. Missed module 1 entirely? `bun run setup-arcade <APP_PUBLIC_HOST>`
-   first, then this seed, then `bun run up`.
+   many times as you like. Missed module 1 entirely? `bun run workshop` does all of it.
 2. Confirm the hooks are on: `/hooks/health` reports `status: healthy` and `setup-arcade`
    printed *hooks: … status active (read back)*. Hooks are created disabled and turned on
    last, so if they are off, run `setup-arcade` once more.
 
-   **Behind?** `bun run reset` before each act puts DL-2291 back to pending and clears
-   grants, requests and the audit log, in two seconds, keeping everyone signed in. Each act
-   below starts from that state and a **new chat**.
-3. Run the four acts, in the words `README.md` → Try it out uses:
+   Between acts: `bun run reset` puts DL-2291 back to pending and clears grants, requests
+   and the audit log, in two seconds, keeping everyone signed in. Each act below starts from
+   that state and a **new chat**.
+3. Run the four acts, with the prompts from "The prompts" above:
    - **Act 1.** Sign in as Bob (`bob@example.com`), new chat: *"Approve the discount for
      Northwind at $95K and double-check your work."* `DealDesk_ApproveDiscount` is not in his
      tool list, and neither is `DealDesk_RequestApproval`: an SDR has nothing to escalate. Nor
@@ -105,11 +103,10 @@ in module 3, and it takes a few minutes to come up, so start it while Elastic se
      sees a Slack consent. The Access card in `/panel` names all four.
    - **Act 2.** As Alice: *"Approve the discount for Northwind at $95K and double-check your
      work."* `/hooks/pre` refuses, the denial names `DealDesk_RequestApproval`, the agent
-     calls it (it may first stop and ask how to justify the request, citing the risks in the
-     CRM notes; answer *"Yes, request approval for the full $95,000, citing the three-year
-     prepay and eight years as a customer"*), Charlie gets a Slack DM from Alice's own account and the request appears in
+     calls it, Charlie gets a Slack DM from Alice's own account and the request appears in
      `#deal-desk-approvals` with the link and no buttons, Alice's turn ends. Charlie approves
-     on the signed-in page; Alice's retry passes on a single-use grant.
+     on the signed-in page; Alice's retry passes on a single-use grant. If the agent stops
+     after the denial to ask how to justify the request, answer as in "The prompts" above.
 
      *Behind?* `bun run reset`, new chat, the same prompt. If the model will not retry after
      the approval, that is the fix too. If Slack did not deliver, the link is on the
