@@ -63,6 +63,9 @@ walks you through all three modules.
 5. Open the app through the tunnel, sign in as Alice, authorize the gateway, and ask:
    > Which discount requests are pending?
 
+   The first tool call pauses once more, for the app's own sign-in: **Authorize**, then
+   **Continue**. Every person you sign in as does that once.
+
    The agent calls `DealDesk_SearchDeals` and lists the five pending requests (eight are on file; three already carry a decision).
 
    **Behind?** If the chat says the gateway advertised no `DealDesk` tools, the hooks are
